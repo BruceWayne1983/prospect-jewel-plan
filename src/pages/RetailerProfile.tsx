@@ -38,14 +38,39 @@ export default function RetailerProfile() {
   const navigate = useNavigate();
   const [r, setRetailer] = useState<Retailer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [analysing, setAnalysing] = useState(false);
 
-  useEffect(() => {
+  const fetchRetailer = () => {
     if (!id) return;
-    supabase.from("retailers").select("*").eq("id", id).single().then(({ data, error }) => {
+    supabase.from("retailers").select("*").eq("id", id).single().then(({ data }) => {
       if (data) setRetailer(data);
       setLoading(false);
     });
-  }, [id]);
+  };
+
+  useEffect(() => { fetchRetailer(); }, [id]);
+
+  const runAnalysis = async () => {
+    if (!id) return;
+    setAnalysing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyse-retailer", {
+        body: { retailerId: id },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success("AI analysis complete!");
+        fetchRetailer(); // reload with new data
+      } else {
+        toast.error(data?.error || "Analysis failed");
+      }
+    } catch (err: any) {
+      console.error("Analysis error:", err);
+      toast.error(err.message || "Failed to run analysis");
+    } finally {
+      setAnalysing(false);
+    }
+  };
 
   if (loading) return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
   if (!r) return <div className="page-container text-muted-foreground">Retailer not found.</div>;

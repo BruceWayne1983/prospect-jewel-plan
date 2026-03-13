@@ -2,3 +2,6 @@ project_id = "eaofahkmbxlfpyoqgypa"
 
 [functions.discover-prospects]
 verify_jwt = false
+
+[functions.analyse-retailer]
+verify_jwt = false
