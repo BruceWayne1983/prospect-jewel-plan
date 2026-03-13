@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem, Brain, Radar, FlaskConical
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem, Brain, Radar, FlaskConical, Calendar, TrendingUp
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
