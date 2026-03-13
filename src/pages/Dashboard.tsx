@@ -48,8 +48,7 @@ export default function Dashboard() {
             <span className="text-[10px] text-muted-foreground">AI Active</span>
           </div>
           <div className="flex items-center gap-2">
-            <Gem className="w-5 h-5 text-gold" />
-            <span className="text-sm font-display font-medium text-foreground italic">Nomination Italy</span>
+            <img src={nominationLogo} alt="Nomination Italy" className="h-6 w-auto object-contain" />
           </div>
         </div>
       </div>
