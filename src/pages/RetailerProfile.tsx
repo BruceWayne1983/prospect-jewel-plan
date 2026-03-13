@@ -124,9 +124,17 @@ export default function RetailerProfile() {
               {r.is_independent && <span className="text-xs text-muted-foreground">Independent</span>}
             </div>
           </div>
-          <div className="text-right flex-shrink-0">
+          <div className="text-right flex-shrink-0 space-y-2">
             <p className="section-header text-[9px] mb-1">Predicted Annual Value</p>
             <p className="text-2xl font-display font-bold shimmer-gold">{pred.predictedAnnualValue}</p>
+            <Button
+              onClick={runAnalysis}
+              disabled={analysing}
+              className="gold-gradient text-sidebar-background text-xs h-8 px-4"
+            >
+              {analysing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
+              {analysing ? "Analysing..." : ai.summary ? "Re-analyse" : "Run AI Analysis"}
+            </Button>
           </div>
         </div>
 
