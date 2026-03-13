@@ -1,5 +1,5 @@
 import { mockRetailers } from "@/data/mockData";
-import { CalendarDays, Phone, MapPin, Clock, Mail, ArrowUpRight, Target, Users } from "lucide-react";
+import { CalendarDays, Phone, MapPin, Target, ArrowUpRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
 
@@ -35,7 +35,7 @@ const weekPlan = [
   ]},
   { day: "Friday", tasks: [
     { type: "admin", retailer: "Pipeline review & reporting", color: "bg-muted text-muted-foreground" },
-    { type: "research", retailer: "New prospect research", color: "bg-info-light text-info" },
+    { type: "research", retailer: "AI discovery review", color: "bg-info-light text-info" },
   ]},
 ];
 
@@ -66,7 +66,7 @@ export default function AccountPlanner() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/30">
-                {['#', 'Retailer', 'Location', 'Fit', 'Spend', 'Outreach Angle', 'Next Action', 'Status'].map(h => (
+                {['#', 'Retailer', 'Location', 'Fit', 'Predicted Value', 'Next Action', 'Confidence', 'Status'].map(h => (
                   <th key={h} className="text-left py-2.5 section-header text-[9px] first:w-6">{h}</th>
                 ))}
               </tr>
@@ -78,9 +78,13 @@ export default function AccountPlanner() {
                   <td className="py-3 text-sm font-medium text-foreground group-hover:text-gold-dark transition-colors">{r.name}</td>
                   <td className="py-3 text-xs text-muted-foreground">{r.town}</td>
                   <td className="py-3"><div className="w-16"><ScoreBar score={r.fitScore} label="" /></div></td>
-                  <td className="py-3 text-xs text-foreground">{r.estimatedSpendBand}</td>
-                  <td className="py-3 text-xs text-muted-foreground max-w-[200px] truncate">{r.outreach.bestOutreachAngle}</td>
-                  <td className="py-3 text-xs text-muted-foreground">{r.activity.nextActionDate || 'Plan needed'}</td>
+                  <td className="py-3 text-xs text-foreground">{r.performancePrediction.predictedAnnualValue}</td>
+                  <td className="py-3 text-xs text-muted-foreground max-w-[180px] truncate">{r.activity.suggestedNextStep || 'Plan needed'}</td>
+                  <td className="py-3"><span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
+                    r.performancePrediction.predictionConfidence === 'high' ? 'bg-success-light text-success' :
+                    r.performancePrediction.predictionConfidence === 'medium' ? 'bg-warning-light text-warning' :
+                    'bg-muted text-muted-foreground'
+                  }`}>{r.performancePrediction.predictionConfidence}</span></td>
                   <td className="py-3"><span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">{r.pipelineStage.replace(/_/g, ' ')}</span></td>
                 </tr>
               ))}

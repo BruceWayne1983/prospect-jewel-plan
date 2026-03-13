@@ -1,20 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { mockRetailers } from "@/data/mockData";
-import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Users, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
 import { toast } from "sonner";
 
 function Check({ checked, label }: { checked: boolean; label: string }) {
   return (
     <div className="flex items-center gap-2.5 py-1.5">
-      {checked
-        ? <CheckCircle className="w-4 h-4 text-success flex-shrink-0" strokeWidth={1.5} />
-        : <XCircle className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" strokeWidth={1.5} />
-      }
+      {checked ? <CheckCircle className="w-4 h-4 text-success flex-shrink-0" strokeWidth={1.5} /> : <XCircle className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" strokeWidth={1.5} />}
       <span className={`text-sm ${checked ? 'text-foreground' : 'text-muted-foreground/60'}`}>{label}</span>
     </div>
   );
@@ -56,6 +51,11 @@ function SpendBadge({ potential }: { potential: string }) {
   return <span className={`text-[10px] px-3 py-1 rounded-full font-semibold uppercase tracking-wider ${c.cls}`}>{c.label}</span>;
 }
 
+function ConfidenceBadge({ level }: { level: string }) {
+  const cls = level === 'high' ? 'bg-success-light text-success' : level === 'medium' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground';
+  return <span className={`text-[9px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider ${cls}`}>{level} confidence</span>;
+}
+
 export default function RetailerProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -78,6 +78,9 @@ export default function RetailerProfile() {
     toast.success('Message copied to clipboard');
   };
 
+  const ai = r.aiIntelligence;
+  const pred = r.performancePrediction;
+
   return (
     <div className="page-container max-w-5xl">
       <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground -ml-3 mb-2">
@@ -96,6 +99,7 @@ export default function RetailerProfile() {
                 r.qualificationStatus === 'rejected' ? 'bg-destructive/10 text-destructive' :
                 'bg-muted text-muted-foreground'
               }`}>{r.qualificationStatus === 'in_progress' ? 'Qualifying' : r.qualificationStatus}</span>
+              <ConfidenceBadge level={ai.confidenceLevel} />
               {r.riskFlags && r.riskFlags.length > 0 && <span className="badge-risk">⚠ {r.riskFlags.length} risk{r.riskFlags.length > 1 ? 's' : ''}</span>}
             </div>
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">{r.name}</h1>
@@ -106,8 +110,8 @@ export default function RetailerProfile() {
             </div>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="section-header text-[9px] mb-1">Est. Annual Wholesale</p>
-            <p className="text-2xl font-display font-bold shimmer-gold">{r.estimatedSpendBand}</p>
+            <p className="section-header text-[9px] mb-1">Predicted Annual Value</p>
+            <p className="text-2xl font-display font-bold shimmer-gold">{pred.predictedAnnualValue}</p>
             <SpendBadge potential={r.spendPotential} />
           </div>
         </div>
@@ -119,13 +123,15 @@ export default function RetailerProfile() {
           <ScoreRing score={r.commercialHealthScore} label="Commercial Health" size={80} />
           <ScoreRing score={r.priorityScore} label="Priority" size={80} />
           <ScoreRing score={r.spendPotentialScore} label="Spend Potential" size={80} />
+          <ScoreRing score={pred.productMixSuitability} label="Product Mix" size={80} />
           <ScoreRing score={qualScore} label="Qualification" size={80} />
         </div>
       </div>
 
       {/* Tabbed sections */}
-      <Tabs defaultValue="research" className="space-y-5">
-        <TabsList className="bg-cream/50 border border-border/30 p-1 h-auto gap-1">
+      <Tabs defaultValue="intelligence" className="space-y-5">
+        <TabsList className="bg-cream/50 border border-border/30 p-1 h-auto gap-1 flex-wrap">
+          <TabsTrigger value="intelligence" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🧠 AI Intelligence</TabsTrigger>
           <TabsTrigger value="research" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Research</TabsTrigger>
           <TabsTrigger value="qualification" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Qualification</TabsTrigger>
           <TabsTrigger value="commercial" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Commercial</TabsTrigger>
@@ -133,10 +139,122 @@ export default function RetailerProfile() {
           <TabsTrigger value="activity" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Activity</TabsTrigger>
         </TabsList>
 
+        {/* AI INTELLIGENCE TAB */}
+        <TabsContent value="intelligence" className="space-y-5 mt-0">
+          {/* AI Summary */}
+          <div className="card-premium p-6 border-gold/20">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
+                <Brain className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-background))' }} />
+              </div>
+              <div>
+                <h3 className="text-lg font-display font-semibold text-foreground">AI Retailer Intelligence</h3>
+                <p className="text-[10px] text-muted-foreground">Last analysed: {ai.lastAnalysed} · <ConfidenceBadge level={ai.confidenceLevel} /></p>
+              </div>
+            </div>
+            <div className="bg-champagne/20 rounded-lg p-5 border border-gold/10 mb-5">
+              <p className="text-sm text-foreground leading-relaxed italic font-display">{ai.summary}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { title: 'Why This Retailer is Attractive', text: ai.whyAttractive, icon: Sparkles },
+                { title: 'Why They\'d Be a Good Stockist', text: ai.whyGoodStockist, icon: Target },
+                { title: 'Risks or Concerns', text: ai.risksOrConcerns, icon: AlertTriangle },
+                { title: 'Likely Buying Motivation', text: ai.likelyBuyingMotivation, icon: Zap },
+              ].map(item => (
+                <div key={item.title} className="bg-cream/50 rounded-lg p-4 border border-border/15">
+                  <div className="flex items-center gap-2 mb-2">
+                    <item.icon className="w-3.5 h-3.5 text-gold" strokeWidth={1.5} />
+                    <h4 className="text-xs font-semibold text-foreground">{item.title}</h4>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Deeper Analysis */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="card-premium p-5">
+              <h4 className="text-xs font-semibold text-foreground mb-2">Store Positioning</h4>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{ai.storePositioningAnalysis}</p>
+            </div>
+            <div className="card-premium p-5">
+              <h4 className="text-xs font-semibold text-foreground mb-2">Customer Demographic</h4>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{ai.customerDemographic}</p>
+            </div>
+            <div className="card-premium p-5">
+              <h4 className="text-xs font-semibold text-foreground mb-2">Gifting Potential</h4>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{ai.giftingPotentialAnalysis}</p>
+            </div>
+          </div>
+
+          {/* Competitor Brands */}
+          {r.competitorBrands.length > 0 && (
+            <div className="card-premium p-6">
+              <div className="flex items-center gap-2.5 mb-4">
+                <Shield className="w-5 h-5 text-gold" strokeWidth={1.5} />
+                <h3 className="text-base font-display font-semibold text-foreground">Competitor Brand Analysis</h3>
+              </div>
+              <div className="space-y-3 mb-4">
+                {r.competitorBrands.map(b => (
+                  <div key={b.name} className="flex items-center justify-between py-2 border-b border-border/10 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{b.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{b.positioning}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">{b.priceTier}</span>
+                      {b.complementsNomination
+                        ? <span className="text-[9px] px-2 py-0.5 rounded-full bg-success-light text-success">Complements</span>
+                        : <span className="text-[9px] px-2 py-0.5 rounded-full bg-warning-light text-warning">Overlap risk</span>
+                      }
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {r.competitorInsight && (
+                <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
+                  <p className="text-xs text-foreground leading-relaxed italic font-display">{r.competitorInsight}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Performance Prediction */}
+          <div className="card-premium p-6">
+            <div className="flex items-center gap-2.5 mb-4">
+              <BarChart3 className="w-5 h-5 text-gold" strokeWidth={1.5} />
+              <div>
+                <h3 className="text-base font-display font-semibold text-foreground">Performance Prediction</h3>
+                <ConfidenceBadge level={pred.predictionConfidence} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="text-center p-3 bg-cream/50 rounded-lg">
+                <p className="text-lg font-display font-bold text-foreground">{pred.predictedOpeningOrder}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Opening Order</p>
+              </div>
+              <div className="text-center p-3 bg-cream/50 rounded-lg">
+                <p className="text-lg font-display font-bold shimmer-gold">{pred.predictedAnnualValue}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Annual Value</p>
+              </div>
+              <div className="text-center p-3 bg-cream/50 rounded-lg">
+                <p className="text-lg font-display font-bold text-foreground capitalize">{pred.reorderPotential}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Reorder Potential</p>
+              </div>
+              <div className="text-center p-3 bg-cream/50 rounded-lg">
+                <p className="text-lg font-display font-bold text-foreground">{pred.productMixSuitability}%</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Product Mix Fit</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Based on: {pred.similarAccountsUsed.join(' · ')}</p>
+          </div>
+        </TabsContent>
+
         {/* RESEARCH TAB */}
         <TabsContent value="research" className="space-y-5 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Contact & Location */}
             <div className="card-premium p-6 space-y-4">
               <h3 className="text-base font-display font-semibold text-foreground">Contact & Location</h3>
               <div className="space-y-3">
@@ -146,8 +264,6 @@ export default function RetailerProfile() {
                 {r.instagram && <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center"><Instagram className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /></div><span className="text-sm text-foreground">{r.instagram}</span></div>}
               </div>
             </div>
-
-            {/* Classification */}
             <div className="card-premium p-6 space-y-1">
               <h3 className="text-base font-display font-semibold text-foreground mb-3">Classification</h3>
               <InfoRow label="Retailer Type" value={r.category.replace('_', ' ')} />
@@ -157,8 +273,6 @@ export default function RetailerProfile() {
               <InfoRow label="Positioning" value={r.storePositioning.replace('_', ' ')} />
               <InfoRow label="Nearest Stockist" value={r.distanceToNearestStockist} />
             </div>
-
-            {/* Brand Environment */}
             <div className="card-premium p-6 space-y-1">
               <h3 className="text-base font-display font-semibold text-foreground mb-3">Brand Environment</h3>
               <InfoRow label="Jewellery Focus" value={r.jewelleryFocus} />
@@ -176,8 +290,6 @@ export default function RetailerProfile() {
               )}
             </div>
           </div>
-
-          {/* Presence Indicators */}
           <div className="card-premium p-6">
             <h3 className="text-base font-display font-semibold text-foreground mb-4">Public Presence Indicators</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
@@ -190,14 +302,11 @@ export default function RetailerProfile() {
               <PresenceBar score={r.retailClusterStrength} label="Retail Cluster Strength" />
             </div>
           </div>
-
-          {/* Location Intelligence */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card-premium p-6">
-              <h3 className="text-base font-display font-semibold text-foreground mb-3">Retailer Positioning</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{r.positioning}</p>
+              <h3 className="text-base font-display font-semibold text-foreground mb-3">Town Profile</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{ai.townProfile}</p>
             </div>
-
             {r.companiesHouse && (
               <div className="card-premium p-6">
                 <div className="flex items-center gap-2 mb-3">
@@ -209,7 +318,6 @@ export default function RetailerProfile() {
                   <InfoRow label="Company Number" value={r.companiesHouse.companyNumber} />
                   <InfoRow label="Status" value={r.companiesHouse.companyStatus} />
                   <InfoRow label="Accounts" value={r.companiesHouse.accountsFilingStatus} />
-                  <InfoRow label="Confirmation" value={r.companiesHouse.confirmationStatementStatus} />
                   <InfoRow label="Health Confidence" value={r.companiesHouse.healthConfidence} />
                 </div>
               </div>
@@ -225,11 +333,8 @@ export default function RetailerProfile() {
                 <ShieldCheck className="w-5 h-5 text-gold" strokeWidth={1.5} />
                 <h3 className="text-lg font-display font-semibold text-foreground">Nomination Fit Evaluation</h3>
               </div>
-              <div className="flex items-center gap-3">
-                <ScoreRing score={qualScore} label="Fit Score" size={64} strokeWidth={3} />
-              </div>
+              <ScoreRing score={qualScore} label="Fit Score" size={64} strokeWidth={3} />
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="section-header text-[10px] mb-3">Store Quality</p>
@@ -262,35 +367,13 @@ export default function RetailerProfile() {
                 <Check checked={q.noConflictingPositioning} label="No conflicting positioning" />
               </div>
             </div>
-
             {r.qualificationNotes && (
               <>
                 <div className="divider-gold mt-5 mb-4" />
-                <div>
-                  <p className="section-header text-[10px] mb-2">Qualification Notes</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed italic">{r.qualificationNotes}</p>
-                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed italic">{r.qualificationNotes}</p>
               </>
             )}
           </div>
-
-          {/* AI Analysis */}
-          <div className="card-premium p-6 border-gold/20">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-7 h-7 rounded-lg gold-gradient flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5" style={{ color: 'hsl(var(--sidebar-background))' }} />
-              </div>
-              <div>
-                <h3 className="text-base font-display font-semibold text-foreground">AI Prospect Analysis</h3>
-                <p className="text-[10px] text-muted-foreground">Automated brand fit assessment</p>
-              </div>
-            </div>
-            <div className="bg-champagne/20 rounded-lg p-4 border border-gold/10">
-              <p className="text-sm text-foreground leading-relaxed italic font-display">{r.aiNotes}</p>
-            </div>
-          </div>
-
-          {/* Risk Flags */}
           {r.riskFlags && r.riskFlags.length > 0 && (
             <div className="card-premium p-6 border-destructive/20">
               <div className="flex items-center gap-2.5 mb-3">
@@ -324,11 +407,11 @@ export default function RetailerProfile() {
               <div className="space-y-1">
                 <InfoRow label="Potential Category" value={r.spendPotential.charAt(0).toUpperCase() + r.spendPotential.slice(1) + ' opportunity'} />
                 <InfoRow label="Est. Annual Value" value={r.estimatedSpendBand} />
+                <InfoRow label="Predicted Annual" value={pred.predictedAnnualValue} />
                 <InfoRow label="Est. Opening Order" value={r.estimatedOpeningOrder} />
                 <InfoRow label="Confidence Level" value={r.spendConfidence.charAt(0).toUpperCase() + r.spendConfidence.slice(1)} />
               </div>
             </div>
-
             <div className="card-premium p-6">
               <h3 className="text-base font-display font-semibold text-foreground mb-4">Contributing Factors</h3>
               <div className="space-y-3">
@@ -346,7 +429,6 @@ export default function RetailerProfile() {
         {/* OUTREACH TAB */}
         <TabsContent value="outreach" className="space-y-5 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Contact Details */}
             <div className="card-premium p-6">
               <h3 className="text-base font-display font-semibold text-foreground mb-4">Contact Details</h3>
               <div className="space-y-1">
@@ -358,26 +440,43 @@ export default function RetailerProfile() {
                 <InfoRow label="Priority" value={r.outreach.outreachPriority.charAt(0).toUpperCase() + r.outreach.outreachPriority.slice(1)} />
               </div>
             </div>
-
-            {/* Strategy */}
             <div className="card-premium p-6">
               <h3 className="text-base font-display font-semibold text-foreground mb-4">Outreach Strategy</h3>
               <div className="space-y-3">
-                <div>
-                  <p className="section-header text-[9px] mb-1">Best Outreach Angle</p>
-                  <p className="text-sm text-foreground">{r.outreach.bestOutreachAngle}</p>
-                </div>
-                <div>
-                  <p className="section-header text-[9px] mb-1">Why This Store is Attractive</p>
-                  <p className="text-sm text-muted-foreground">{r.outreach.whyAttractive}</p>
-                </div>
-                <div>
-                  <p className="section-header text-[9px] mb-1">Product Angle</p>
-                  <p className="text-sm text-muted-foreground">{r.outreach.productAngle}</p>
-                </div>
+                <div><p className="section-header text-[9px] mb-1">Best Outreach Angle</p><p className="text-sm text-foreground">{r.outreach.bestOutreachAngle}</p></div>
+                <div><p className="section-header text-[9px] mb-1">Why This Store is Attractive</p><p className="text-sm text-muted-foreground">{r.outreach.whyAttractive}</p></div>
+                <div><p className="section-header text-[9px] mb-1">Product Angle</p><p className="text-sm text-muted-foreground">{r.outreach.productAngle}</p></div>
               </div>
             </div>
           </div>
+
+          {/* Call & Visit Prep */}
+          {(r.outreach.callPrepNotes || r.outreach.visitPrepNotes) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {r.outreach.callPrepNotes && (
+                <div className="card-premium p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Phone className="w-4 h-4 text-gold" strokeWidth={1.5} />
+                    <h3 className="text-base font-display font-semibold text-foreground">Call Preparation</h3>
+                  </div>
+                  <div className="bg-cream/50 rounded-lg p-4 border border-border/15">
+                    <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">{r.outreach.callPrepNotes}</p>
+                  </div>
+                </div>
+              )}
+              {r.outreach.visitPrepNotes && (
+                <div className="card-premium p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="w-4 h-4 text-gold" strokeWidth={1.5} />
+                    <h3 className="text-base font-display font-semibold text-foreground">Visit Preparation</h3>
+                  </div>
+                  <div className="bg-cream/50 rounded-lg p-4 border border-border/15">
+                    <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">{r.outreach.visitPrepNotes}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* AI Outreach Summary */}
           <div className="card-premium p-6 border-gold/20">
@@ -408,19 +507,14 @@ export default function RetailerProfile() {
             </div>
           </div>
 
-          {/* Objection Handling */}
           {r.outreach.objections.length > 0 && (
             <div className="card-premium p-6">
               <h3 className="text-base font-display font-semibold text-foreground mb-4">Objection Preparation</h3>
               <div className="space-y-4">
                 {r.outreach.objections.map((obj, i) => (
                   <div key={i} className="rounded-lg border border-border/20 overflow-hidden">
-                    <div className="bg-muted/40 px-4 py-2.5">
-                      <p className="text-xs font-semibold text-foreground">❝ {obj.concern}</p>
-                    </div>
-                    <div className="px-4 py-3">
-                      <p className="text-xs text-muted-foreground leading-relaxed">{obj.response}</p>
-                    </div>
+                    <div className="bg-muted/40 px-4 py-2.5"><p className="text-xs font-semibold text-foreground">❝ {obj.concern}</p></div>
+                    <div className="px-4 py-3"><p className="text-xs text-muted-foreground leading-relaxed">{obj.response}</p></div>
                   </div>
                 ))}
               </div>
@@ -438,6 +532,7 @@ export default function RetailerProfile() {
               </div>
               <div className="space-y-1">
                 <InfoRow label="Pipeline Stage" value={r.pipelineStage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} />
+                <InfoRow label="First Contact" value={r.activity.firstContactDate || 'Not yet contacted'} />
                 <InfoRow label="Last Contact" value={r.activity.lastContactDate || 'Not yet contacted'} />
                 <InfoRow label="Next Action" value={r.activity.nextActionDate || 'Not scheduled'} />
                 <InfoRow label="Follow-up #" value={r.activity.followUpNumber} />
@@ -445,23 +540,34 @@ export default function RetailerProfile() {
                 <InfoRow label="Outcome" value={r.activity.outcomeStatus || 'Pending'} />
               </div>
             </div>
-
-            <div className="card-premium p-6">
-              <h3 className="text-base font-display font-semibold text-foreground mb-4">Conversation Notes</h3>
-              {r.activity.conversationNotes.length > 0 ? (
-                <div className="space-y-2">
-                  {r.activity.conversationNotes.map((note, i) => (
-                    <div key={i} className="flex items-start gap-2.5 py-2 border-b border-border/10 last:border-0">
-                      <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-[9px] font-medium text-muted-foreground">{i + 1}</span>
-                      </span>
-                      <p className="text-sm text-muted-foreground">{note}</p>
-                    </div>
-                  ))}
+            <div className="space-y-5">
+              {/* Suggested Next Step */}
+              {r.activity.suggestedNextStep && (
+                <div className="card-premium p-6 border-gold/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-4 h-4 text-gold" strokeWidth={1.5} />
+                    <h4 className="text-sm font-display font-semibold text-foreground">AI Recommended Next Step</h4>
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed italic font-display">{r.activity.suggestedNextStep}</p>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground/50 italic">No conversation notes yet</p>
               )}
+              <div className="card-premium p-6">
+                <h3 className="text-base font-display font-semibold text-foreground mb-4">Conversation Notes</h3>
+                {r.activity.conversationNotes.length > 0 ? (
+                  <div className="space-y-2">
+                    {r.activity.conversationNotes.map((note, i) => (
+                      <div key={i} className="flex items-start gap-2.5 py-2 border-b border-border/10 last:border-0">
+                        <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-[9px] font-medium text-muted-foreground">{i + 1}</span>
+                        </span>
+                        <p className="text-sm text-muted-foreground">{note}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground/50 italic">No conversation notes yet</p>
+                )}
+              </div>
             </div>
           </div>
         </TabsContent>
