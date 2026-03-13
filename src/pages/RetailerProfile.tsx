@@ -38,14 +38,39 @@ export default function RetailerProfile() {
   const navigate = useNavigate();
   const [r, setRetailer] = useState<Retailer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [analysing, setAnalysing] = useState(false);
 
-  useEffect(() => {
+  const fetchRetailer = () => {
     if (!id) return;
-    supabase.from("retailers").select("*").eq("id", id).single().then(({ data, error }) => {
+    supabase.from("retailers").select("*").eq("id", id).single().then(({ data }) => {
       if (data) setRetailer(data);
       setLoading(false);
     });
-  }, [id]);
+  };
+
+  useEffect(() => { fetchRetailer(); }, [id]);
+
+  const runAnalysis = async () => {
+    if (!id) return;
+    setAnalysing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyse-retailer", {
+        body: { retailerId: id },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success("AI analysis complete!");
+        fetchRetailer(); // reload with new data
+      } else {
+        toast.error(data?.error || "Analysis failed");
+      }
+    } catch (err: any) {
+      console.error("Analysis error:", err);
+      toast.error(err.message || "Failed to run analysis");
+    } finally {
+      setAnalysing(false);
+    }
+  };
 
   if (loading) return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
   if (!r) return <div className="page-container text-muted-foreground">Retailer not found.</div>;
@@ -99,9 +124,17 @@ export default function RetailerProfile() {
               {r.is_independent && <span className="text-xs text-muted-foreground">Independent</span>}
             </div>
           </div>
-          <div className="text-right flex-shrink-0">
+          <div className="text-right flex-shrink-0 space-y-2">
             <p className="section-header text-[9px] mb-1">Predicted Annual Value</p>
             <p className="text-2xl font-display font-bold shimmer-gold">{pred.predictedAnnualValue}</p>
+            <Button
+              onClick={runAnalysis}
+              disabled={analysing}
+              className="gold-gradient text-sidebar-background text-xs h-8 px-4"
+            >
+              {analysing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
+              {analysing ? "Analysing..." : ai.summary ? "Re-analyse" : "Run AI Analysis"}
+            </Button>
           </div>
         </div>
 
@@ -164,7 +197,11 @@ export default function RetailerProfile() {
             <div className="card-premium p-12 text-center">
               <Brain className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
               <h3 className="text-base font-display font-semibold text-foreground mb-2">No AI intelligence yet</h3>
-              <p className="text-sm text-muted-foreground">AI analysis will appear here once generated.</p>
+              <p className="text-sm text-muted-foreground mb-4">Run an AI analysis to generate intelligence, predictions, and outreach strategy.</p>
+              <Button onClick={runAnalysis} disabled={analysing} className="gold-gradient text-sidebar-background text-xs">
+                {analysing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
+                {analysing ? "Analysing..." : "Run AI Analysis"}
+              </Button>
             </div>
           )}
 
