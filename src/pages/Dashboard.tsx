@@ -1,5 +1,5 @@
-import { mockRetailers, COUNTIES, PIPELINE_STAGES, getTotalPipelineValue } from "@/data/mockData";
-import { TrendingUp, Users, Target, Gem, MapPin, ArrowUpRight, Sparkles, Phone, Calendar } from "lucide-react";
+import { mockRetailers, COUNTIES, PIPELINE_STAGES, getTotalPipelineValue, discoveredProspects } from "@/data/mockData";
+import { TrendingUp, Users, Target, Gem, MapPin, ArrowUpRight, Sparkles, Calendar, Brain, Radar, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
 
@@ -7,6 +7,13 @@ const highPriority = mockRetailers.filter(r => r.outreach.outreachPriority === '
 const pipelineValue = getTotalPipelineValue();
 const qualified = mockRetailers.filter(r => r.qualificationStatus === 'qualified');
 const meetings = mockRetailers.filter(r => r.activity.meetingScheduled);
+const newDiscoveries = discoveredProspects.filter(d => d.status === 'new');
+
+// AI Recommended accounts this week
+const recommended = mockRetailers
+  .filter(r => r.aiIntelligence.confidenceLevel === 'high' || r.performancePrediction.predictionConfidence === 'high')
+  .sort((a, b) => b.priorityScore - a.priorityScore)
+  .slice(0, 5);
 
 const stats = [
   { label: "Total Prospects", value: mockRetailers.length.toString(), icon: Users, sub: "Across South West UK" },
@@ -34,9 +41,15 @@ export default function Dashboard() {
           <h1 className="page-title">Territory Overview</h1>
           <p className="page-subtitle">South West UK · Nomination Brand Development</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Gem className="w-5 h-5 text-gold" />
-          <span className="text-sm font-display font-medium text-foreground italic">Nomination Italy</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-[10px] text-muted-foreground">AI Active</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Gem className="w-5 h-5 text-gold" />
+            <span className="text-sm font-display font-medium text-foreground italic">Nomination Italy</span>
+          </div>
         </div>
       </div>
       <div className="divider-gold" />
@@ -54,6 +67,51 @@ export default function Dashboard() {
             <p className="text-[10px] text-muted-foreground/70 mt-1">{s.sub}</p>
           </div>
         ))}
+      </div>
+
+      {/* AI Recommended This Week */}
+      <div className="card-premium p-6 border-gold/20">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
+              <Sparkles className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-background))' }} />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-semibold text-foreground">Recommended Accounts This Week</h3>
+              <p className="text-[10px] text-muted-foreground">AI-selected based on predicted value, fit, and outreach readiness</p>
+            </div>
+          </div>
+          <button onClick={() => navigate('/intelligence')} className="text-xs text-gold hover:text-gold-dark transition-colors flex items-center gap-1 font-medium">
+            Intelligence Dashboard <ArrowUpRight className="w-3 h-3" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          {recommended.map((r, i) => (
+            <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-champagne/15 transition-colors cursor-pointer group border border-border/10">
+              <span className="text-xs text-gold font-display font-bold w-4">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground group-hover:text-gold-dark transition-colors">{r.name}</p>
+                <p className="text-[10px] text-muted-foreground">{r.town} · {r.category.replace('_', ' ')}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <span className={`text-sm font-display font-bold ${r.priorityScore >= 90 ? 'score-excellent' : 'score-good'}`}>{r.priorityScore}</span>
+                  <p className="text-[8px] text-muted-foreground uppercase">Priority</p>
+                </div>
+                <div className="text-center">
+                  <span className="text-sm font-display font-bold text-foreground">{r.performancePrediction.predictedAnnualValue.split('–')[0]}</span>
+                  <p className="text-[8px] text-muted-foreground uppercase">Predicted</p>
+                </div>
+                <div className="w-24">
+                  <p className="text-[9px] text-muted-foreground truncate">{r.outreach.bestOutreachAngle.substring(0, 45)}...</p>
+                </div>
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
+                  r.aiIntelligence.confidenceLevel === 'high' ? 'bg-success-light text-success' : 'bg-warning-light text-warning'
+                }`}>{r.aiIntelligence.confidenceLevel} confidence</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -98,6 +156,26 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* AI Discovery Alert */}
+      {newDiscoveries.length > 0 && (
+        <div className="card-premium p-5 border-gold/20 bg-champagne/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center">
+                <Radar className="w-4 h-4 text-gold" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{newDiscoveries.length} new prospects discovered by AI</p>
+                <p className="text-[10px] text-muted-foreground">Review AI-identified retailers in the Discovery Engine</p>
+              </div>
+            </div>
+            <button onClick={() => navigate('/discovery')} className="text-xs text-gold hover:text-gold-dark font-medium flex items-center gap-1">
+              Review <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="card-premium p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-display font-semibold text-foreground">Priority Outreach Targets</h3>
@@ -109,7 +187,7 @@ export default function Dashboard() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/30">
-                {['Retailer', 'Location', 'Category', 'Fit', 'Priority', 'Outreach', 'Est. Spend'].map(h => (
+                {['Retailer', 'Location', 'Category', 'Fit', 'Priority', 'Predicted Value', 'Confidence'].map(h => (
                   <th key={h} className="text-left py-3 section-header text-[10px] first:pl-0 last:text-right">{h}</th>
                 ))}
               </tr>
@@ -122,8 +200,14 @@ export default function Dashboard() {
                   <td className="py-3.5"><span className="badge-category">{r.category.replace('_', ' ')}</span></td>
                   <td className="py-3.5"><div className="w-20"><ScoreBar score={r.fitScore} label="" /></div></td>
                   <td className="py-3.5"><span className={`text-sm font-display font-bold ${r.priorityScore >= 90 ? 'score-excellent' : 'score-good'}`}>{r.priorityScore}</span></td>
-                  <td className="py-3.5"><span className="text-xs text-muted-foreground capitalize">{r.outreach.bestContactMethod}</span></td>
-                  <td className="py-3.5 text-right text-sm text-foreground">{r.estimatedSpendBand}</td>
+                  <td className="py-3.5 text-sm text-foreground">{r.performancePrediction.predictedAnnualValue}</td>
+                  <td className="py-3.5 text-right">
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
+                      r.performancePrediction.predictionConfidence === 'high' ? 'bg-success-light text-success' :
+                      r.performancePrediction.predictionConfidence === 'medium' ? 'bg-warning-light text-warning' :
+                      'bg-muted text-muted-foreground'
+                    }`}>{r.performancePrediction.predictionConfidence}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem, Brain, Radar, FlaskConical
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -7,13 +7,15 @@ import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "AI Intelligence", url: "/intelligence", icon: Brain },
+  { title: "Discovery Engine", url: "/discovery", icon: Radar },
   { title: "Prospect Finder", url: "/prospects", icon: Search },
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
   { title: "Territory Map", url: "/map", icon: Map },
+  { title: "Strategy Simulator", url: "/simulator", icon: FlaskConical },
   { title: "Account Planner", url: "/planner", icon: CalendarDays },
   { title: "Reports", url: "/reports", icon: BarChart3 },
 ];
@@ -32,7 +34,7 @@ export function AppSidebar() {
             </div>
             <div>
               <h2 className="text-sm font-display font-semibold text-sidebar-accent-foreground tracking-wide">Nomination</h2>
-              <p className="text-[10px] text-sidebar-foreground tracking-widest uppercase">Territory Planner</p>
+              <p className="text-[10px] text-sidebar-foreground tracking-widest uppercase">AI Prospecting</p>
             </div>
           </div>
         ) : (

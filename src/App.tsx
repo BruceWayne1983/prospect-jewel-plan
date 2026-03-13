@@ -12,6 +12,9 @@ import RetailerProfile from "@/pages/RetailerProfile";
 import AccountPlanner from "@/pages/AccountPlanner";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
+import IntelligenceDashboard from "@/pages/IntelligenceDashboard";
+import ProspectDiscovery from "@/pages/ProspectDiscovery";
+import TerritorySimulator from "@/pages/TerritorySimulator";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +34,9 @@ const App = () => (
             <Route path="/retailer/:id" element={<RetailerProfile />} />
             <Route path="/planner" element={<AccountPlanner />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/intelligence" element={<IntelligenceDashboard />} />
+            <Route path="/discovery" element={<ProspectDiscovery />} />
+            <Route path="/simulator" element={<TerritorySimulator />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
