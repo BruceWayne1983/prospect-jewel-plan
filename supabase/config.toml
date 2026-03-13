@@ -1,1 +1,4 @@
 project_id = "eaofahkmbxlfpyoqgypa"
+
+[functions.discover-prospects]
+verify_jwt = false
