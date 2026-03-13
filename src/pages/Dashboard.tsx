@@ -1,5 +1,6 @@
 import { mockRetailers, COUNTIES, PIPELINE_STAGES, getTotalPipelineValue, discoveredProspects, weeklyBriefing, calendarEvents } from "@/data/mockData";
-import { TrendingUp, Users, Target, Gem, MapPin, ArrowUpRight, Sparkles, Calendar, Brain, Radar, Zap, FileText, Phone } from "lucide-react";
+import { TrendingUp, Users, Target, MapPin, ArrowUpRight, Sparkles, Calendar, Brain, Radar, Zap, FileText, Phone } from "lucide-react";
+import nominationLogo from "@/assets/nomination-logo.webp";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
 
