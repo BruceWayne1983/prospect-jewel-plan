@@ -1248,6 +1248,177 @@ export const performanceBenchmarks = {
   secondBestSeason: 'Mother\'s Day (15% of annual)',
 };
 
+// Email thread mock data
+export interface EmailThread {
+  id: string;
+  retailerId: string;
+  subject: string;
+  participants: string[];
+  messages: { from: string; date: string; body: string; opened?: boolean }[];
+  status: 'sent' | 'opened' | 'replied' | 'bounced';
+}
+
+export const emailThreads: EmailThread[] = [
+  {
+    id: 'em1', retailerId: 'r2', subject: 'Introducing Nomination — Italian Charm Jewellery',
+    participants: ['emma@nomination.co.uk', 'james@bathgem.co.uk'],
+    messages: [
+      { from: 'emma@nomination.co.uk', date: '2025-06-02', body: 'Dear James,\n\nI\'m Emma-Louise Gregory from Nomination, and I wanted to reach out personally about an exciting opportunity for The Bath Gem Company...', opened: true },
+    ],
+    status: 'opened',
+  },
+  {
+    id: 'em2', retailerId: 'r16', subject: 'Re: Nomination Meeting — June 12th',
+    participants: ['emma@nomination.co.uk', 'claire@promenadecollection.co.uk'],
+    messages: [
+      { from: 'emma@nomination.co.uk', date: '2025-05-28', body: 'Dear Claire,\n\nThank you for your time on the phone today. I\'d love to arrange a meeting to show you the full Nomination range...', opened: true },
+      { from: 'claire@promenadecollection.co.uk', date: '2025-05-29', body: 'Hi Emma-Louise,\n\nThank you for your call — the brand sounds really interesting! June 12th works perfectly for me. See you then!\n\nBest, Claire', opened: true },
+      { from: 'emma@nomination.co.uk', date: '2025-05-30', body: 'Wonderful! I\'ll bring the full sample range and some exciting data on how Nomination performs with similar stores. See you at 10:30am.\n\nWarm regards, Emma-Louise', opened: true },
+    ],
+    status: 'replied',
+  },
+  {
+    id: 'em3', retailerId: 'r1', subject: 'Nomination — Premium Italian Charm Jewellery for Clifton',
+    participants: ['emma@nomination.co.uk', 'sarah@cliftonfine.co.uk'],
+    messages: [
+      { from: 'emma@nomination.co.uk', date: '2025-06-08', body: 'Dear Sarah,\n\nI hope this message finds you well. I\'m Emma-Louise Gregory, the Nomination brand representative for the South West...', opened: false },
+    ],
+    status: 'sent',
+  },
+];
+
+// Calendar events
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  type: 'meeting' | 'call' | 'visit' | 'follow_up' | 'admin' | 'campaign';
+  retailerId?: string;
+  retailerName?: string;
+  town?: string;
+  notes?: string;
+  completed?: boolean;
+}
+
+export const calendarEvents: CalendarEvent[] = [
+  { id: 'ev1', title: 'Meeting: The Promenade Collection', date: '2025-06-12', time: '10:30', type: 'meeting', retailerId: 'r16', retailerName: 'The Promenade Collection', town: 'Cheltenham', notes: 'Bring full sample range. In-store presentation.' },
+  { id: 'ev2', title: 'Call: The Bath Gem Company', date: '2025-06-10', time: '11:00', type: 'call', retailerId: 'r2', retailerName: 'The Bath Gem Company', town: 'Bath', notes: 'Follow up on email — James opened but hasn\'t replied.' },
+  { id: 'ev3', title: 'Call: Clifton Fine Jewellers', date: '2025-06-11', time: '09:30', type: 'call', retailerId: 'r1', retailerName: 'Clifton Fine Jewellers', town: 'Bristol', notes: 'Initial contact — introduce Nomination.' },
+  { id: 'ev4', title: 'Visit: Exeter Silver Studio', date: '2025-06-16', time: '14:00', type: 'visit', retailerId: 'r4', retailerName: 'Exeter Silver Studio', town: 'Exeter', notes: 'Informal pop-in. Bring sterling silver samples.' },
+  { id: 'ev5', title: 'Call: Lemon Street Gallery', date: '2025-06-13', time: '10:00', type: 'call', retailerId: 'r6', retailerName: 'Lemon Street Gallery & Gifts', town: 'Truro', notes: 'Introduce Nomination gifting range.' },
+  { id: 'ev6', title: 'Follow Up: Sandbanks Collection', date: '2025-06-14', time: '15:00', type: 'follow_up', retailerId: 'r7', retailerName: 'The Sandbanks Collection', town: 'Poole', notes: 'Second follow up. Prepare luxury positioning angle.' },
+  { id: 'ev7', title: 'Pipeline Review & Reporting', date: '2025-06-13', time: '16:00', type: 'admin', notes: 'Weekly review of pipeline progress and reporting.' },
+  { id: 'ev8', title: 'Valentine\'s Day Campaign Launch', date: '2025-01-15', time: '09:00', type: 'campaign', notes: 'Begin Valentine\'s outreach to all qualified retailers.' },
+  { id: 'ev9', title: 'Summer Collection Launch', date: '2025-04-01', time: '09:00', type: 'campaign', notes: 'Introduce new summer composable collection to all stockists and priority prospects.' },
+  { id: 'ev10', title: 'Visit: Bath & Bristol Territory Day', date: '2025-06-17', time: '09:00', type: 'visit', town: 'Bath / Bristol', notes: 'Full day visiting Bath Gem Company, Clifton Fine Jewellers, Park Street Accessories.' },
+];
+
+// Promotional campaigns
+export interface PromotionalCampaign {
+  id: string;
+  name: string;
+  season: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+  targetRetailerCount: number;
+  estimatedImpact: string;
+  status: 'upcoming' | 'active' | 'completed';
+  topRetailers: string[];
+}
+
+export const promotionalCampaigns: PromotionalCampaign[] = [
+  { id: 'pc1', name: 'Valentine\'s Day Collection', season: 'Spring', startDate: '2025-01-15', endDate: '2025-02-14', description: 'Heart-themed composable charms and bracelet sets. Peak gifting period.', targetRetailerCount: 12, estimatedImpact: '£35,000–£52,000', status: 'completed', topRetailers: ['The Bath Gem Company', 'Clifton Fine Jewellers', 'The Promenade Collection'] },
+  { id: 'pc2', name: 'Mother\'s Day Push', season: 'Spring', startDate: '2025-02-20', endDate: '2025-03-30', description: 'Family-themed charms and personalisation campaign. Second biggest season.', targetRetailerCount: 14, estimatedImpact: '£22,000–£38,000', status: 'completed', topRetailers: ['Lemon Street Gallery & Gifts', 'The Bath Gem Company', 'The Promenade Collection'] },
+  { id: 'pc3', name: 'Summer Coastal Collection', season: 'Summer', startDate: '2025-05-01', endDate: '2025-08-31', description: 'Sea-inspired charms. Target coastal and tourist retailers.', targetRetailerCount: 10, estimatedImpact: '£28,000–£45,000', status: 'active', topRetailers: ['The Sandbanks Collection', 'Harbourside Gifts', 'Lemon Street Gallery & Gifts'] },
+  { id: 'pc4', name: 'Christmas Gift Campaign', season: 'Winter', startDate: '2025-10-01', endDate: '2025-12-24', description: 'Full gifting push. Biggest revenue period of the year (38% of annual).', targetRetailerCount: 16, estimatedImpact: '£55,000–£85,000', status: 'upcoming', topRetailers: ['The Bath Gem Company', 'Clifton Fine Jewellers', 'The Promenade Collection', 'Milsom Place Jewellers'] },
+];
+
+// Sales forecast data
+export interface ForecastMonth {
+  month: string;
+  existingAccounts: number;
+  prospectPipeline: number;
+  total: number;
+}
+
+export const salesForecast: ForecastMonth[] = [
+  { month: 'Jul', existingAccounts: 8500, prospectPipeline: 2200, total: 10700 },
+  { month: 'Aug', existingAccounts: 7800, prospectPipeline: 3500, total: 11300 },
+  { month: 'Sep', existingAccounts: 9200, prospectPipeline: 4800, total: 14000 },
+  { month: 'Oct', existingAccounts: 11500, prospectPipeline: 5500, total: 17000 },
+  { month: 'Nov', existingAccounts: 14200, prospectPipeline: 6800, total: 21000 },
+  { month: 'Dec', existingAccounts: 22000, prospectPipeline: 8500, total: 30500 },
+  { month: 'Jan', existingAccounts: 6500, prospectPipeline: 3200, total: 9700 },
+  { month: 'Feb', existingAccounts: 12000, prospectPipeline: 4500, total: 16500 },
+  { month: 'Mar', existingAccounts: 9800, prospectPipeline: 4000, total: 13800 },
+  { month: 'Apr', existingAccounts: 8200, prospectPipeline: 3800, total: 12000 },
+  { month: 'May', existingAccounts: 7500, prospectPipeline: 3500, total: 11000 },
+  { month: 'Jun', existingAccounts: 8000, prospectPipeline: 4200, total: 12200 },
+];
+
+// Relationship timeline events
+export interface TimelineEvent {
+  id: string;
+  retailerId: string;
+  date: string;
+  type: 'email_sent' | 'email_received' | 'call' | 'meeting' | 'note' | 'stage_change' | 'discovery' | 'qualification';
+  title: string;
+  description: string;
+}
+
+export const relationshipTimeline: Record<string, TimelineEvent[]> = {
+  r1: [
+    { id: 'tl1', retailerId: 'r1', date: '2025-06-10', type: 'note', title: 'Website & social reviewed', description: 'Excellent online presence. Beautiful product photography. Active Instagram with 3.2k followers.' },
+    { id: 'tl2', retailerId: 'r1', date: '2025-06-09', type: 'stage_change', title: 'Moved to Priority Outreach', description: 'Qualification complete — 100% fit score. Upgraded to priority outreach.' },
+    { id: 'tl3', retailerId: 'r1', date: '2025-06-08', type: 'email_sent', title: 'Introductory email sent', description: 'Personalised intro email sent to Sarah Whitfield.' },
+    { id: 'tl4', retailerId: 'r1', date: '2025-06-05', type: 'qualification', title: 'Qualification completed', description: 'All 15 brand fit criteria met. Exceptional prospect.' },
+    { id: 'tl5', retailerId: 'r1', date: '2025-06-01', type: 'discovery', title: 'Identified as prospect', description: 'AI discovery engine identified Clifton Fine Jewellers as a high-priority prospect.' },
+  ],
+  r2: [
+    { id: 'tl6', retailerId: 'r2', date: '2025-06-02', type: 'email_sent', title: 'Initial outreach email', description: 'Sent personalised introduction to James Cartwright.' },
+    { id: 'tl7', retailerId: 'r2', date: '2025-06-03', type: 'note', title: 'Email opened', description: 'James opened the email but hasn\'t replied. Plan phone follow-up.' },
+    { id: 'tl8', retailerId: 'r2', date: '2025-05-28', type: 'qualification', title: 'Qualification: Perfect score', description: '15/15 on brand fit. Highest priority prospect in territory.' },
+    { id: 'tl9', retailerId: 'r2', date: '2025-05-20', type: 'discovery', title: 'Added to prospect list', description: 'Bath\'s premier jeweller identified as territory anchor prospect.' },
+  ],
+  r16: [
+    { id: 'tl10', retailerId: 'r16', date: '2025-06-04', type: 'email_received', title: 'Meeting confirmed', description: 'Claire confirmed meeting for June 12th.' },
+    { id: 'tl11', retailerId: 'r16', date: '2025-05-30', type: 'email_sent', title: 'Meeting confirmation sent', description: 'Confirmed 10:30am meeting. Will bring full sample range.' },
+    { id: 'tl12', retailerId: 'r16', date: '2025-05-29', type: 'email_received', title: 'Claire replied — interested', description: 'Claire expressed interest and suggested June 12th for meeting.' },
+    { id: 'tl13', retailerId: 'r16', date: '2025-05-28', type: 'call', title: 'Introductory call with Claire', description: 'Very positive call. Claire interested in gifting angle. Agreed to in-store meeting.' },
+    { id: 'tl14', retailerId: 'r16', date: '2025-05-25', type: 'stage_change', title: 'Moved to Contacted', description: 'Initial outreach completed.' },
+    { id: 'tl15', retailerId: 'r16', date: '2025-05-20', type: 'qualification', title: 'Qualification completed', description: 'Strong fit score. Lifestyle format ideal for Nomination.' },
+  ],
+};
+
+// Weekly briefing
+export interface WeeklyBriefing {
+  weekOf: string;
+  topAccountsToContact: { name: string; reason: string; priority: number }[];
+  newDiscoveries: number;
+  followUpsNeeded: number;
+  meetingsThisWeek: number;
+  territoryInsight: string;
+  performanceTip: string;
+}
+
+export const weeklyBriefing: WeeklyBriefing = {
+  weekOf: '10 June 2025',
+  topAccountsToContact: [
+    { name: 'The Bath Gem Company', reason: 'Email opened but no reply — follow-up call needed', priority: 98 },
+    { name: 'Clifton Fine Jewellers', reason: 'Priority outreach — highest fit score in territory', priority: 95 },
+    { name: 'Lemon Street Gallery', reason: 'Cornwall anchor prospect — tourist season approaching', priority: 82 },
+    { name: 'The Sandbanks Collection', reason: 'Premium coastal prospect — summer collection alignment', priority: 80 },
+    { name: 'Milsom Place Jewellers', reason: 'Bath cluster strategy — complement Bath Gem Company', priority: 78 },
+  ],
+  newDiscoveries: 4,
+  followUpsNeeded: 3,
+  meetingsThisWeek: 1,
+  territoryInsight: 'Bath and Cheltenham continue to show the strongest opportunity clusters. The Promenade Collection meeting on June 12th could unlock the Cheltenham market. Focus on converting Bath Gem Company — their tourist season peak begins in July.',
+  performanceTip: 'Based on historical data, retailers contacted between June and August show 23% higher conversion rates due to pre-Christmas buying decisions. This is the optimal outreach window.',
+};
+
 export const getRetailersByStage = (stage: PipelineStage) => mockRetailers.filter(r => r.pipelineStage === stage);
 export const getRetailersByCounty = (county: string) => mockRetailers.filter(r => r.county === county);
 export const getTotalPipelineValue = () => {
@@ -1258,3 +1429,6 @@ export const getTotalPipelineValue = () => {
   });
   return total;
 };
+export const getEmailsForRetailer = (retailerId: string) => emailThreads.filter(e => e.retailerId === retailerId);
+export const getTimelineForRetailer = (retailerId: string) => relationshipTimeline[retailerId] || [];
+export const getEventsForRetailer = (retailerId: string) => calendarEvents.filter(e => e.retailerId === retailerId);
