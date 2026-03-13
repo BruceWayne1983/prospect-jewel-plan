@@ -49,6 +49,62 @@ export type Database = {
           },
         ]
       }
+      calendar_events: {
+        Row: {
+          completed: boolean
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          retailer_id: string | null
+          retailer_name: string | null
+          time: string | null
+          title: string
+          town: string | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          retailer_id?: string | null
+          retailer_name?: string | null
+          time?: string | null
+          title: string
+          town?: string | null
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          retailer_id?: string | null
+          retailer_name?: string | null
+          time?: string | null
+          title?: string
+          town?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_retailer_id_fkey"
+            columns: ["retailer_id"]
+            isOneToOne: false
+            referencedRelation: "retailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovered_prospects: {
         Row: {
           address: string | null

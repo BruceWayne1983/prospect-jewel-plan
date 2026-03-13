@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { mockRetailers, COUNTIES } from "@/data/mockData";
-import { MapPin, Filter } from "lucide-react";
+import { COUNTIES } from "@/data/constants";
+import { useRetailers } from "@/hooks/useRetailers";
+import { MapPin, Filter, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -16,17 +17,24 @@ const clusters = [
 
 export default function TerritoryMap() {
   const navigate = useNavigate();
+  const { retailers, loading } = useRetailers();
   const [filter, setFilter] = useState("all");
 
   const filtered = useMemo(() => {
+    const getOutreach = (r: any) => ((r.outreach ?? {}) as Record<string, any>);
+    const getActivity = (r: any) => ((r.activity ?? {}) as Record<string, any>);
     switch (filter) {
-      case 'high_fit': return mockRetailers.filter(r => r.fitScore >= 80);
-      case 'high_spend': return mockRetailers.filter(r => r.spendPotentialScore >= 75);
-      case 'uncontacted': return mockRetailers.filter(r => !r.activity.lastContactDate);
-      case 'high_priority': return mockRetailers.filter(r => r.outreach.outreachPriority === 'high');
-      default: return mockRetailers;
+      case 'high_fit': return retailers.filter(r => (r.fit_score ?? 0) >= 80);
+      case 'high_spend': return retailers.filter(r => (r.spend_potential_score ?? 0) >= 75);
+      case 'uncontacted': return retailers.filter(r => !getActivity(r).lastContactDate);
+      case 'high_priority': return retailers.filter(r => getOutreach(r).outreachPriority === 'high');
+      default: return retailers;
     }
-  }, [filter]);
+  }, [retailers, filter]);
+
+  if (loading) {
+    return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
+  }
 
   return (
     <div className="page-container">
@@ -39,20 +47,17 @@ export default function TerritoryMap() {
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-48 bg-background border-border/40 h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-48 bg-background border-border/40 h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Retailers ({mockRetailers.length})</SelectItem>
-              <SelectItem value="high_fit">High Fit Score ({mockRetailers.filter(r => r.fitScore >= 80).length})</SelectItem>
-              <SelectItem value="high_spend">High Spend Potential ({mockRetailers.filter(r => r.spendPotentialScore >= 75).length})</SelectItem>
-              <SelectItem value="uncontacted">Uncontacted ({mockRetailers.filter(r => !r.activity.lastContactDate).length})</SelectItem>
-              <SelectItem value="high_priority">High Priority Outreach ({mockRetailers.filter(r => r.outreach.outreachPriority === 'high').length})</SelectItem>
+              <SelectItem value="all">All Retailers ({retailers.length})</SelectItem>
+              <SelectItem value="high_fit">High Fit Score</SelectItem>
+              <SelectItem value="high_spend">High Spend Potential</SelectItem>
+              <SelectItem value="uncontacted">Uncontacted</SelectItem>
+              <SelectItem value="high_priority">High Priority</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
-
       <div className="divider-gold" />
 
       {/* Map */}
@@ -74,17 +79,17 @@ export default function TerritoryMap() {
             <text x="600" y="300" fontSize="9" fill="hsl(25 8% 72%)" fontFamily="Inter" fontWeight="300" letterSpacing="3" textAnchor="middle">DORSET</text>
             <text x="470" y="110" fontSize="9" fill="hsl(25 8% 72%)" fontFamily="Inter" fontWeight="300" letterSpacing="3" textAnchor="middle">AVON</text>
 
-            {filtered.filter(r => r.priorityScore >= 85).map(r => {
-              const x = ((r.lng + 6) / 5.5) * 700 + 100;
-              const y = ((52.2 - r.lat) / 2.8) * 380 + 40;
+            {filtered.filter(r => (r.priority_score ?? 0) >= 85 && r.lat && r.lng).map(r => {
+              const x = ((r.lng! + 6) / 5.5) * 700 + 100;
+              const y = ((52.2 - r.lat!) / 2.8) * 380 + 40;
               return <circle key={`h-${r.id}`} cx={x} cy={y} r="35" fill="url(#glow)" />;
             })}
 
-            {filtered.map(r => {
-              const x = ((r.lng + 6) / 5.5) * 700 + 100;
-              const y = ((52.2 - r.lat) / 2.8) * 380 + 40;
-              const isHigh = r.priorityScore >= 85;
-              const isMed = r.priorityScore >= 70;
+            {filtered.filter(r => r.lat && r.lng).map(r => {
+              const x = ((r.lng! + 6) / 5.5) * 700 + 100;
+              const y = ((52.2 - r.lat!) / 2.8) * 380 + 40;
+              const isHigh = (r.priority_score ?? 0) >= 85;
+              const isMed = (r.priority_score ?? 0) >= 70;
               return (
                 <g key={r.id} className="cursor-pointer" onClick={() => navigate(`/retailer/${r.id}`)}>
                   {isHigh && <circle cx={x} cy={y} r="12" fill="hsl(34 52% 50%)" opacity="0.08" />}
@@ -112,46 +117,54 @@ export default function TerritoryMap() {
       </div>
 
       {/* Clusters */}
-      <h2 className="text-xl font-display font-semibold text-foreground">Opportunity Clusters</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {clusters.map(cluster => {
-          const rs = filtered.filter(r => cluster.towns.includes(r.town));
-          const allRs = mockRetailers.filter(r => cluster.towns.includes(r.town));
-          const avgPriority = Math.round(allRs.reduce((s, r) => s + r.priorityScore, 0) / (allRs.length || 1));
-          const avgFit = Math.round(allRs.reduce((s, r) => s + r.fitScore, 0) / (allRs.length || 1));
-          const totalValue = allRs.reduce((s, r) => { const m = r.estimatedSpendBand.match(/£([\d,]+)/); return s + (m ? parseInt(m[1].replace(',', '')) : 0); }, 0);
-          const uncontacted = allRs.filter(r => !r.activity.lastContactDate).length;
-          const priorityClass = avgPriority >= 85 ? 'score-excellent' : avgPriority >= 70 ? 'score-good' : 'score-moderate';
+      {retailers.length > 0 && (
+        <>
+          <h2 className="text-xl font-display font-semibold text-foreground">Opportunity Clusters</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {clusters.map(cluster => {
+              const allRs = retailers.filter(r => cluster.towns.includes(r.town));
+              if (allRs.length === 0) return null;
+              const avgPriority = Math.round(allRs.reduce((s, r) => s + (r.priority_score ?? 0), 0) / allRs.length);
+              const avgFit = Math.round(allRs.reduce((s, r) => s + (r.fit_score ?? 0), 0) / allRs.length);
+              const priorityClass = avgPriority >= 85 ? 'score-excellent' : avgPriority >= 70 ? 'score-good' : 'score-moderate';
 
-          return (
-            <div key={cluster.name} className="card-premium p-5 group">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="text-base font-display font-semibold text-foreground">{cluster.name}</h3>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{cluster.region}</p>
-                </div>
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <MapPin className="w-4 h-4 text-gold" strokeWidth={1.5} />
-                </div>
-              </div>
-              <div className="grid grid-cols-4 gap-2 mb-3">
-                <div><p className="text-base font-display font-bold text-foreground">{allRs.length}</p><p className="text-[8px] text-muted-foreground uppercase tracking-wider">Prospects</p></div>
-                <div><p className={`text-base font-display font-bold ${priorityClass}`}>{avgPriority}</p><p className="text-[8px] text-muted-foreground uppercase tracking-wider">Priority</p></div>
-                <div><p className="text-base font-display font-bold text-foreground">£{(totalValue / 1000).toFixed(0)}k</p><p className="text-[8px] text-muted-foreground uppercase tracking-wider">Value</p></div>
-                <div><p className="text-base font-display font-bold text-foreground">{uncontacted}</p><p className="text-[8px] text-muted-foreground uppercase tracking-wider">Open</p></div>
-              </div>
-              <div className="space-y-1">
-                {allRs.slice(0, 3).map(r => (
-                  <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="flex items-center justify-between text-xs py-1 cursor-pointer hover:text-gold-dark transition-colors">
-                    <span className="text-muted-foreground truncate">{r.name}</span>
-                    <span className="text-gold font-medium ml-2">{r.fitScore}%</span>
+              return (
+                <div key={cluster.name} className="card-premium p-5 group">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-base font-display font-semibold text-foreground">{cluster.name}</h3>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{cluster.region}</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-gold" strokeWidth={1.5} />
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div><p className="text-base font-display font-bold text-foreground">{allRs.length}</p><p className="text-[8px] text-muted-foreground uppercase tracking-wider">Prospects</p></div>
+                    <div><p className={`text-base font-display font-bold ${priorityClass}`}>{avgPriority}</p><p className="text-[8px] text-muted-foreground uppercase tracking-wider">Priority</p></div>
+                    <div><p className="text-base font-display font-bold text-foreground">{avgFit}%</p><p className="text-[8px] text-muted-foreground uppercase tracking-wider">Avg Fit</p></div>
+                  </div>
+                  <div className="space-y-1">
+                    {allRs.slice(0, 3).map(r => (
+                      <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="flex items-center justify-between text-xs py-1 cursor-pointer hover:text-gold-dark transition-colors">
+                        <span className="text-muted-foreground truncate">{r.name}</span>
+                        <span className="text-gold font-medium ml-2">{r.fit_score ?? 0}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }).filter(Boolean)}
+          </div>
+        </>
+      )}
+
+      {retailers.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-sm">No retailers to map yet.</p>
+          <p className="text-xs mt-1">Promote prospects from the Discovery Engine to see them on the territory map.</p>
+        </div>
+      )}
     </div>
   );
 }

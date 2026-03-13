@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -54,6 +54,39 @@ export default function ProspectDiscovery() {
     setProspects(prev => prev.map(p => p.id === id ? { ...p, status } : p));
     const labels: Record<string, string> = { accepted: 'Accepted — added to prospect list', dismissed: 'Dismissed', reviewing: 'Marked for review' };
     toast.success(labels[status] || 'Updated');
+  };
+
+  const promoteToRetailer = async (p: DiscoveredProspect) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Please sign in"); return; }
+
+    const { error } = await supabase.from("retailers").insert({
+      user_id: user.id,
+      name: p.name,
+      town: p.town,
+      county: p.county,
+      category: p.category,
+      rating: p.rating,
+      review_count: p.review_count,
+      store_positioning: p.estimated_price_positioning,
+      fit_score: p.predicted_fit_score,
+      address: p.address,
+      website: p.website,
+      lat: p.lat,
+      lng: p.lng,
+      pipeline_stage: 'new_lead',
+      ai_notes: p.ai_reason,
+    });
+
+    if (error) {
+      toast.error("Failed to promote prospect");
+      console.error(error);
+      return;
+    }
+
+    await supabase.from("discovered_prospects").delete().eq("id", p.id);
+    setProspects(prev => prev.filter(x => x.id !== p.id));
+    toast.success(`${p.name} promoted to Pipeline!`);
   };
 
   const runDiscovery = async () => {
@@ -201,8 +234,15 @@ export default function ProspectDiscovery() {
                       <XCircle className="w-3 h-3" />
                     </Button>
                   </div>
+                ) : p.status === 'accepted' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success">accepted</span>
+                    <Button variant="outline" size="sm" onClick={() => promoteToRetailer(p)} className="text-[10px] h-7 px-2 border-gold/40 text-gold-dark hover:bg-champagne/30">
+                      <ArrowUpRight className="w-3 h-3 mr-1" /> Promote to Pipeline
+                    </Button>
+                  </div>
                 ) : (
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${p.status === 'accepted' ? 'bg-success-light text-success' : 'bg-muted text-muted-foreground'}`}>{p.status}</span>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>
                 )}
               </div>
             </div>

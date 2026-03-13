@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { mockRetailers, COUNTIES, CATEGORIES } from "@/data/mockData";
-import { Search, Star, Globe, Instagram, ArrowUpRight } from "lucide-react";
+import { COUNTIES, CATEGORIES } from "@/data/constants";
+import { useRetailers, getOutreach } from "@/hooks/useRetailers";
+import { Search, Star, Globe, Instagram, ArrowUpRight, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +9,7 @@ import { ScoreBar } from "@/components/ScoreIndicators";
 
 export default function ProspectFinder() {
   const navigate = useNavigate();
+  const { retailers, loading } = useRetailers();
   const [search, setSearch] = useState("");
   const [county, setCounty] = useState("all");
   const [category, setCategory] = useState("all");
@@ -16,16 +18,21 @@ export default function ProspectFinder() {
   const [priorityFilter, setPriorityFilter] = useState("all");
 
   const filtered = useMemo(() => {
-    return mockRetailers.filter(r => {
+    return retailers.filter(r => {
       if (search && !r.name.toLowerCase().includes(search.toLowerCase()) && !r.town.toLowerCase().includes(search.toLowerCase())) return false;
       if (county !== "all" && r.county !== county) return false;
       if (category !== "all" && r.category !== category) return false;
-      if (r.rating < parseFloat(minRating)) return false;
-      if (qualFilter !== "all" && r.qualificationStatus !== qualFilter) return false;
-      if (priorityFilter !== "all" && r.outreach.outreachPriority !== priorityFilter) return false;
+      if ((r.rating ?? 0) < parseFloat(minRating)) return false;
+      if (qualFilter !== "all" && r.qualification_status !== qualFilter) return false;
+      const outreach = getOutreach(r);
+      if (priorityFilter !== "all" && outreach.outreachPriority !== priorityFilter) return false;
       return true;
-    }).sort((a, b) => b.priorityScore - a.priorityScore);
-  }, [search, county, category, minRating, qualFilter, priorityFilter]);
+    }).sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
+  }, [retailers, search, county, category, minRating, qualFilter, priorityFilter]);
+
+  if (loading) {
+    return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
+  }
 
   return (
     <div className="page-container">
@@ -73,52 +80,58 @@ export default function ProspectFinder() {
 
       <p className="text-xs text-muted-foreground">{filtered.length} retailer{filtered.length !== 1 ? 's' : ''} found</p>
 
+      {filtered.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-sm">No retailers found.</p>
+          <p className="text-xs mt-1">Accept prospects from the Discovery Engine to populate your prospect database.</p>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {filtered.map(r => (
-          <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="card-premium p-5 cursor-pointer group">
-            <div className="flex items-start justify-between gap-6">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2.5 mb-1">
-                  <h3 className="text-sm font-semibold text-foreground group-hover:text-gold-dark transition-colors">{r.name}</h3>
-                  <span className="badge-category">{r.category.replace('_', ' ')}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${
-                    r.qualificationStatus === 'qualified' ? 'bg-success-light text-success' :
-                    r.qualificationStatus === 'in_progress' ? 'bg-warning-light text-warning' :
-                    'bg-muted text-muted-foreground'
-                  }`}>{r.qualificationStatus === 'in_progress' ? 'qualifying' : r.qualificationStatus}</span>
+        {filtered.map(r => {
+          const outreach = getOutreach(r);
+          return (
+            <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="card-premium p-5 cursor-pointer group">
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <h3 className="text-sm font-semibold text-foreground group-hover:text-gold-dark transition-colors">{r.name}</h3>
+                    <span className="badge-category">{r.category.replace('_', ' ')}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${
+                      r.qualification_status === 'qualified' ? 'bg-success-light text-success' :
+                      r.qualification_status === 'in_progress' ? 'bg-warning-light text-warning' :
+                      'bg-muted text-muted-foreground'
+                    }`}>{r.qualification_status === 'in_progress' ? 'qualifying' : r.qualification_status ?? 'unqualified'}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{r.town}, {r.county}{r.postcode ? ` · ${r.postcode}` : ''}</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" strokeWidth={1.5} />{r.rating ?? 0} ({r.review_count ?? 0})</span>
+                    {r.website && <Globe className="w-3 h-3 text-muted-foreground/50" strokeWidth={1.5} />}
+                    {r.instagram && <Instagram className="w-3 h-3 text-muted-foreground/50" strokeWidth={1.5} />}
+                    {r.is_independent && <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Independent</span>}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                      outreach.outreachPriority === 'high' ? 'bg-success-light text-success' :
+                      outreach.outreachPriority === 'medium' ? 'bg-warning-light text-warning' :
+                      'bg-muted text-muted-foreground'
+                    }`}>{outreach.outreachPriority} priority</span>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">{r.town}, {r.county} · {r.postcode}</p>
-                <div className="flex items-center gap-4 mt-2">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" strokeWidth={1.5} />{r.rating} ({r.reviewCount})</span>
-                  {r.hasWebsite && <Globe className="w-3 h-3 text-muted-foreground/50" strokeWidth={1.5} />}
-                  {r.hasSocial && <Instagram className="w-3 h-3 text-muted-foreground/50" strokeWidth={1.5} />}
-                  {r.isIndependent && <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Independent</span>}
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    r.outreach.outreachPriority === 'high' ? 'bg-success-light text-success' :
-                    r.outreach.outreachPriority === 'medium' ? 'bg-warning-light text-warning' :
-                    'bg-muted text-muted-foreground'
-                  }`}>{r.outreach.outreachPriority} priority</span>
+                <div className="flex items-center gap-5">
+                  <div className="w-20"><ScoreBar score={r.fit_score ?? 0} label="Fit" /></div>
+                  <div className="w-20"><ScoreBar score={r.spend_potential_score ?? 0} label="Spend" /></div>
+                  <div className="text-center">
+                    <span className={`text-lg font-display font-bold ${(r.priority_score ?? 0) >= 85 ? 'score-excellent' : (r.priority_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{r.priority_score ?? 0}</span>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Priority</p>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-gold transition-all" />
                 </div>
               </div>
-              <div className="flex items-center gap-5">
-                <div className="w-20"><ScoreBar score={r.fitScore} label="Fit" /></div>
-                <div className="w-20"><ScoreBar score={r.spendPotentialScore} label="Spend" /></div>
-                <div className="text-center">
-                  <span className={`text-lg font-display font-bold ${r.priorityScore >= 85 ? 'score-excellent' : r.priorityScore >= 70 ? 'score-good' : 'score-moderate'}`}>{r.priorityScore}</span>
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Priority</p>
-                </div>
-                <div className="text-right w-28">
-                  <p className="text-sm font-medium text-foreground">{r.estimatedSpendBand}</p>
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Est. spend</p>
-                </div>
-                <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-gold transition-all" />
-              </div>
+              {r.risk_flags && r.risk_flags.length > 0 && (
+                <div className="flex gap-2 mt-3">{r.risk_flags.map((f, i) => <span key={i} className="badge-risk">{f}</span>)}</div>
+              )}
             </div>
-            {r.riskFlags && r.riskFlags.length > 0 && (
-              <div className="flex gap-2 mt-3">{r.riskFlags.map((f, i) => <span key={i} className="badge-risk">{f}</span>)}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
