@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, UserCircle, CalendarDays, BarChart3, Settings
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -7,6 +7,7 @@ import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -15,36 +16,35 @@ const navItems = [
   { title: "Territory Map", url: "/map", icon: Map },
   { title: "Account Planner", url: "/planner", icon: CalendarDays },
   { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-5 pb-4">
         {!collapsed ? (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center">
-              <span className="text-xs font-bold text-sidebar-background">N</span>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center shadow-sm">
+              <Gem className="w-4 h-4 text-sidebar-background" />
             </div>
             <div>
-              <h2 className="text-sm font-display font-semibold text-sidebar-accent-foreground">Nomination</h2>
-              <p className="text-[10px] text-sidebar-foreground">Territory Planner</p>
+              <h2 className="text-sm font-display font-semibold text-sidebar-accent-foreground tracking-wide">Nomination</h2>
+              <p className="text-[10px] text-sidebar-foreground tracking-widest uppercase">Territory Planner</p>
             </div>
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center mx-auto">
-            <span className="text-xs font-bold text-sidebar-background">N</span>
+          <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center mx-auto shadow-sm">
+            <Gem className="w-4 h-4 text-sidebar-background" />
           </div>
         )}
       </SidebarHeader>
-      <SidebarContent>
+      
+      <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/50 text-[10px] uppercase tracking-widest">Navigation</SidebarGroupLabel>
+          {!collapsed && <SidebarGroupLabel className="text-sidebar-foreground/40 text-[9px] uppercase tracking-[0.2em] px-3 mb-1">Menu</SidebarGroupLabel>}
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
@@ -53,11 +53,11 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/"}
-                      className="text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
+                      className="text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/80 transition-all duration-200 rounded-lg py-2.5"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span className="text-sm">{item.title}</span>}
+                      <item.icon className="mr-2.5 h-4 w-4" strokeWidth={1.5} />
+                      {!collapsed && <span className="text-[13px]">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -65,17 +65,43 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {!collapsed && <div className="mx-3 my-3 divider-gold opacity-30" />}
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/settings"
+                    className="text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/80 transition-all duration-200 rounded-lg py-2.5"
+                    activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                  >
+                    <Settings className="mr-2.5 h-4 w-4" strokeWidth={1.5} />
+                    {!collapsed && <span className="text-[13px]">Settings</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
+
       <SidebarFooter className="p-4">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-sidebar-accent flex items-center justify-center">
-              <span className="text-[10px] font-semibold text-sidebar-accent-foreground">EG</span>
+        {!collapsed ? (
+          <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent/40">
+            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center shadow-sm">
+              <span className="text-[10px] font-semibold text-sidebar-background">EG</span>
             </div>
-            <div>
-              <p className="text-xs text-sidebar-accent-foreground">Emma-Louise</p>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">Emma-Louise Gregory</p>
               <p className="text-[10px] text-sidebar-foreground">South West UK</p>
             </div>
+          </div>
+        ) : (
+          <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center mx-auto shadow-sm">
+            <span className="text-[10px] font-semibold text-sidebar-background">EG</span>
           </div>
         )}
       </SidebarFooter>
