@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { mockRetailers } from "@/data/mockData";
-import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3 } from "lucide-react";
+import { mockRetailers, getEmailsForRetailer, getTimelineForRetailer, getEventsForRetailer } from "@/data/mockData";
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3, Clock, Send, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,6 +56,17 @@ function ConfidenceBadge({ level }: { level: string }) {
   return <span className={`text-[9px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider ${cls}`}>{level} confidence</span>;
 }
 
+const timelineTypeConfig: Record<string, { icon: typeof Mail; cls: string; label: string }> = {
+  email_sent: { icon: Send, cls: 'bg-info-light text-info', label: 'Email Sent' },
+  email_received: { icon: Mail, cls: 'bg-success-light text-success', label: 'Email Received' },
+  call: { icon: Phone, cls: 'bg-warning-light text-warning', label: 'Call' },
+  meeting: { icon: Calendar, cls: 'bg-champagne text-gold-dark', label: 'Meeting' },
+  note: { icon: FileText, cls: 'bg-muted text-muted-foreground', label: 'Note' },
+  stage_change: { icon: TrendingUp, cls: 'bg-champagne text-gold-dark', label: 'Stage Change' },
+  discovery: { icon: Radar, cls: 'bg-info-light text-info', label: 'Discovery' },
+  qualification: { icon: ShieldCheck, cls: 'bg-success-light text-success', label: 'Qualification' },
+};
+
 export default function RetailerProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -80,6 +91,9 @@ export default function RetailerProfile() {
 
   const ai = r.aiIntelligence;
   const pred = r.performancePrediction;
+  const emails = getEmailsForRetailer(r.id);
+  const timeline = getTimelineForRetailer(r.id);
+  const events = getEventsForRetailer(r.id);
 
   return (
     <div className="page-container max-w-5xl">
@@ -136,12 +150,13 @@ export default function RetailerProfile() {
           <TabsTrigger value="qualification" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Qualification</TabsTrigger>
           <TabsTrigger value="commercial" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Commercial</TabsTrigger>
           <TabsTrigger value="outreach" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Outreach</TabsTrigger>
+          <TabsTrigger value="timeline" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">📋 Timeline</TabsTrigger>
+          <TabsTrigger value="emails" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">✉️ Emails{emails.length > 0 ? ` (${emails.length})` : ''}</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Activity</TabsTrigger>
         </TabsList>
 
         {/* AI INTELLIGENCE TAB */}
         <TabsContent value="intelligence" className="space-y-5 mt-0">
-          {/* AI Summary */}
           <div className="card-premium p-6 border-gold/20">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
@@ -173,7 +188,6 @@ export default function RetailerProfile() {
             </div>
           </div>
 
-          {/* Deeper Analysis */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="card-premium p-5">
               <h4 className="text-xs font-semibold text-foreground mb-2">Store Positioning</h4>
@@ -189,7 +203,6 @@ export default function RetailerProfile() {
             </div>
           </div>
 
-          {/* Competitor Brands */}
           {r.competitorBrands.length > 0 && (
             <div className="card-premium p-6">
               <div className="flex items-center gap-2.5 mb-4">
@@ -221,7 +234,6 @@ export default function RetailerProfile() {
             </div>
           )}
 
-          {/* Performance Prediction */}
           <div className="card-premium p-6">
             <div className="flex items-center gap-2.5 mb-4">
               <BarChart3 className="w-5 h-5 text-gold" strokeWidth={1.5} />
@@ -450,7 +462,6 @@ export default function RetailerProfile() {
             </div>
           </div>
 
-          {/* Call & Visit Prep */}
           {(r.outreach.callPrepNotes || r.outreach.visitPrepNotes) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {r.outreach.callPrepNotes && (
@@ -478,7 +489,6 @@ export default function RetailerProfile() {
             </div>
           )}
 
-          {/* AI Outreach Summary */}
           <div className="card-premium p-6 border-gold/20">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-7 h-7 rounded-lg gold-gradient flex items-center justify-center">
@@ -491,7 +501,6 @@ export default function RetailerProfile() {
             </div>
           </div>
 
-          {/* Suggested First Message */}
           <div className="card-premium p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
@@ -522,6 +531,113 @@ export default function RetailerProfile() {
           )}
         </TabsContent>
 
+        {/* TIMELINE TAB */}
+        <TabsContent value="timeline" className="space-y-5 mt-0">
+          <div className="card-premium p-6">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Clock className="w-5 h-5 text-gold" strokeWidth={1.5} />
+              <h3 className="text-lg font-display font-semibold text-foreground">Relationship Timeline</h3>
+            </div>
+            {timeline.length > 0 ? (
+              <div className="relative">
+                <div className="absolute left-4 top-0 bottom-0 w-px bg-border/30" />
+                <div className="space-y-4">
+                  {timeline.map(ev => {
+                    const tc = timelineTypeConfig[ev.type] || timelineTypeConfig.note;
+                    return (
+                      <div key={ev.id} className="flex gap-4 relative">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 z-10 ${tc.cls}`}>
+                          <tc.icon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1 pb-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium text-foreground">{ev.title}</p>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${tc.cls}`}>{tc.label}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mb-1">{ev.date}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{ev.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground/50 italic">No timeline events yet. Activities will appear here as you interact with this retailer.</p>
+            )}
+          </div>
+
+          {/* Upcoming events */}
+          {events.length > 0 && (
+            <div className="card-premium p-6">
+              <h3 className="text-base font-display font-semibold text-foreground mb-4">Upcoming Events</h3>
+              <div className="space-y-2">
+                {events.map(ev => (
+                  <div key={ev.id} className="flex items-center gap-3 py-2.5 border-b border-border/10 last:border-0">
+                    <Calendar className="w-4 h-4 text-gold flex-shrink-0" strokeWidth={1.5} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">{ev.title}</p>
+                      {ev.notes && <p className="text-[10px] text-muted-foreground">{ev.notes}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-foreground">{ev.date}</p>
+                      {ev.time && <p className="text-[10px] text-muted-foreground">{ev.time}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* EMAILS TAB */}
+        <TabsContent value="emails" className="space-y-5 mt-0">
+          <div className="card-premium p-6">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Mail className="w-5 h-5 text-gold" strokeWidth={1.5} />
+              <h3 className="text-lg font-display font-semibold text-foreground">Email Conversations</h3>
+            </div>
+            {emails.length > 0 ? (
+              <div className="space-y-4">
+                {emails.map(thread => (
+                  <div key={thread.id} className="rounded-xl border border-border/20 overflow-hidden">
+                    <div className="bg-cream/50 px-5 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{thread.subject}</p>
+                        <p className="text-[10px] text-muted-foreground">{thread.participants.join(' · ')}</p>
+                      </div>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
+                        thread.status === 'replied' ? 'bg-success-light text-success' :
+                        thread.status === 'opened' ? 'bg-warning-light text-warning' :
+                        thread.status === 'bounced' ? 'bg-destructive/10 text-destructive' :
+                        'bg-info-light text-info'
+                      }`}>{thread.status}</span>
+                    </div>
+                    <div className="divide-y divide-border/10">
+                      {thread.messages.map((msg, i) => (
+                        <div key={i} className="px-5 py-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-foreground">{msg.from === 'emma@nomination.co.uk' ? 'Emma-Louise' : msg.from.split('@')[0]}</span>
+                            <span className="text-[10px] text-muted-foreground">{msg.date}</span>
+                            {msg.from === 'emma@nomination.co.uk' && <Send className="w-3 h-3 text-info" />}
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line line-clamp-3">{msg.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Mail className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground/50">No email conversations yet</p>
+                <p className="text-[10px] text-muted-foreground/40 mt-1">Connect your email to start tracking conversations</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
         {/* ACTIVITY TAB */}
         <TabsContent value="activity" className="space-y-5 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -541,7 +657,6 @@ export default function RetailerProfile() {
               </div>
             </div>
             <div className="space-y-5">
-              {/* Suggested Next Step */}
               {r.activity.suggestedNextStep && (
                 <div className="card-premium p-6 border-gold/20">
                   <div className="flex items-center gap-2 mb-2">

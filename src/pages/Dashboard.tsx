@@ -1,5 +1,5 @@
-import { mockRetailers, COUNTIES, PIPELINE_STAGES, getTotalPipelineValue, discoveredProspects } from "@/data/mockData";
-import { TrendingUp, Users, Target, Gem, MapPin, ArrowUpRight, Sparkles, Calendar, Brain, Radar, Zap } from "lucide-react";
+import { mockRetailers, COUNTIES, PIPELINE_STAGES, getTotalPipelineValue, discoveredProspects, weeklyBriefing, calendarEvents } from "@/data/mockData";
+import { TrendingUp, Users, Target, Gem, MapPin, ArrowUpRight, Sparkles, Calendar, Brain, Radar, Zap, FileText, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
 
@@ -8,8 +8,8 @@ const pipelineValue = getTotalPipelineValue();
 const qualified = mockRetailers.filter(r => r.qualificationStatus === 'qualified');
 const meetings = mockRetailers.filter(r => r.activity.meetingScheduled);
 const newDiscoveries = discoveredProspects.filter(d => d.status === 'new');
+const upcomingEvents = calendarEvents.filter(e => e.date >= '2025-06-10').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
 
-// AI Recommended accounts this week
 const recommended = mockRetailers
   .filter(r => r.aiIntelligence.confidenceLevel === 'high' || r.performancePrediction.predictionConfidence === 'high')
   .sort((a, b) => b.priorityScore - a.priorityScore)
@@ -69,6 +69,60 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Weekly AI Briefing */}
+      <div className="card-premium p-6 border-gold/20 bg-champagne/5">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center">
+              <FileText className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-background))' }} />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-semibold text-foreground">Emma's Opportunity Briefing</h3>
+              <p className="text-[10px] text-muted-foreground">Week of {weeklyBriefing.weekOf} · AI-generated weekly intelligence</p>
+            </div>
+          </div>
+          <div className="flex gap-3 text-center">
+            <div><p className="text-lg font-display font-bold text-foreground">{weeklyBriefing.meetingsThisWeek}</p><p className="text-[8px] text-muted-foreground uppercase">Meetings</p></div>
+            <div><p className="text-lg font-display font-bold text-foreground">{weeklyBriefing.followUpsNeeded}</p><p className="text-[8px] text-muted-foreground uppercase">Follow Ups</p></div>
+            <div><p className="text-lg font-display font-bold text-foreground">{weeklyBriefing.newDiscoveries}</p><p className="text-[8px] text-muted-foreground uppercase">New Leads</p></div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div className="lg:col-span-3">
+            <p className="section-header text-[9px] mb-3">Top Accounts to Contact This Week</p>
+            <div className="space-y-2">
+              {weeklyBriefing.topAccountsToContact.map((a, i) => (
+                <div key={a.name} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-card border border-border/15">
+                  <span className="text-xs text-gold font-display font-bold w-4">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{a.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{a.reason}</p>
+                  </div>
+                  <span className={`text-sm font-display font-bold ${a.priority >= 90 ? 'score-excellent' : 'score-good'}`}>{a.priority}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-cream/50 rounded-lg p-4 border border-border/15">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="w-3.5 h-3.5 text-gold" strokeWidth={1.5} />
+                <h4 className="text-xs font-semibold text-foreground">Territory Insight</h4>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed italic font-display">{weeklyBriefing.territoryInsight}</p>
+            </div>
+            <div className="bg-cream/50 rounded-lg p-4 border border-gold/15">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="w-3.5 h-3.5 text-gold" strokeWidth={1.5} />
+                <h4 className="text-xs font-semibold text-foreground">Performance Tip</h4>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed italic font-display">{weeklyBriefing.performanceTip}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* AI Recommended This Week */}
       <div className="card-premium p-6 border-gold/20">
         <div className="flex items-center justify-between mb-5">
@@ -102,9 +156,6 @@ export default function Dashboard() {
                   <span className="text-sm font-display font-bold text-foreground">{r.performancePrediction.predictedAnnualValue.split('–')[0]}</span>
                   <p className="text-[8px] text-muted-foreground uppercase">Predicted</p>
                 </div>
-                <div className="w-24">
-                  <p className="text-[9px] text-muted-foreground truncate">{r.outreach.bestOutreachAngle.substring(0, 45)}...</p>
-                </div>
                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
                   r.aiIntelligence.confidenceLevel === 'high' ? 'bg-success-light text-success' : 'bg-warning-light text-warning'
                 }`}>{r.aiIntelligence.confidenceLevel} confidence</span>
@@ -115,19 +166,28 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Upcoming schedule */}
         <div className="lg:col-span-2 card-premium p-6">
-          <h3 className="text-lg font-display font-semibold text-foreground mb-5">Pipeline Stages</h3>
-          <div className="space-y-3">
-            {PIPELINE_STAGES.filter(s => s.key !== 'rejected').map((stage) => {
-              const count = mockRetailers.filter(r => r.pipelineStage === stage.key).length;
-              const pct = (count / mockRetailers.length) * 100;
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-lg font-display font-semibold text-foreground">Upcoming Schedule</h3>
+            <button onClick={() => navigate('/calendar')} className="text-xs text-gold hover:text-gold-dark flex items-center gap-1 font-medium">
+              Calendar <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {upcomingEvents.map(ev => {
+              const iconMap: Record<string, typeof Phone> = { meeting: Users, call: Phone, visit: MapPin, follow_up: Calendar, admin: FileText, campaign: Calendar };
+              const Icon = iconMap[ev.type] || Calendar;
+              const clsMap: Record<string, string> = { meeting: 'bg-champagne text-gold-dark', call: 'bg-success-light text-success', visit: 'bg-warning-light text-warning', follow_up: 'bg-info-light text-info', admin: 'bg-muted text-muted-foreground', campaign: 'bg-champagne text-gold-dark' };
               return (
-                <div key={stage.key} className="flex items-center gap-3">
-                  <span className="text-[11px] text-muted-foreground w-28 truncate">{stage.label}</span>
-                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-gold/60 rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+                <div key={ev.id} className="flex items-center gap-3 py-2.5 border-b border-border/10 last:border-0">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${clsMap[ev.type] || 'bg-muted'}`}>
+                    <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
                   </div>
-                  <span className="text-xs font-display font-semibold text-foreground w-5 text-right">{count}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{ev.retailerName || ev.title}</p>
+                    <p className="text-[10px] text-muted-foreground">{ev.date} · {ev.time}</p>
+                  </div>
                 </div>
               );
             })}
@@ -152,6 +212,55 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pipeline */}
+        <div className="card-premium p-6">
+          <h3 className="text-lg font-display font-semibold text-foreground mb-5">Pipeline Stages</h3>
+          <div className="space-y-3">
+            {PIPELINE_STAGES.filter(s => s.key !== 'rejected').map((stage) => {
+              const count = mockRetailers.filter(r => r.pipelineStage === stage.key).length;
+              const pct = (count / mockRetailers.length) * 100;
+              return (
+                <div key={stage.key} className="flex items-center gap-3">
+                  <span className="text-[11px] text-muted-foreground w-28 truncate">{stage.label}</span>
+                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-gold/60 rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-xs font-display font-semibold text-foreground w-5 text-right">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Forecast preview */}
+        <div className="card-premium p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-lg font-display font-semibold text-foreground">Revenue Forecast</h3>
+            <button onClick={() => navigate('/forecast')} className="text-xs text-gold hover:text-gold-dark flex items-center gap-1 font-medium">
+              Full Forecast <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="text-center p-3 bg-cream/50 rounded-lg">
+              <p className="text-lg font-display font-bold shimmer-gold">£180k</p>
+              <p className="text-[9px] text-muted-foreground uppercase">Annual Target</p>
+            </div>
+            <div className="text-center p-3 bg-cream/50 rounded-lg">
+              <p className="text-lg font-display font-bold text-foreground">£95k</p>
+              <p className="text-[9px] text-muted-foreground uppercase">Existing</p>
+            </div>
+            <div className="text-center p-3 bg-cream/50 rounded-lg">
+              <p className="text-lg font-display font-bold text-foreground">£54k</p>
+              <p className="text-[9px] text-muted-foreground uppercase">Pipeline</p>
+            </div>
+          </div>
+          <div className="bg-cream/30 rounded-lg p-3 border border-gold/10">
+            <p className="text-[11px] text-muted-foreground italic font-display">Christmas season (Oct–Dec) represents 38% of annual revenue. Begin pre-season outreach in September for maximum impact.</p>
           </div>
         </div>
       </div>

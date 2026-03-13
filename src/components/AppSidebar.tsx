@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem, Brain, Radar, FlaskConical
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem, Brain, Radar, FlaskConical, Calendar, TrendingUp
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -15,6 +15,8 @@ const navItems = [
   { title: "Prospect Finder", url: "/prospects", icon: Search },
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
   { title: "Territory Map", url: "/map", icon: Map },
+  { title: "Sales Calendar", url: "/calendar", icon: Calendar },
+  { title: "Sales Forecast", url: "/forecast", icon: TrendingUp },
   { title: "Strategy Simulator", url: "/simulator", icon: FlaskConical },
   { title: "Account Planner", url: "/planner", icon: CalendarDays },
   { title: "Reports", url: "/reports", icon: BarChart3 },
