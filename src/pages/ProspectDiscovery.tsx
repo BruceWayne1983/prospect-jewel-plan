@@ -1,8 +1,11 @@
-import { useState } from "react";
-import { discoveredProspects, type DiscoveredProspect } from "@/data/mockData";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Radar } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type DiscoveredProspect = Database["public"]["Tables"]["discovered_prospects"]["Row"];
 
 function ConfidenceBadge({ score }: { score: number }) {
   const cls = score >= 80 ? 'bg-success-light text-success' : score >= 70 ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground';
@@ -11,20 +14,82 @@ function ConfidenceBadge({ score }: { score: number }) {
 }
 
 export default function ProspectDiscovery() {
-  const [prospects, setProspects] = useState<DiscoveredProspect[]>(discoveredProspects);
+  const [prospects, setProspects] = useState<DiscoveredProspect[]>([]);
   const [filter, setFilter] = useState<'all' | 'new' | 'reviewing' | 'accepted' | 'dismissed'>('all');
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+
+  const fetchProspects = async () => {
+    const { data, error } = await supabase
+      .from("discovered_prospects")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching prospects:", error);
+      toast.error("Failed to load prospects");
+    } else {
+      setProspects(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchProspects();
+  }, []);
 
   const filtered = filter === 'all' ? prospects : prospects.filter(p => p.status === filter);
 
-  const updateStatus = (id: string, status: DiscoveredProspect['status']) => {
+  const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
+    const { error } = await supabase
+      .from("discovered_prospects")
+      .update({ status })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to update status");
+      return;
+    }
+
     setProspects(prev => prev.map(p => p.id === id ? { ...p, status } : p));
-    const labels = { accepted: 'Accepted — added to prospect list', dismissed: 'Dismissed', reviewing: 'Marked for review' };
+    const labels: Record<string, string> = { accepted: 'Accepted — added to prospect list', dismissed: 'Dismissed', reviewing: 'Marked for review' };
     toast.success(labels[status] || 'Updated');
+  };
+
+  const runDiscovery = async () => {
+    setScanning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("discover-prospects", {
+        body: { count: 5 },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success(`Discovered ${data.prospects?.length || 0} new prospects!`);
+        await fetchProspects();
+      } else {
+        toast.error(data?.error || "Discovery failed");
+      }
+    } catch (err: any) {
+      console.error("Discovery error:", err);
+      toast.error(err.message || "Failed to run discovery");
+    } finally {
+      setScanning(false);
+    }
   };
 
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
+
+  if (loading) {
+    return (
+      <div className="page-container flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">
@@ -34,9 +99,21 @@ export default function ProspectDiscovery() {
           <h1 className="page-title">Prospect Discovery Engine</h1>
           <p className="page-subtitle">AI-identified potential retailers across the South West territory</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Scanning Active</span>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={runDiscovery}
+            disabled={scanning}
+            className="gold-gradient text-sidebar-background text-xs h-8 px-4"
+          >
+            {scanning ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Radar className="w-3.5 h-3.5 mr-1.5" />}
+            {scanning ? "Scanning..." : "Run AI Scan"}
+          </Button>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${scanning ? 'bg-warning' : 'bg-success'} animate-pulse`} />
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              {scanning ? 'Scanning...' : 'Ready'}
+            </span>
+          </div>
         </div>
       </div>
       <div className="divider-gold" />
@@ -66,6 +143,19 @@ export default function ProspectDiscovery() {
         ))}
       </div>
 
+      {/* Empty State */}
+      {prospects.length === 0 && (
+        <div className="card-premium p-12 text-center">
+          <Radar className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
+          <h3 className="text-base font-display font-semibold text-foreground mb-2">No prospects yet</h3>
+          <p className="text-sm text-muted-foreground mb-4">Run the AI Scanner to discover potential retailers in your territory</p>
+          <Button onClick={runDiscovery} disabled={scanning} className="gold-gradient text-sidebar-background text-xs">
+            {scanning ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Radar className="w-3.5 h-3.5 mr-1.5" />}
+            Run First Scan
+          </Button>
+        </div>
+      )}
+
       {/* Prospect Cards */}
       <div className="space-y-4">
         {filtered.map(p => (
@@ -75,27 +165,29 @@ export default function ProspectDiscovery() {
                 <div className="flex items-center gap-2.5 mb-2">
                   <h3 className="text-base font-display font-semibold text-foreground">{p.name}</h3>
                   <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
-                  <ConfidenceBadge score={p.predictedFitScore} />
+                  <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                 </div>
                 <div className="flex items-center gap-4 mb-3">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" />{p.rating} ({p.reviewCount})</span>
-                  <span className="text-[10px] text-gold-dark">{p.discoverySource}</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" />{p.rating} ({p.review_count})</span>
+                  <span className="text-[10px] text-gold-dark">{p.discovery_source}</span>
                 </div>
-                <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
-                  <div className="flex items-start gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-gold mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                    <p className="text-xs text-foreground leading-relaxed italic font-display">{p.aiReason}</p>
+                {p.ai_reason && (
+                  <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-gold mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+                      <p className="text-xs text-foreground leading-relaxed italic font-display">{p.ai_reason}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               <div className="flex flex-col items-end gap-3 flex-shrink-0">
                 <div className="text-center">
-                  <span className={`text-2xl font-display font-bold ${p.predictedFitScore >= 80 ? 'score-excellent' : p.predictedFitScore >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predictedFitScore}</span>
+                  <span className={`text-2xl font-display font-bold ${(p.predicted_fit_score ?? 0) >= 80 ? 'score-excellent' : (p.predicted_fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predicted_fit_score}</span>
                   <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Predicted Fit</p>
                 </div>
                 <div className="text-[10px] text-muted-foreground capitalize">
-                  Est. quality: {p.estimatedStoreQuality}/100
+                  Est. quality: {p.estimated_store_quality}/100
                 </div>
                 {p.status === 'new' || p.status === 'reviewing' ? (
                   <div className="flex gap-2">
