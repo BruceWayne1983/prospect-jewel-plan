@@ -1,6 +1,7 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem, Brain, Radar, FlaskConical, Calendar, TrendingUp
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp
 } from "lucide-react";
+import nominationLogo from "@/assets/nomination-logo.webp";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
