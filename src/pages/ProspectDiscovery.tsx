@@ -201,8 +201,15 @@ export default function ProspectDiscovery() {
                       <XCircle className="w-3 h-3" />
                     </Button>
                   </div>
+                ) : p.status === 'accepted' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success">accepted</span>
+                    <Button variant="outline" size="sm" onClick={() => promoteToRetailer(p)} className="text-[10px] h-7 px-2 border-gold/40 text-gold-dark hover:bg-champagne/30">
+                      <ArrowUpRight className="w-3 h-3 mr-1" /> Promote to Pipeline
+                    </Button>
+                  </div>
                 ) : (
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${p.status === 'accepted' ? 'bg-success-light text-success' : 'bg-muted text-muted-foreground'}`}>{p.status}</span>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>
                 )}
               </div>
             </div>
