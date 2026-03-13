@@ -15,6 +15,8 @@ import Settings from "@/pages/Settings";
 import IntelligenceDashboard from "@/pages/IntelligenceDashboard";
 import ProspectDiscovery from "@/pages/ProspectDiscovery";
 import TerritorySimulator from "@/pages/TerritorySimulator";
+import SalesCalendar from "@/pages/SalesCalendar";
+import SalesForecast from "@/pages/SalesForecast";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +39,8 @@ const App = () => (
             <Route path="/intelligence" element={<IntelligenceDashboard />} />
             <Route path="/discovery" element={<ProspectDiscovery />} />
             <Route path="/simulator" element={<TerritorySimulator />} />
+            <Route path="/calendar" element={<SalesCalendar />} />
+            <Route path="/forecast" element={<SalesForecast />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
