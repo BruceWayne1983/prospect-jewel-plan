@@ -1,6 +1,7 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Gem, Brain, Radar, FlaskConical, Calendar, TrendingUp
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp
 } from "lucide-react";
+import nominationLogo from "@/assets/nomination-logo.webp";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -31,18 +32,13 @@ export function AppSidebar() {
       <SidebarHeader className="p-5 pb-4">
         {!collapsed ? (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center shadow-sm">
-              <Gem className="w-4 h-4 text-sidebar-background" />
-            </div>
+            <img src={nominationLogo} alt="Nomination Italy" className="h-9 w-auto object-contain" />
             <div>
-              <h2 className="text-sm font-display font-semibold text-sidebar-accent-foreground tracking-wide">Nomination</h2>
               <p className="text-[10px] text-sidebar-foreground tracking-widest uppercase">AI Prospecting</p>
             </div>
           </div>
         ) : (
-          <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center mx-auto shadow-sm">
-            <Gem className="w-4 h-4 text-sidebar-background" />
-          </div>
+          <img src={nominationLogo} alt="Nomination Italy" className="h-8 w-auto object-contain mx-auto" />
         )}
       </SidebarHeader>
       
