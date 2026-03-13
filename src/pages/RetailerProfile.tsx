@@ -197,7 +197,11 @@ export default function RetailerProfile() {
             <div className="card-premium p-12 text-center">
               <Brain className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
               <h3 className="text-base font-display font-semibold text-foreground mb-2">No AI intelligence yet</h3>
-              <p className="text-sm text-muted-foreground">AI analysis will appear here once generated.</p>
+              <p className="text-sm text-muted-foreground mb-4">Run an AI analysis to generate intelligence, predictions, and outreach strategy.</p>
+              <Button onClick={runAnalysis} disabled={analysing} className="gold-gradient text-sidebar-background text-xs">
+                {analysing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
+                {analysing ? "Analysing..." : "Run AI Analysis"}
+              </Button>
             </div>
           )}
 
