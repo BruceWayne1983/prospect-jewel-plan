@@ -56,6 +56,39 @@ export default function ProspectDiscovery() {
     toast.success(labels[status] || 'Updated');
   };
 
+  const promoteToRetailer = async (p: DiscoveredProspect) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Please sign in"); return; }
+
+    const { error } = await supabase.from("retailers").insert({
+      user_id: user.id,
+      name: p.name,
+      town: p.town,
+      county: p.county,
+      category: p.category,
+      rating: p.rating,
+      review_count: p.review_count,
+      store_positioning: p.estimated_price_positioning,
+      fit_score: p.predicted_fit_score,
+      address: p.address,
+      website: p.website,
+      lat: p.lat,
+      lng: p.lng,
+      pipeline_stage: 'new_lead',
+      ai_notes: p.ai_reason,
+    });
+
+    if (error) {
+      toast.error("Failed to promote prospect");
+      console.error(error);
+      return;
+    }
+
+    await supabase.from("discovered_prospects").delete().eq("id", p.id);
+    setProspects(prev => prev.filter(x => x.id !== p.id));
+    toast.success(`${p.name} promoted to Pipeline!`);
+  };
+
   const runDiscovery = async () => {
     setScanning(true);
     try {
