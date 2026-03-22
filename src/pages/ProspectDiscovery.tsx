@@ -61,7 +61,7 @@ export default function ProspectDiscovery() {
     const userId = p.user_id;
 
     const { error } = await supabase.from("retailers").insert({
-      user_id: user.id,
+      user_id: userId,
       name: p.name,
       town: p.town,
       county: p.county,
