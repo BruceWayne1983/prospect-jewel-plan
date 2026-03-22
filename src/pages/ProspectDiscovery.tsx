@@ -61,7 +61,7 @@ export default function ProspectDiscovery() {
     if (!user) { toast.error("Please sign in"); return; }
 
     const { error } = await supabase.from("retailers").insert({
-      user_id: userId,
+      user_id: user.id,
       name: p.name,
       town: p.town,
       county: p.county,
