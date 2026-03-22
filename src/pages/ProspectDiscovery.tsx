@@ -57,11 +57,11 @@ export default function ProspectDiscovery() {
   };
 
   const promoteToRetailer = async (p: DiscoveredProspect) => {
-    // Use the prospect's own user_id since we may not be logged in during testing
-    const userId = p.user_id;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Please sign in"); return; }
 
     const { error } = await supabase.from("retailers").insert({
-      user_id: userId,
+      user_id: user.id,
       name: p.name,
       town: p.town,
       county: p.county,
