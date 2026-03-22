@@ -24,7 +24,7 @@ import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -32,10 +32,6 @@ function AppRoutes() {
         <div className="text-muted-foreground text-sm">Loading...</div>
       </div>
     );
-  }
-
-  if (!user) {
-    return <Auth />;
   }
 
   return (
