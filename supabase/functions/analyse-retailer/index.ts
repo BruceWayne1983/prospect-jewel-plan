@@ -251,6 +251,15 @@ Generate a thorough analysis covering intelligence summary, performance predicti
     // Add timestamp to intelligence
     analysis.ai_intelligence.lastAnalysed = new Date().toISOString().split('T')[0];
 
+    // Build contact enrichment updates — only fill in missing fields
+    const contactUpdates: Record<string, string> = {};
+    const ce = analysis.contact_enrichment || {};
+    if (!retailer.phone && ce.phone) contactUpdates.phone = ce.phone;
+    if (!retailer.email && ce.email) contactUpdates.email = ce.email;
+    if (!retailer.address && ce.address) contactUpdates.address = ce.address;
+    if (!retailer.postcode && ce.postcode) contactUpdates.postcode = ce.postcode;
+    if (!retailer.instagram && ce.instagram) contactUpdates.instagram = ce.instagram;
+
     // Update the retailer record
     const { error: updateErr } = await supabase
       .from("retailers")
@@ -265,6 +274,7 @@ Generate a thorough analysis covering intelligence summary, performance predicti
         commercial_health_score: analysis.scores.commercial_health_score,
         risk_flags: analysis.risk_flags,
         qualification_status: 'qualified',
+        ...contactUpdates,
       })
       .eq("id", retailerId);
 
