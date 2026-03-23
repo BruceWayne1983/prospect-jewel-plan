@@ -96,10 +96,61 @@ export default function ProspectDiscovery() {
     setSuggestedBrands(Array.from(brandSet).sort());
   };
 
-  const filtered = prospects.filter(p => {
-    if (filter !== 'all' && p.status !== filter) return false;
-    return true;
-  });
+  // Extract unique brand sources for filter dropdown
+  const brandSources = useMemo(() => {
+    const set = new Set<string>();
+    prospects.forEach(p => {
+      if (p.discovery_source?.startsWith('Brand:')) {
+        set.add(p.discovery_source.replace('Brand: ', '').trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [prospects]);
+
+  // Get existing retailer towns for "close to current" filter
+  const [existingTowns, setExistingTowns] = useState<string[]>([]);
+  const [filterNearCurrent, setFilterNearCurrent] = useState(false);
+  useEffect(() => {
+    supabase.from("retailers").select("town").then(({ data }) => {
+      if (data) setExistingTowns(data.map(r => r.town));
+    });
+  }, []);
+
+  const filtered = useMemo(() => {
+    let result = prospects.filter(p => {
+      if (filter !== 'all' && p.status !== filter) return false;
+      if (filterCounty !== 'all' && p.county !== filterCounty) return false;
+      if (filterCategory !== 'all' && p.category !== filterCategory) return false;
+      if (filterSource === 'ai' && p.discovery_source !== 'AI Scanner') return false;
+      if (filterSource === 'web' && p.discovery_source !== 'Web Scanner') return false;
+      if (filterSource === 'brand' && !p.discovery_source?.startsWith('Brand:')) return false;
+      if (filterBrandStockist !== 'all' && !(p.discovery_source ?? '').includes(filterBrandStockist)) return false;
+      if (filterHasWebsite === 'yes' && !p.website) return false;
+      if (filterHasWebsite === 'no' && p.website) return false;
+      if (filterHasContact === 'yes' && !p.phone && !p.email) return false;
+      if (filterHasContact === 'email' && !p.email) return false;
+      if (filterHasContact === 'phone' && !p.phone) return false;
+      if (Number(filterFitMin) > 0 && (p.predicted_fit_score ?? 0) < Number(filterFitMin)) return false;
+      if (Number(filterRatingMin) > 0 && (p.rating ?? 0) < Number(filterRatingMin)) return false;
+      if (filterNearCurrent && !existingTowns.includes(p.town)) return false;
+      return true;
+    });
+
+    // Sort
+    switch (sortBy) {
+      case 'fit_high': result.sort((a, b) => (b.predicted_fit_score ?? 0) - (a.predicted_fit_score ?? 0)); break;
+      case 'fit_low': result.sort((a, b) => (a.predicted_fit_score ?? 0) - (b.predicted_fit_score ?? 0)); break;
+      case 'rating': result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)); break;
+      case 'reviews': result.sort((a, b) => (b.review_count ?? 0) - (a.review_count ?? 0)); break;
+      case 'quality': result.sort((a, b) => (b.estimated_store_quality ?? 0) - (a.estimated_store_quality ?? 0)); break;
+      case 'county': result.sort((a, b) => a.county.localeCompare(b.county)); break;
+      case 'name': result.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'oldest': result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()); break;
+      case 'newest':
+      default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
+    }
+    return result;
+  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, sortBy, existingTowns]);
 
   const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
     const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
