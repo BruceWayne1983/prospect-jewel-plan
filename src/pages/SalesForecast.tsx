@@ -1,6 +1,7 @@
 import { salesForecast, promotionalCampaigns, performanceBenchmarks, COUNTIES } from "@/data/constants";
 import { useRetailers } from "@/hooks/useRetailers";
-import { TrendingUp, CalendarDays, Target, Zap, Gift, BarChart3, Loader2 } from "lucide-react";
+import { useDataInsights } from "@/hooks/useDataInsights";
+import { TrendingUp, CalendarDays, Target, Zap, Gift, BarChart3, Loader2, Database, Sparkles } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const totalForecast = salesForecast.reduce((s, m) => s + m.total, 0);
