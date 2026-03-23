@@ -1,11 +1,14 @@
 import { useState, useMemo } from "react";
 import { useRetailers, getOutreach, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Store, MapPin, Phone, Mail, Globe, ArrowUpRight, Search, TrendingUp, Calendar, AlertTriangle, Filter } from "lucide-react";
+import { Loader2, Store, MapPin, Phone, Mail, Globe, ArrowUpRight, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { COUNTIES } from "@/data/constants";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function CurrentAccounts() {
   const navigate = useNavigate();
