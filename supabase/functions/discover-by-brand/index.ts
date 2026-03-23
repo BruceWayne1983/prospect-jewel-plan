@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const SOUTH_WEST_COUNTIES = [
   "Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Avon",
+  "Cardiff", "Swansea", "Newport", "Vale of Glamorgan", "Bridgend", "Neath Port Talbot", "Carmarthenshire", "Pembrokeshire", "Monmouthshire",
 ];
 
 const CATEGORIES = [
@@ -131,7 +132,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a UK retail market analyst specialising in jewellery, gift, and accessories brands in the South West of England. You have deep knowledge of which independent retailers stock which brands. Your task is to identify stores that stock "${brand}" or similar/complementary brands that would also be excellent candidates for stocking Nomination Italy charm jewellery.
+            content: `You are a UK retail market analyst specialising in jewellery, gift, and accessories brands in the South West of England and South Wales. You have deep knowledge of which independent retailers stock which brands. Your task is to identify stores that stock "${brand}" or similar/complementary brands that would also be excellent candidates for stocking Nomination Italy charm jewellery.
 
 Brands similar to or complementary to popular UK jewellery/accessory brands include:
 - Joma Jewellery → ChloBo, Estella Bartlett, Katie Loxton, Olivia Burton

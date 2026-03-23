@@ -157,7 +157,7 @@ export default function Settings() {
         <div>
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">Counties</Label>
           <div className="flex flex-wrap gap-2 mt-2">
-            {['Somerset', 'Devon', 'Cornwall', 'Dorset', 'Wiltshire', 'Gloucestershire', 'Avon'].map(c => (
+            {['Somerset', 'Devon', 'Cornwall', 'Dorset', 'Wiltshire', 'Gloucestershire', 'Avon', 'Cardiff', 'Swansea', 'Newport', 'Vale of Glamorgan', 'Bridgend', 'Neath Port Talbot', 'Carmarthenshire', 'Pembrokeshire', 'Monmouthshire'].map(c => (
               <span key={c} className="badge-category">{c}</span>
             ))}
           </div>
