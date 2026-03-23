@@ -432,6 +432,20 @@ export default function JourneyPlanner() {
                       <span>{customRoute.driveFromHomeMinutes}m from home → {customRoute.estimatedDriveMinutes}m between stops → {customRoute.driveHomeMinutes}m home</span>
                     </div>
                   )}
+                  {customRouteAccounts.size > 0 && (
+                    <button
+                      onClick={() => {
+                        setSelectedRoute('📌 My Custom Route');
+                        setShowAddAccount(false);
+                        setAddSearch('');
+                      }}
+                      className="w-full mt-2 py-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2
+                        gold-gradient text-card hover:opacity-90"
+                    >
+                      <Route className="w-3.5 h-3.5" />
+                      Build Route ({customRouteAccounts.size} account{customRouteAccounts.size !== 1 ? 's' : ''})
+                    </button>
+                  )}
                 </div>
               )}
 
