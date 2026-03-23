@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, Car, MapPin, CalendarDays, CheckCircle2, AlertTriangle, Loader2, Home } from "lucide-react";
+import { Clock, Car, MapPin, CalendarDays, CheckCircle2, AlertTriangle, Loader2, Home, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { DayPreference, ScheduledVisit } from "./DiaryWeekView";
