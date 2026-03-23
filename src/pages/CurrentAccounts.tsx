@@ -88,6 +88,7 @@ export default function CurrentAccounts() {
         case "fit": return (b.fit_score ?? 0) - (a.fit_score ?? 0);
         case "spend": return (b.spend_potential_score ?? 0) - (a.spend_potential_score ?? 0);
         case "recent": return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        case "health": return getAccountHealth(b).score - getAccountHealth(a).score;
         default: return (b.priority_score ?? 0) - (a.priority_score ?? 0);
       }
     });
