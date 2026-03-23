@@ -159,10 +159,14 @@ export default function RetailerProfile() {
       <Tabs defaultValue="intelligence" className="space-y-5">
         <TabsList className="bg-cream/50 border border-border/30 p-1 h-auto gap-1 flex-wrap">
           <TabsTrigger value="intelligence" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🧠 AI Intelligence</TabsTrigger>
+          <TabsTrigger value="briefing" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">📋 Briefing</TabsTrigger>
+          <TabsTrigger value="pitch" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🎯 Pitch</TabsTrigger>
           <TabsTrigger value="research" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Research</TabsTrigger>
           <TabsTrigger value="qualification" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Qualification</TabsTrigger>
           <TabsTrigger value="outreach" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Outreach</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Activity</TabsTrigger>
+          <TabsTrigger value="voice" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🎙️ Voice</TabsTrigger>
+          <TabsTrigger value="health" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🏢 Health</TabsTrigger>
         </TabsList>
 
         {/* AI INTELLIGENCE */}
