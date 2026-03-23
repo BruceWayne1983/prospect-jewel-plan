@@ -819,7 +819,7 @@ export default function ProspectDiscovery() {
                   </div>
                 )}
               </div>
-              <div className="flex flex-col items-end gap-3 flex-shrink-0">
+              <div className="flex flex-col items-end gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
                 <div className="text-center">
                   <span className={`text-2xl font-display font-bold ${(p.predicted_fit_score ?? 0) >= 80 ? 'score-excellent' : (p.predicted_fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predicted_fit_score}</span>
                   <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Predicted Fit</p>
