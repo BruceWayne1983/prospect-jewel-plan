@@ -114,6 +114,7 @@ export type Database = {
           created_at: string
           discovered_date: string
           discovery_source: string | null
+          email: string | null
           estimated_price_positioning:
             | Database["public"]["Enums"]["store_positioning"]
             | null
@@ -122,6 +123,7 @@ export type Database = {
           lat: number | null
           lng: number | null
           name: string
+          phone: string | null
           predicted_fit_score: number | null
           rating: number | null
           raw_data: Json | null
@@ -140,6 +142,7 @@ export type Database = {
           created_at?: string
           discovered_date?: string
           discovery_source?: string | null
+          email?: string | null
           estimated_price_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null
@@ -148,6 +151,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           name: string
+          phone?: string | null
           predicted_fit_score?: number | null
           rating?: number | null
           raw_data?: Json | null
@@ -166,6 +170,7 @@ export type Database = {
           created_at?: string
           discovered_date?: string
           discovery_source?: string | null
+          email?: string | null
           estimated_price_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null
@@ -174,6 +179,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           name?: string
+          phone?: string | null
           predicted_fit_score?: number | null
           rating?: number | null
           raw_data?: Json | null
