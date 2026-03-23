@@ -51,7 +51,17 @@ export default function RetailerProfile() {
   const fetchRetailer = () => {
     if (!id) return;
     supabase.from("retailers").select("*").eq("id", id).single().then(({ data }) => {
-      if (data) setRetailer(data);
+      if (data) {
+        setRetailer(data);
+        setContactForm({
+          phone: data.phone || '',
+          email: data.email || '',
+          website: data.website || '',
+          instagram: data.instagram || '',
+          address: data.address || '',
+          postcode: data.postcode || '',
+        });
+      }
       setLoading(false);
     });
   };
