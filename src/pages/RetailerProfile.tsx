@@ -250,6 +250,7 @@ export default function RetailerProfile() {
           <TabsTrigger value="activity" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Activity</TabsTrigger>
           <TabsTrigger value="voice" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🎙️ Voice</TabsTrigger>
           <TabsTrigger value="health" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🏢 Health</TabsTrigger>
+          <TabsTrigger value="gallery" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">📸 Gallery & Online</TabsTrigger>
         </TabsList>
 
         {/* AI INTELLIGENCE */}
