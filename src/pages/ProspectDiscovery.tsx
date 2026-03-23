@@ -19,6 +19,14 @@ const CATEGORIES = [
   { value: "concept_store", label: "Concept Stores" },
 ];
 
+const BRAND_OPTIONS = [
+  "Pandora", "ChloBo", "Joma Jewellery", "Thomas Sabo", "Swarovski",
+  "Daisy London", "Olivia Burton", "Kit Heath", "Annie Haak", "Coeur de Lion",
+  "Gecko", "Hot Diamonds", "Fiorelli", "Lola Rose", "Missoma",
+  "Monica Vinader", "Astley Clarke", "Clogau", "Carrie Elizabeth", "Tutti & Co",
+  "Pilgrim", "Ania Haie", "Orelia", "Estella Bartlett", "Scream Pretty",
+];
+
 function ConfidenceBadge({ score }: { score: number }) {
   const cls = score >= 80 ? 'bg-success-light text-success' : score >= 70 ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground';
   const label = score >= 80 ? 'High Confidence' : score >= 70 ? 'Medium Confidence' : 'Low Confidence';
