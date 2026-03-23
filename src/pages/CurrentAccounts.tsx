@@ -224,6 +224,7 @@ export default function CurrentAccounts() {
             <SelectItem value="fit">Fit Score</SelectItem>
             <SelectItem value="spend">Spend Potential</SelectItem>
             <SelectItem value="recent">Recently Updated</SelectItem>
+            <SelectItem value="health">Health Score</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-[10px] text-muted-foreground ml-auto">
