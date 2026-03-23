@@ -22,7 +22,8 @@ async function discoverBatch(
   category: string,
   count: number,
   existingNames: string[],
-  LOVABLE_API_KEY: string
+  LOVABLE_API_KEY: string,
+  notFitContext: string = ""
 ) {
   const excludeClause = existingNames.length > 0
     ? `\n\nDo NOT include any of these existing stores (already in the system): ${existingNames.join(", ")}`
