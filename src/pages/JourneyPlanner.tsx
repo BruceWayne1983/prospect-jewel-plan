@@ -1,10 +1,36 @@
 import { useState, useMemo } from "react";
 import { useRetailers, getOutreach, getActivity } from "@/hooks/useRetailers";
 import { useNavigate } from "react-router-dom";
-import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight } from "lucide-react";
+import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight, Home, Plus, X, Search } from "lucide-react";
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/components/journey/DiaryWeekView";
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
+
+export interface HomeBase {
+  address: string;
+  postcode: string;
+  lat: number;
+  lng: number;
+}
+
+const DEFAULT_HOME: HomeBase = {
+  address: '34 Nant Arain',
+  postcode: 'CF38',
+  lat: 51.5409,
+  lng: -3.3410,
+};
+
+function loadHome(): HomeBase {
+  try {
+    const saved = localStorage.getItem('emma_home_base');
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return DEFAULT_HOME;
+}
+
+function saveHome(home: HomeBase) {
+  localStorage.setItem('emma_home_base', JSON.stringify(home));
+}
 
 interface TownCluster {
   town: string;
@@ -36,10 +62,12 @@ interface PlannedRoute {
   clusters: TownCluster[];
   totalStops: number;
   estimatedDriveMinutes: number;
+  driveFromHomeMinutes: number;
+  driveHomeMinutes: number;
   priority: 'high' | 'medium' | 'low';
 }
 
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -47,11 +75,11 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function estimateDriveMinutes(km: number): number {
+export function estimateDriveMinutes(km: number): number {
   return Math.round(km * 2);
 }
 
-function clusterTowns(retailers: RetailerWithMeta[], maxClusterRadiusKm = 40): PlannedRoute[] {
+function clusterTowns(retailers: RetailerWithMeta[], home: HomeBase, maxClusterRadiusKm = 40): PlannedRoute[] {
   const townMap = new Map<string, TownCluster>();
   for (const r of retailers) {
     const key = r.town.toLowerCase();
@@ -98,11 +126,19 @@ function clusterTowns(retailers: RetailerWithMeta[], maxClusterRadiusKm = 40): P
       ? townNames.join(' → ')
       : `${counties[0]} Circuit (${townNames.length} towns)`;
 
+    // Drive from home to first stop and from last stop to home
+    const firstCluster = cluster[0];
+    const lastCluster = cluster[cluster.length - 1];
+    const driveFromHomeKm = haversine(home.lat, home.lng, firstCluster.lat, firstCluster.lng);
+    const driveHomeKm = haversine(lastCluster.lat, lastCluster.lng, home.lat, home.lng);
+
     routes.push({
       name: routeName,
       clusters: cluster,
       totalStops,
       estimatedDriveMinutes: estimateDriveMinutes(totalDriveKm),
+      driveFromHomeMinutes: estimateDriveMinutes(driveFromHomeKm),
+      driveHomeMinutes: estimateDriveMinutes(driveHomeKm),
       priority: avgPriority >= 70 ? 'high' : avgPriority >= 50 ? 'medium' : 'low',
     });
   }
@@ -122,6 +158,11 @@ export default function JourneyPlanner() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDayPref, setSelectedDayPref] = useState<DayPreference | null>(null);
   const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
+  const [home, setHome] = useState<HomeBase>(loadHome);
+  const [editingHome, setEditingHome] = useState(false);
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [addSearch, setAddSearch] = useState('');
+  const [customRouteAccounts, setCustomRouteAccounts] = useState<Set<string>>(new Set());
 
   const enrichedRetailers: RetailerWithMeta[] = useMemo(() =>
     retailers.map(r => {
@@ -137,23 +178,65 @@ export default function JourneyPlanner() {
       };
     }), [retailers]);
 
-  const routes = useMemo(() => clusterTowns(enrichedRetailers), [enrichedRetailers]);
+  const routes = useMemo(() => clusterTowns(enrichedRetailers, home), [enrichedRetailers, home]);
 
-  // Filter routes based on day constraints
+  // Build a custom route from manually-added accounts
+  const customRoute: PlannedRoute | null = useMemo(() => {
+    if (customRouteAccounts.size === 0) return null;
+    const selected = enrichedRetailers.filter(r => customRouteAccounts.has(r.id) && r.lat && r.lng);
+    if (selected.length === 0) return null;
+
+    // Group by town
+    const townMap = new Map<string, TownCluster>();
+    for (const r of selected) {
+      const key = r.town.toLowerCase();
+      if (!townMap.has(key)) {
+        townMap.set(key, { town: r.town, county: r.county, retailers: [], lat: r.lat!, lng: r.lng! });
+      }
+      townMap.get(key)!.retailers.push(r);
+    }
+    const clusters = Array.from(townMap.values());
+
+    // Sort clusters by distance from home (nearest first)
+    clusters.sort((a, b) => haversine(home.lat, home.lng, a.lat, a.lng) - haversine(home.lat, home.lng, b.lat, b.lng));
+
+    let totalDriveKm = 0;
+    for (let i = 1; i < clusters.length; i++) {
+      totalDriveKm += haversine(clusters[i - 1].lat, clusters[i - 1].lng, clusters[i].lat, clusters[i].lng);
+    }
+
+    const firstCluster = clusters[0];
+    const lastCluster = clusters[clusters.length - 1];
+
+    return {
+      name: '📌 My Custom Route',
+      clusters,
+      totalStops: selected.length,
+      estimatedDriveMinutes: estimateDriveMinutes(totalDriveKm),
+      driveFromHomeMinutes: estimateDriveMinutes(haversine(home.lat, home.lng, firstCluster.lat, firstCluster.lng)),
+      driveHomeMinutes: estimateDriveMinutes(haversine(lastCluster.lat, lastCluster.lng, home.lat, home.lng)),
+      priority: 'high',
+    };
+  }, [customRouteAccounts, enrichedRetailers, home]);
+
+  const allRoutes = useMemo(() => {
+    const list = customRoute ? [customRoute, ...routes] : routes;
+    return list;
+  }, [customRoute, routes]);
+
   const filteredRoutes = useMemo(() => {
-    if (!selectedDayPref || selectedDayPref.availability === 'full_day') return routes;
+    if (!selectedDayPref || selectedDayPref.availability === 'full_day') return allRoutes;
     if (selectedDayPref.availability === 'local_only' && selectedDayPref.maxDriveMinutes > 0) {
-      // Show local routes first, then mark others as over-limit
-      return [...routes].sort((a, b) => {
-        const aLocal = a.estimatedDriveMinutes <= selectedDayPref.maxDriveMinutes * 2;
-        const bLocal = b.estimatedDriveMinutes <= selectedDayPref.maxDriveMinutes * 2;
+      return [...allRoutes].sort((a, b) => {
+        const aLocal = (a.estimatedDriveMinutes + a.driveFromHomeMinutes) <= selectedDayPref.maxDriveMinutes * 2;
+        const bLocal = (b.estimatedDriveMinutes + b.driveFromHomeMinutes) <= selectedDayPref.maxDriveMinutes * 2;
         if (aLocal && !bLocal) return -1;
         if (!aLocal && bLocal) return 1;
         return 0;
       });
     }
-    return routes;
-  }, [routes, selectedDayPref]);
+    return allRoutes;
+  }, [allRoutes, selectedDayPref]);
 
   const activeRoute = filteredRoutes.find(r => r.name === selectedRoute) ?? filteredRoutes[0];
 
@@ -175,6 +258,34 @@ export default function JourneyPlanner() {
     setScheduledVisits(prev => [...prev, ...visits]);
   };
 
+  const updateHome = (updates: Partial<HomeBase>) => {
+    const next = { ...home, ...updates };
+    setHome(next);
+    saveHome(next);
+  };
+
+  const addAccountToRoute = (id: string) => {
+    setCustomRouteAccounts(prev => new Set([...prev, id]));
+    setSelectedRoute('📌 My Custom Route');
+  };
+
+  const removeAccountFromRoute = (id: string) => {
+    setCustomRouteAccounts(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  // Accounts available to add (not already in custom route)
+  const addableAccounts = useMemo(() => {
+    const search = addSearch.toLowerCase();
+    return enrichedRetailers
+      .filter(r => !customRouteAccounts.has(r.id))
+      .filter(r => !search || r.name.toLowerCase().includes(search) || r.town.toLowerCase().includes(search))
+      .slice(0, 8);
+  }, [enrichedRetailers, customRouteAccounts, addSearch]);
+
   if (loading) {
     return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
@@ -189,7 +300,7 @@ export default function JourneyPlanner() {
         <div>
           <p className="section-header mb-2">Plan</p>
           <h1 className="page-title">Journey Planner</h1>
-          <p className="page-subtitle">Optimised visit routes linked to Emma's diary — respects availability, school runs & commitments</p>
+          <p className="page-subtitle">Routes from home, linked to Emma's diary — respects availability, school runs & commitments</p>
         </div>
         <button onClick={() => navigate('/calendar')} className="text-xs text-primary hover:text-accent transition-colors flex items-center gap-1 font-medium">
           Sales Calendar <ArrowUpRight className="w-3 h-3" />
@@ -197,10 +308,41 @@ export default function JourneyPlanner() {
       </div>
       <div className="divider-gold" />
 
+      {/* Home Base Card */}
+      <div className="card-premium p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl gold-gradient flex items-center justify-center">
+              <Home className="w-4 h-4 text-card" strokeWidth={1.5} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Home Base</p>
+              {!editingHome ? (
+                <p className="text-sm font-medium text-foreground">{home.address}, {home.postcode}</p>
+              ) : (
+                <div className="flex items-center gap-2 mt-1">
+                  <input value={home.address} onChange={e => updateHome({ address: e.target.value })}
+                    className="text-sm bg-muted/50 rounded px-2 py-1 border border-border/20 text-foreground w-48" placeholder="Address" />
+                  <input value={home.postcode} onChange={e => updateHome({ postcode: e.target.value })}
+                    className="text-sm bg-muted/50 rounded px-2 py-1 border border-border/20 text-foreground w-20" placeholder="Postcode" />
+                  <input type="number" step="0.001" value={home.lat} onChange={e => updateHome({ lat: parseFloat(e.target.value) || 0 })}
+                    className="text-[10px] bg-muted/50 rounded px-1.5 py-1 border border-border/20 text-foreground w-20" placeholder="Lat" />
+                  <input type="number" step="0.001" value={home.lng} onChange={e => updateHome({ lng: parseFloat(e.target.value) || 0 })}
+                    className="text-[10px] bg-muted/50 rounded px-1.5 py-1 border border-border/20 text-foreground w-20" placeholder="Lng" />
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={() => setEditingHome(!editingHome)} className="text-[10px] text-primary hover:text-accent transition-colors font-medium">
+            {editingHome ? 'Done' : 'Edit'}
+          </button>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { icon: Route, label: 'Routes', value: routes.length.toString(), highlight: true },
+          { icon: Route, label: 'Routes', value: allRoutes.length.toString(), highlight: true },
           { icon: MapPin, label: 'Visitable Accounts', value: totalVisitable.toString(), highlight: false },
           { icon: Target, label: 'High Priority Routes', value: highPriorityRoutes.toString(), highlight: false },
           { icon: Car, label: 'Est. Total Drive', value: `${Math.round(totalDriveTime / 60)}h ${totalDriveTime % 60}m`, highlight: false },
@@ -224,7 +366,7 @@ export default function JourneyPlanner() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Diary sidebar */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-4">
             <DiaryWeekView
               onDaySelect={handleDaySelect}
               selectedDay={selectedDay}
@@ -232,7 +374,7 @@ export default function JourneyPlanner() {
             />
 
             {selectedDayPref && selectedDayPref.availability === 'local_only' && (
-              <div className="mt-3 p-3 rounded-lg bg-warning/5 border border-warning/20">
+              <div className="p-3 rounded-lg bg-warning/5 border border-warning/20">
                 <p className="text-[10px] text-warning font-medium flex items-center gap-1.5">
                   <Car className="w-3.5 h-3.5" />
                   Local only — max {selectedDayPref.maxDriveMinutes}m drive
@@ -242,6 +384,83 @@ export default function JourneyPlanner() {
                 </p>
               </div>
             )}
+
+            {/* Add Accounts Panel */}
+            <div className="card-premium p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-primary" strokeWidth={1.5} />
+                  <h4 className="text-sm font-display font-semibold text-foreground">Build a Route</h4>
+                </div>
+                {customRouteAccounts.size > 0 && (
+                  <button onClick={() => setCustomRouteAccounts(new Set())} className="text-[9px] text-destructive hover:text-destructive/80 font-medium">Clear all</button>
+                )}
+              </div>
+
+              {/* Selected accounts */}
+              {customRouteAccounts.size > 0 && (
+                <div className="space-y-1 mb-3">
+                  {enrichedRetailers.filter(r => customRouteAccounts.has(r.id)).map(r => (
+                    <div key={r.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-champagne/20">
+                      <div>
+                        <span className="text-xs font-medium text-foreground">{r.name}</span>
+                        <span className="text-[10px] text-muted-foreground ml-1.5">{r.town}</span>
+                      </div>
+                      <button onClick={() => removeAccountFromRoute(r.id)}>
+                        <X className="w-3 h-3 text-muted-foreground hover:text-destructive transition-colors" />
+                      </button>
+                    </div>
+                  ))}
+                  {customRoute && (
+                    <div className="flex items-center gap-2 pt-1.5 text-[10px] text-muted-foreground">
+                      <Home className="w-3 h-3" />
+                      <span>{customRoute.driveFromHomeMinutes}m from home → {customRoute.estimatedDriveMinutes}m between stops → {customRoute.driveHomeMinutes}m home</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Search + add */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+                <input
+                  type="text"
+                  value={addSearch}
+                  onChange={e => { setAddSearch(e.target.value); setShowAddAccount(true); }}
+                  onFocus={() => setShowAddAccount(true)}
+                  placeholder="Search accounts to add..."
+                  className="w-full text-xs bg-muted/50 rounded-lg pl-8 pr-3 py-2 border border-border/20 text-foreground placeholder:text-muted-foreground/40"
+                />
+              </div>
+
+              {showAddAccount && (
+                <div className="mt-2 space-y-0.5 max-h-[200px] overflow-y-auto">
+                  {addableAccounts.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => addAccountToRoute(r.id)}
+                      className="w-full text-left flex items-center justify-between py-2 px-2 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div>
+                        <span className="text-xs font-medium text-foreground">{r.name}</span>
+                        <span className="text-[10px] text-muted-foreground ml-1.5">{r.town}, {r.county}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {r.lat && r.lng && (
+                          <span className="text-[9px] text-muted-foreground">
+                            {estimateDriveMinutes(haversine(home.lat, home.lng, r.lat, r.lng))}m
+                          </span>
+                        )}
+                        <Plus className="w-3 h-3 text-primary" />
+                      </div>
+                    </button>
+                  ))}
+                  {addableAccounts.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground/50 text-center py-3">No matching accounts</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Route list */}
@@ -252,9 +471,10 @@ export default function JourneyPlanner() {
             </div>
             <div className="space-y-1.5">
               {filteredRoutes.map(route => {
+                const totalWithHome = route.estimatedDriveMinutes + route.driveFromHomeMinutes + route.driveHomeMinutes;
                 const isOverLimit = selectedDayPref?.availability === 'local_only'
                   && selectedDayPref.maxDriveMinutes > 0
-                  && route.estimatedDriveMinutes > selectedDayPref.maxDriveMinutes * 2;
+                  && route.driveFromHomeMinutes > selectedDayPref.maxDriveMinutes;
 
                 return (
                   <button
@@ -277,11 +497,12 @@ export default function JourneyPlanner() {
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <MapPin className="w-3 h-3" />{route.totalStops}
                         </span>
-                        {route.estimatedDriveMinutes > 0 && (
-                          <span className={`text-[10px] flex items-center gap-1 ${isOverLimit ? 'text-warning' : 'text-muted-foreground'}`}>
-                            <Clock className="w-3 h-3" />{route.estimatedDriveMinutes}m
-                          </span>
-                        )}
+                        <span className={`text-[10px] flex items-center gap-1 ${isOverLimit ? 'text-warning' : 'text-muted-foreground'}`}>
+                          <Home className="w-3 h-3" />{route.driveFromHomeMinutes}m
+                        </span>
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" />{totalWithHome}m total
+                        </span>
                       </div>
                     </div>
                     <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ml-2
@@ -300,15 +521,15 @@ export default function JourneyPlanner() {
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <h3 className="text-lg font-display font-semibold text-foreground">{activeRoute.name}</h3>
-                  <div className="flex items-center gap-4 mt-1">
+                  <div className="flex items-center gap-4 mt-1 flex-wrap">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5" />{activeRoute.totalStops} accounts
                     </span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Car className="w-3.5 h-3.5" />~{activeRoute.estimatedDriveMinutes}m drive
+                      <Car className="w-3.5 h-3.5" />~{activeRoute.estimatedDriveMinutes}m between stops
                     </span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />~{Math.round(activeRoute.totalStops * 30 + activeRoute.estimatedDriveMinutes)}m total
+                      <Clock className="w-3.5 h-3.5" />~{Math.round(activeRoute.totalStops * 30 + activeRoute.estimatedDriveMinutes + activeRoute.driveFromHomeMinutes + activeRoute.driveHomeMinutes)}m total day
                     </span>
                   </div>
                 </div>
@@ -316,6 +537,17 @@ export default function JourneyPlanner() {
                   ${activeRoute.priority === 'high' ? 'bg-success-light text-success' : activeRoute.priority === 'medium' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground'}`}>
                   {activeRoute.priority} priority
                 </span>
+              </div>
+
+              {/* Home → First stop */}
+              <div className="flex items-center gap-2 py-2 text-muted-foreground/70 mb-1">
+                <Home className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-foreground">Leave home</span>
+                <span className="text-[10px] text-muted-foreground">({home.address}, {home.postcode})</span>
+              </div>
+              <div className="flex items-center gap-2 ml-2 pl-4 py-1.5 text-muted-foreground/50 border-l-2 border-primary/20">
+                <Car className="w-3 h-3" />
+                <span className="text-[10px]">~{activeRoute.driveFromHomeMinutes} min drive to {activeRoute.clusters[0]?.town}</span>
               </div>
 
               {/* Stops timeline */}
@@ -378,8 +610,18 @@ export default function JourneyPlanner() {
                 ))}
               </div>
 
+              {/* Last stop → Home */}
+              <div className="flex items-center gap-2 ml-3 pl-6 py-1.5 text-muted-foreground/50 border-l-2 border-primary/20">
+                <Car className="w-3 h-3" />
+                <span className="text-[10px]">~{activeRoute.driveHomeMinutes} min drive home</span>
+              </div>
+              <div className="flex items-center gap-2 py-2 text-muted-foreground/70">
+                <Home className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-foreground">Arrive home</span>
+              </div>
+
               {/* Progress bar */}
-              <div className="mt-5 pt-4 border-t border-border/30 flex items-center justify-between">
+              <div className="mt-3 pt-4 border-t border-border/30 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <span className="text-xs text-muted-foreground">
                     {checkedStops.size} of {activeRoute.totalStops} completed
@@ -396,12 +638,13 @@ export default function JourneyPlanner() {
                 </button>
               </div>
 
-              {/* Route Scheduler — only shows when a day is selected */}
+              {/* Route Scheduler */}
               {selectedDate && selectedDayPref && (
                 <RouteScheduler
                   route={activeRoute}
                   selectedDate={selectedDate}
                   dayPref={selectedDayPref}
+                  homeBase={home}
                   onScheduled={handleScheduled}
                 />
               )}
