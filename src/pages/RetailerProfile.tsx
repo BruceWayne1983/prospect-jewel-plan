@@ -9,6 +9,7 @@ import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
 import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
 import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -44,16 +45,45 @@ export default function RetailerProfile() {
   const [r, setRetailer] = useState<Retailer | null>(null);
   const [loading, setLoading] = useState(true);
   const [analysing, setAnalysing] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', address: '', postcode: '' });
 
   const fetchRetailer = () => {
     if (!id) return;
     supabase.from("retailers").select("*").eq("id", id).single().then(({ data }) => {
-      if (data) setRetailer(data);
+      if (data) {
+        setRetailer(data);
+        setContactForm({
+          phone: data.phone || '',
+          email: data.email || '',
+          website: data.website || '',
+          instagram: data.instagram || '',
+          address: data.address || '',
+          postcode: data.postcode || '',
+        });
+      }
       setLoading(false);
     });
   };
 
   useEffect(() => { fetchRetailer(); }, [id]);
+
+  const saveContact = async () => {
+    if (!id) return;
+    const updates: Record<string, string | null> = {};
+    if (contactForm.phone !== (r?.phone || '')) updates.phone = contactForm.phone || null;
+    if (contactForm.email !== (r?.email || '')) updates.email = contactForm.email || null;
+    if (contactForm.website !== (r?.website || '')) updates.website = contactForm.website || null;
+    if (contactForm.instagram !== (r?.instagram || '')) updates.instagram = contactForm.instagram || null;
+    if (contactForm.address !== (r?.address || '')) updates.address = contactForm.address || null;
+    if (contactForm.postcode !== (r?.postcode || '')) updates.postcode = contactForm.postcode || null;
+    if (Object.keys(updates).length === 0) { setEditingContact(false); return; }
+    const { error } = await supabase.from("retailers").update(updates).eq("id", id);
+    if (error) { toast.error("Failed to save"); return; }
+    toast.success("Contact details updated");
+    setEditingContact(false);
+    fetchRetailer();
+  };
 
   const runAnalysis = async () => {
     if (!id) return;
@@ -249,13 +279,34 @@ export default function RetailerProfile() {
         <TabsContent value="research" className="space-y-5 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card-premium p-6 space-y-4">
-              <h3 className="text-base font-display font-semibold text-foreground">Contact & Location</h3>
-              <div className="space-y-3">
-                {r.phone && <div className="flex items-center gap-3"><Phone className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.phone}</span></div>}
-                {r.email && <div className="flex items-center gap-3"><Mail className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.email}</span></div>}
-                {r.website && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a className="text-sm text-gold hover:text-gold-dark">{r.website.replace('https://', '')}</a></div>}
-                {r.instagram && <div className="flex items-center gap-3"><Instagram className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.instagram}</span></div>}
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-display font-semibold text-foreground">Contact & Location</h3>
+                <Button variant="ghost" size="sm" onClick={() => { if (editingContact) saveContact(); else setEditingContact(true); }} className="text-[10px] h-7 px-2 text-gold-dark">
+                  {editingContact ? 'Save' : (!r.phone && !r.email ? '+ Add Details' : 'Edit')}
+                </Button>
               </div>
+              {editingContact ? (
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="Phone number" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="Email address" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.website} onChange={e => setContactForm(f => ({ ...f, website: e.target.value }))} placeholder="Website URL" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><Instagram className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.instagram} onChange={e => setContactForm(f => ({ ...f, instagram: e.target.value }))} placeholder="Instagram handle" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.address} onChange={e => setContactForm(f => ({ ...f, address: e.target.value }))} placeholder="Full address" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 opacity-0" /><Input value={contactForm.postcode} onChange={e => setContactForm(f => ({ ...f, postcode: e.target.value }))} placeholder="Postcode" className="h-8 text-xs bg-cream/30 border-border/30 w-32" /></div>
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" onClick={saveContact} className="text-[10px] h-7 px-3 gold-gradient text-sidebar-background">Save</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditingContact(false)} className="text-[10px] h-7 px-3 text-muted-foreground">Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {r.phone ? <div className="flex items-center gap-3"><Phone className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.phone}</span></div> : <div className="flex items-center gap-3"><Phone className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No phone — click Edit or run AI Analysis</span></div>}
+                  {r.email ? <div className="flex items-center gap-3"><Mail className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.email}</span></div> : <div className="flex items-center gap-3"><Mail className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No email — click Edit or run AI Analysis</span></div>}
+                  {r.website ? <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">{r.website.replace('https://', '')}</a></div> : <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No website</span></div>}
+                  {r.instagram && <div className="flex items-center gap-3"><Instagram className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.instagram}</span></div>}
+                  {r.address && <div className="flex items-center gap-3"><MapPin className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.address}{r.postcode ? `, ${r.postcode}` : ''}</span></div>}
+                </div>
+              )}
             </div>
             <div className="card-premium p-6 space-y-1">
               <h3 className="text-base font-display font-semibold text-foreground mb-3">Classification</h3>

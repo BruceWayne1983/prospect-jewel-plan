@@ -111,6 +111,11 @@ Deno.serve(async (req) => {
                     suggestedFirstMessage: { type: "string", description: "A professional 3-4 sentence intro email" },
                     callPrepNotes: { type: "string", description: "Talking points for a phone call" },
                     visitPrepNotes: { type: "string", description: "What to look for during a store visit" },
+                    contactName: { type: "string", description: "Owner or manager name if identifiable from the business name, website or local knowledge" },
+                    contactRole: { type: "string", description: "e.g. Owner, Manager, Buyer" },
+                    contactEmail: { type: "string", description: "Likely email address based on website domain and common patterns (e.g. info@domain.com, sales@domain.com)" },
+                    contactPhone: { type: "string", description: "UK phone number if inferable from the business" },
+                    bestContactMethod: { type: "string", enum: ["email", "phone", "visit", "instagram"], description: "Recommended first contact method" },
                     objections: {
                       type: "array",
                       items: {
@@ -124,7 +129,20 @@ Deno.serve(async (req) => {
                       },
                     },
                   },
-                  required: ["outreachPriority", "bestOutreachAngle", "productAngle", "suggestedFirstMessage", "callPrepNotes", "visitPrepNotes", "objections"],
+                  required: ["outreachPriority", "bestOutreachAngle", "productAngle", "suggestedFirstMessage", "callPrepNotes", "visitPrepNotes", "bestContactMethod", "objections"],
+                  additionalProperties: false,
+                },
+                contact_enrichment: {
+                  type: "object",
+                  description: "Attempt to find or infer contact details for this retailer based on the business name, town, website domain, and category",
+                  properties: {
+                    phone: { type: "string", description: "UK phone number for the business. Try to infer from the area (e.g. 01onal codes for the town). Leave empty string if unsure." },
+                    email: { type: "string", description: "Business email. Infer from website domain if available (e.g. info@website.com). Leave empty string if unsure." },
+                    address: { type: "string", description: "Full address including postcode if inferable from the town/high street. Leave empty string if unsure." },
+                    postcode: { type: "string", description: "UK postcode if inferable. Leave empty string if unsure." },
+                    instagram: { type: "string", description: "Instagram handle if inferable from business name. Leave empty string if unsure." },
+                  },
+                  required: ["phone", "email", "address", "postcode", "instagram"],
                   additionalProperties: false,
                 },
                 qualification: {
@@ -166,7 +184,7 @@ Deno.serve(async (req) => {
                   description: "List of risk flags, can be empty",
                 },
               },
-              required: ["ai_intelligence", "performance_prediction", "outreach", "qualification", "scores", "risk_flags"],
+              required: ["ai_intelligence", "performance_prediction", "outreach", "contact_enrichment", "qualification", "scores", "risk_flags"],
               additionalProperties: false,
             },
           },
@@ -179,7 +197,7 @@ Deno.serve(async (req) => {
           },
           {
             role: "user",
-            content: `Analyse this retailer as a potential Nomination Italy stockist and generate a comprehensive intelligence report:
+            content: `Analyse this retailer as a potential Nomination Italy stockist and generate a comprehensive intelligence report. IMPORTANT: Also try to find or infer their contact details (phone, email, address, postcode, Instagram) based on the business name, town, website domain, and retail category.
 
 Name: ${retailer.name}
 Town: ${retailer.town}, ${retailer.county}
@@ -187,11 +205,15 @@ Category: ${retailer.category}
 Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
 Store Positioning: ${retailer.store_positioning || 'unknown'}
 Independent: ${retailer.is_independent ? 'Yes' : 'No'}
+${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: NOT YET KNOWN — please try to find or infer'}
+${retailer.email ? `Email: ${retailer.email}` : 'Email: NOT YET KNOWN — please try to infer from website domain'}
 ${retailer.ai_notes ? `AI Notes from discovery: ${retailer.ai_notes}` : ''}
-${retailer.website ? `Website: ${retailer.website}` : ''}
-${retailer.address ? `Address: ${retailer.address}` : ''}
+${retailer.website ? `Website: ${retailer.website}` : 'Website: NOT YET KNOWN'}
+${retailer.address ? `Address: ${retailer.address}` : 'Address: NOT YET KNOWN — please try to infer'}
+${retailer.postcode ? `Postcode: ${retailer.postcode}` : ''}
+${retailer.instagram ? `Instagram: ${retailer.instagram}` : ''}
 
-Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with a suggested first message, qualification assessment, scores, and any risk flags.`,
+Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with contact details, qualification assessment, scores, and any risk flags. For contact_enrichment, try to provide plausible contact details even if you need to infer them (e.g. info@ + website domain for email, local area code for phone).`,
           },
         ],
       }),
@@ -229,6 +251,15 @@ Generate a thorough analysis covering intelligence summary, performance predicti
     // Add timestamp to intelligence
     analysis.ai_intelligence.lastAnalysed = new Date().toISOString().split('T')[0];
 
+    // Build contact enrichment updates — only fill in missing fields
+    const contactUpdates: Record<string, string> = {};
+    const ce = analysis.contact_enrichment || {};
+    if (!retailer.phone && ce.phone) contactUpdates.phone = ce.phone;
+    if (!retailer.email && ce.email) contactUpdates.email = ce.email;
+    if (!retailer.address && ce.address) contactUpdates.address = ce.address;
+    if (!retailer.postcode && ce.postcode) contactUpdates.postcode = ce.postcode;
+    if (!retailer.instagram && ce.instagram) contactUpdates.instagram = ce.instagram;
+
     // Update the retailer record
     const { error: updateErr } = await supabase
       .from("retailers")
@@ -243,6 +274,7 @@ Generate a thorough analysis covering intelligence summary, performance predicti
         commercial_health_score: analysis.scores.commercial_health_score,
         risk_flags: analysis.risk_flags,
         qualification_status: 'qualified',
+        ...contactUpdates,
       })
       .eq("id", retailerId);
 
