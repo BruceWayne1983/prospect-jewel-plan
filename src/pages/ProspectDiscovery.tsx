@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Database } from "@/integrations/supabase/types";
@@ -36,10 +37,12 @@ export default function ProspectDiscovery() {
   const [filter, setFilter] = useState<'all' | 'new' | 'reviewing' | 'accepted' | 'dismissed'>('all');
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [scanType, setScanType] = useState<'idle' | 'ai' | 'web' | 'full'>('idle');
+  const [scanType, setScanType] = useState<'idle' | 'ai' | 'web' | 'full' | 'brand'>('idle');
   const [scanProgress, setScanProgress] = useState("");
   const [selectedCounty, setSelectedCounty] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [brandSearch, setBrandSearch] = useState("");
+  const [suggestedBrands, setSuggestedBrands] = useState<string[]>([]);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -56,7 +59,23 @@ export default function ProspectDiscovery() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchProspects(); }, []);
+  useEffect(() => { fetchProspects(); fetchKnownBrands(); }, []);
+
+  // Extract brands from existing retailers' competitor_brands field
+  const fetchKnownBrands = async () => {
+    const { data } = await supabase.from("retailers").select("competitor_brands");
+    if (!data) return;
+    const brandSet = new Set<string>();
+    data.forEach((r: any) => {
+      const brands = r.competitor_brands;
+      if (Array.isArray(brands)) {
+        brands.forEach((b: any) => {
+          if (b?.name) brandSet.add(b.name);
+        });
+      }
+    });
+    setSuggestedBrands(Array.from(brandSet).sort());
+  };
 
   const filtered = prospects.filter(p => {
     if (filter !== 'all' && p.status !== filter) return false;
@@ -173,10 +192,48 @@ export default function ProspectDiscovery() {
     }
   };
 
+  const runBrandScan = async (brand?: string) => {
+    const searchBrand = brand || brandSearch.trim();
+    if (!searchBrand || searchBrand.length < 2) {
+      toast.error("Please enter a brand name (at least 2 characters)");
+      return;
+    }
+    setScanning(true);
+    setScanType('brand');
+    setScanProgress(`Finding retailers that stock ${searchBrand}...`);
+    try {
+      const body: any = { brand: searchBrand, count: 12 };
+      if (selectedCounty !== "all") body.county = selectedCounty;
+
+      const { data, error } = await supabase.functions.invoke("discover-by-brand", { body });
+      if (error) throw error;
+      if (data?.success) {
+        const count = data.prospects?.length || 0;
+        const msg = count > 0
+          ? `Found ${count} retailers linked to ${searchBrand}!`
+          : (data.message || "No new prospects found for this brand");
+        count > 0 ? toast.success(msg) : toast.info(msg);
+        if (data.similarBrands?.length) {
+          toast.info(`Similar brands: ${data.similarBrands.join(", ")}`, { duration: 6000 });
+        }
+        await fetchProspects();
+      } else {
+        toast.error(data?.error || "Brand scan failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Brand scan failed");
+    } finally {
+      setScanning(false);
+      setScanType('idle');
+      setScanProgress("");
+    }
+  };
+
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
   const webCount = prospects.filter(p => p.discovery_source === 'Web Scanner').length;
+  const brandCount = prospects.filter(p => p.discovery_source?.startsWith('Brand:')).length;
 
   if (loading) {
     return (
@@ -248,13 +305,53 @@ export default function ProspectDiscovery() {
         )}
       </div>
 
+      {/* Brand Search */}
+      <div className="card-premium p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Tag className="w-3.5 h-3.5 text-gold" />
+          <span className="text-xs font-semibold text-foreground">Find by Brand</span>
+          <span className="text-[10px] text-muted-foreground">— Discover retailers stocking a specific brand or similar brands</span>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <Input
+              placeholder="e.g. Joma Jewellery, Pandora, ChloBo..."
+              value={brandSearch}
+              onChange={e => setBrandSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !scanning && runBrandScan()}
+              className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
+            />
+          </div>
+          <Button onClick={() => runBrandScan()} disabled={scanning || brandSearch.trim().length < 2} className="text-xs h-8 px-4 bg-accent text-accent-foreground hover:bg-accent/80">
+            {scanning && scanType === 'brand' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Tag className="w-3.5 h-3.5 mr-1.5" />}
+            Brand Scan
+          </Button>
+        </div>
+        {suggestedBrands.length > 0 && (
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] text-muted-foreground">Known brands:</span>
+            {suggestedBrands.slice(0, 12).map(b => (
+              <button key={b} onClick={() => { setBrandSearch(b); runBrandScan(b); }} disabled={scanning}
+                className="text-[10px] px-2 py-0.5 rounded-full bg-champagne/40 text-gold-dark hover:bg-champagne/70 transition-colors border border-gold/10 disabled:opacity-50">
+                {b}
+              </button>
+            ))}
+            {suggestedBrands.length > 12 && (
+              <span className="text-[10px] text-muted-foreground">+{suggestedBrands.length - 12} more</span>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-6 gap-4">
         {[
           { label: 'New', value: newCount, color: 'bg-champagne text-gold-dark' },
           { label: 'Reviewing', value: reviewingCount, color: 'bg-info-light text-info' },
           { label: 'Accepted', value: acceptedCount, color: 'bg-success-light text-success' },
           { label: 'Web Verified', value: webCount, color: 'bg-info-light text-info' },
+          { label: 'Brand Linked', value: brandCount, color: 'bg-accent/20 text-accent-foreground' },
           { label: 'Total Scanned', value: prospects.length, color: 'bg-muted text-muted-foreground' },
         ].map(s => (
           <div key={s.label} className="stat-card text-center">
