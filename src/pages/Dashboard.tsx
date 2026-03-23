@@ -78,7 +78,7 @@ export default function Dashboard() {
         <div>
           <p className="section-header mb-2">{greeting}, {displayName}</p>
           <h1 className="page-title">Territory Overview</h1>
-          <p className="page-subtitle">Nomination Brand Development · South West UK & South Wales</p>
+          <p className="page-subtitle">Emma Louise Lux · Nomination Brand Development · South West UK & South Wales</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
