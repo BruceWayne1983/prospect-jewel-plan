@@ -32,7 +32,6 @@ export default function SalesCalendar() {
   const [view, setView] = useState<'week' | 'list'>('week');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const { retailers } = useRetailers();
 
   useEffect(() => {
     supabase.from("calendar_events").select("*").order("date", { ascending: true }).then(({ data }) => {
