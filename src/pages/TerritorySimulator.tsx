@@ -9,8 +9,9 @@ const scenarios = [
   { id: 'cheltenham_expansion', label: 'Expand: Cheltenham cluster', description: 'Add Cheltenham prospects plus Gloucester', counties: ['Gloucestershire'], estimatedRevenue: '£32,000–£50,000', optimalAccounts: 3, density: 'High' },
   { id: 'coastal_dorset', label: 'Coastal: Dorset premium', description: 'Sandbanks, Westbourne, and broader Dorset coast', counties: ['Dorset'], estimatedRevenue: '£22,000–£38,000', optimalAccounts: 3, density: 'Medium' },
   { id: 'devon_cornwall', label: 'Strategy: Devon & Cornwall', description: 'Build presence across the far South West', counties: ['Devon', 'Cornwall'], estimatedRevenue: '£18,000–£30,000', optimalAccounts: 4, density: 'Low' },
+  { id: 'south_wales', label: 'Expand: South Wales', description: 'Cardiff, Swansea, Cowbridge and coastal towns', counties: ['Cardiff', 'Swansea', 'Newport', 'Vale of Glamorgan', 'Bridgend', 'Neath Port Talbot', 'Carmarthenshire', 'Pembrokeshire', 'Monmouthshire'], estimatedRevenue: '£35,000–£55,000', optimalAccounts: 5, density: 'Medium' },
   { id: 'independents_only', label: 'Independent jewellers only', description: 'Focus exclusively on independent jewellery shops', counties: [], estimatedRevenue: '£55,000–£85,000', optimalAccounts: 8, density: 'Selective' },
-  { id: 'full_territory', label: 'Full territory activation', description: 'Maximise coverage across all counties', counties: [], estimatedRevenue: '£95,000–£145,000', optimalAccounts: 14, density: 'High' },
+  { id: 'full_territory', label: 'Full territory activation', description: 'Maximise coverage across all counties including South Wales', counties: [], estimatedRevenue: '£130,000–£200,000', optimalAccounts: 20, density: 'High' },
 ];
 
 export default function TerritorySimulator() {
