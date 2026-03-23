@@ -94,6 +94,28 @@ export default function RetailerProfile() {
     fetchRetailer();
   };
 
+  const verifySocial = async () => {
+    if (!id || !r) return;
+    setVerifyingSocial(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-social", {
+        body: { retailerId: id, name: r.name, town: r.town, county: r.county, website: r.website },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`Social accounts verified! Confidence: ${data.social.confidence}`);
+        if (data.social.notes) toast.info(data.social.notes);
+        fetchRetailer();
+      } else {
+        toast.error(data?.error || "Verification failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to verify social accounts");
+    } finally {
+      setVerifyingSocial(false);
+    }
+  };
+
   const runAnalysis = async () => {
     if (!id) return;
     setAnalysing(true);
