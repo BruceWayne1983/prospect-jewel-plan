@@ -169,7 +169,10 @@ export default function ProspectDiscovery() {
       category: p.category, rating: p.rating, review_count: p.review_count,
       store_positioning: p.estimated_price_positioning, fit_score: p.predicted_fit_score,
       address: p.address, website: p.website, lat: p.lat, lng: p.lng,
-      phone: (p as any).phone || null, email: (p as any).email || null,
+      phone: p.phone || null, email: p.email || null,
+      instagram: (p as any).instagram || null, facebook: (p as any).facebook || null,
+      tiktok: (p as any).tiktok || null, twitter: (p as any).twitter || null,
+      linkedin: (p as any).linkedin || null, social_verified: (p as any).social_verified || false,
       pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
     });
 
