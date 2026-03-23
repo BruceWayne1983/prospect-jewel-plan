@@ -852,6 +852,56 @@ export default function ProspectDiscovery() {
           </div>
         ))}
       </div>
+
+      {/* Dismiss Dialog */}
+      <Dialog open={dismissDialog.open} onOpenChange={(open) => !open && setDismissDialog({ open: false, prospect: null, reason: 'not_fit', detail: '' })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-display">Dismiss {dismissDialog.prospect?.name}</DialogTitle>
+            <DialogDescription className="text-xs">
+              Your feedback helps the AI learn what doesn't fit — improving future discovery results.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Reason</label>
+              <Select value={dismissDialog.reason} onValueChange={(v) => setDismissDialog(prev => ({ ...prev, reason: v }))}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_fit">Not a brand fit</SelectItem>
+                  <SelectItem value="wrong_category">Wrong store type (e.g. toy store, chain)</SelectItem>
+                  <SelectItem value="wrong_positioning">Wrong price positioning</SelectItem>
+                  <SelectItem value="too_small">Too small / low quality</SelectItem>
+                  <SelectItem value="wrong_location">Wrong location / area</SelectItem>
+                  <SelectItem value="already_approached">Already approached / declined</SelectItem>
+                  <SelectItem value="competitor_conflict">Competitor conflict</SelectItem>
+                  <SelectItem value="closed">Store closed / no longer trading</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Details (optional)</label>
+              <Textarea
+                placeholder="e.g. 'Purely a toy shop, no jewellery or gift accessories' or 'Chain store, not independent'"
+                value={dismissDialog.detail}
+                onChange={(e) => setDismissDialog(prev => ({ ...prev, detail: e.target.value }))}
+                className="text-xs min-h-[60px]"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDismissDialog({ open: false, prospect: null, reason: 'not_fit', detail: '' })}>
+                Cancel
+              </Button>
+              <Button size="sm" className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={confirmDismiss}>
+                Dismiss & Log Pattern
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
