@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -51,6 +51,17 @@ export default function ProspectDiscovery() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [brandSearch, setBrandSearch] = useState("");
   const [suggestedBrands, setSuggestedBrands] = useState<string[]>([]);
+  // Advanced filters
+  const [filterCounty, setFilterCounty] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterSource, setFilterSource] = useState<string>("all");
+  const [filterBrandStockist, setFilterBrandStockist] = useState<string>("all");
+  const [filterHasWebsite, setFilterHasWebsite] = useState<string>("all");
+  const [filterHasContact, setFilterHasContact] = useState<string>("all");
+  const [filterFitMin, setFilterFitMin] = useState<string>("0");
+  const [filterRatingMin, setFilterRatingMin] = useState<string>("0");
+  const [sortBy, setSortBy] = useState<string>("newest");
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -85,10 +96,61 @@ export default function ProspectDiscovery() {
     setSuggestedBrands(Array.from(brandSet).sort());
   };
 
-  const filtered = prospects.filter(p => {
-    if (filter !== 'all' && p.status !== filter) return false;
-    return true;
-  });
+  // Extract unique brand sources for filter dropdown
+  const brandSources = useMemo(() => {
+    const set = new Set<string>();
+    prospects.forEach(p => {
+      if (p.discovery_source?.startsWith('Brand:')) {
+        set.add(p.discovery_source.replace('Brand: ', '').trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [prospects]);
+
+  // Get existing retailer towns for "close to current" filter
+  const [existingTowns, setExistingTowns] = useState<string[]>([]);
+  const [filterNearCurrent, setFilterNearCurrent] = useState(false);
+  useEffect(() => {
+    supabase.from("retailers").select("town").then(({ data }) => {
+      if (data) setExistingTowns(data.map(r => r.town));
+    });
+  }, []);
+
+  const filtered = useMemo(() => {
+    let result = prospects.filter(p => {
+      if (filter !== 'all' && p.status !== filter) return false;
+      if (filterCounty !== 'all' && p.county !== filterCounty) return false;
+      if (filterCategory !== 'all' && p.category !== filterCategory) return false;
+      if (filterSource === 'ai' && p.discovery_source !== 'AI Scanner') return false;
+      if (filterSource === 'web' && p.discovery_source !== 'Web Scanner') return false;
+      if (filterSource === 'brand' && !p.discovery_source?.startsWith('Brand:')) return false;
+      if (filterBrandStockist !== 'all' && !(p.discovery_source ?? '').includes(filterBrandStockist)) return false;
+      if (filterHasWebsite === 'yes' && !p.website) return false;
+      if (filterHasWebsite === 'no' && p.website) return false;
+      if (filterHasContact === 'yes' && !p.phone && !p.email) return false;
+      if (filterHasContact === 'email' && !p.email) return false;
+      if (filterHasContact === 'phone' && !p.phone) return false;
+      if (Number(filterFitMin) > 0 && (p.predicted_fit_score ?? 0) < Number(filterFitMin)) return false;
+      if (Number(filterRatingMin) > 0 && (p.rating ?? 0) < Number(filterRatingMin)) return false;
+      if (filterNearCurrent && !existingTowns.includes(p.town)) return false;
+      return true;
+    });
+
+    // Sort
+    switch (sortBy) {
+      case 'fit_high': result.sort((a, b) => (b.predicted_fit_score ?? 0) - (a.predicted_fit_score ?? 0)); break;
+      case 'fit_low': result.sort((a, b) => (a.predicted_fit_score ?? 0) - (b.predicted_fit_score ?? 0)); break;
+      case 'rating': result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)); break;
+      case 'reviews': result.sort((a, b) => (b.review_count ?? 0) - (a.review_count ?? 0)); break;
+      case 'quality': result.sort((a, b) => (b.estimated_store_quality ?? 0) - (a.estimated_store_quality ?? 0)); break;
+      case 'county': result.sort((a, b) => a.county.localeCompare(b.county)); break;
+      case 'name': result.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'oldest': result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()); break;
+      case 'newest':
+      default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
+    }
+    return result;
+  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, sortBy, existingTowns]);
 
   const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
     const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
@@ -390,15 +452,172 @@ export default function ProspectDiscovery() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2">
+      {/* Status Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
         {(['all', 'new', 'reviewing', 'accepted', 'dismissed'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className={`text-xs px-4 py-2 rounded-lg border transition-all ${filter === f ? 'bg-card border-gold/30 text-foreground shadow-sm' : 'border-border/20 text-muted-foreground hover:bg-card'}`}>
             {f.charAt(0).toUpperCase() + f.slice(1)} {f === 'all' ? `(${prospects.length})` : `(${prospects.filter(p => p.status === f).length})`}
           </button>
         ))}
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
+            className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
+            <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+            Filters {(filterCounty !== 'all' || filterCategory !== 'all' || filterSource !== 'all' || filterBrandStockist !== 'all' || filterHasWebsite !== 'all' || filterHasContact !== 'all' || Number(filterFitMin) > 0 || Number(filterRatingMin) > 0 || filterNearCurrent) ? '●' : ''}
+          </Button>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
+              <ArrowUpDown className="w-3 h-3 mr-1.5" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="fit_high">Fit Score ↓</SelectItem>
+              <SelectItem value="fit_low">Fit Score ↑</SelectItem>
+              <SelectItem value="rating">Rating ↓</SelectItem>
+              <SelectItem value="reviews">Most Reviews</SelectItem>
+              <SelectItem value="quality">Store Quality ↓</SelectItem>
+              <SelectItem value="county">County A–Z</SelectItem>
+              <SelectItem value="name">Name A–Z</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <div className="card-premium p-4 border-gold/15">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">County</label>
+              <Select value={filterCounty} onValueChange={setFilterCounty}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Counties</SelectItem>
+                  {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Category</label>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Discovery Source</label>
+              <Select value={filterSource} onValueChange={setFilterSource}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="ai">AI Scanner</SelectItem>
+                  <SelectItem value="web">Web Scanner</SelectItem>
+                  <SelectItem value="brand">Brand Scan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Brand Stockist</label>
+              <Select value={filterBrandStockist} onValueChange={setFilterBrandStockist}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Brand</SelectItem>
+                  {brandSources.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  {BRAND_OPTIONS.filter(b => !brandSources.includes(b)).slice(0, 15).map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Online Presence</label>
+              <Select value={filterHasWebsite} onValueChange={setFilterHasWebsite}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any</SelectItem>
+                  <SelectItem value="yes">Has Website</SelectItem>
+                  <SelectItem value="no">No Website</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Contact Info</label>
+              <Select value={filterHasContact} onValueChange={setFilterHasContact}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any</SelectItem>
+                  <SelectItem value="yes">Has Phone or Email</SelectItem>
+                  <SelectItem value="email">Has Email</SelectItem>
+                  <SelectItem value="phone">Has Phone</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Min Fit Score</label>
+              <Select value={filterFitMin} onValueChange={setFilterFitMin}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Any</SelectItem>
+                  <SelectItem value="50">50+</SelectItem>
+                  <SelectItem value="60">60+</SelectItem>
+                  <SelectItem value="70">70+</SelectItem>
+                  <SelectItem value="80">80+</SelectItem>
+                  <SelectItem value="90">90+</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Min Rating</label>
+              <Select value={filterRatingMin} onValueChange={setFilterRatingMin}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Any</SelectItem>
+                  <SelectItem value="3">3+ stars</SelectItem>
+                  <SelectItem value="3.5">3.5+ stars</SelectItem>
+                  <SelectItem value="4">4+ stars</SelectItem>
+                  <SelectItem value="4.5">4.5+ stars</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilterNearCurrent(!filterNearCurrent)}
+                className={`h-8 text-xs px-3 rounded-md border transition-all w-full ${filterNearCurrent ? 'bg-champagne/40 border-gold/30 text-gold-dark' : 'border-border/30 text-muted-foreground hover:bg-cream/50'}`}>
+                <MapPin className="w-3 h-3 inline mr-1" />
+                {filterNearCurrent ? 'Near Current ✓' : 'Near Current Stockists'}
+              </button>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => { setFilterCounty('all'); setFilterCategory('all'); setFilterSource('all'); setFilterBrandStockist('all'); setFilterHasWebsite('all'); setFilterHasContact('all'); setFilterFitMin('0'); setFilterRatingMin('0'); setFilterNearCurrent(false); }}
+                className="h-8 text-xs px-3 rounded-md border border-border/30 text-muted-foreground hover:bg-cream/50 w-full">
+                Clear All Filters
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">Showing {filtered.length} of {prospects.length} prospects</p>
+        </div>
+      )}
 
       {/* Empty State */}
       {prospects.length === 0 && (
