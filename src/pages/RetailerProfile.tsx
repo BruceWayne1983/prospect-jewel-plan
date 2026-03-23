@@ -539,6 +539,118 @@ export default function RetailerProfile() {
         <TabsContent value="health" className="space-y-5 mt-0">
           <CompaniesHouseCheck retailer={r} />
         </TabsContent>
+
+        {/* GALLERY & ONLINE PRESENCE */}
+        <TabsContent value="gallery" className="space-y-5 mt-0">
+          {/* Store Images */}
+          <div className="card-premium p-6">
+            <div className="flex items-center gap-2.5 mb-4">
+              <Image className="w-5 h-5 text-gold" strokeWidth={1.5} />
+              <h3 className="text-base font-display font-semibold text-foreground">Store Imagery</h3>
+              <span className="text-[10px] text-muted-foreground">Interior, exterior & social media photos</span>
+            </div>
+            {(r as any).store_images && (r as any).store_images.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {((r as any).store_images as string[]).map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block aspect-video rounded-lg overflow-hidden bg-muted border border-border/20 hover:border-gold/40 transition-all hover:shadow-md">
+                    <img src={url} alt={`${r.name} store image ${i + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-cream/30 rounded-lg border border-border/10">
+                <Image className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">No store images yet — click "AI Verify Social" on the Research tab to discover images</p>
+              </div>
+            )}
+          </div>
+
+          {/* Social Follower Counts */}
+          <div className="card-premium p-6">
+            <div className="flex items-center gap-2.5 mb-4">
+              <Users className="w-5 h-5 text-gold" strokeWidth={1.5} />
+              <h3 className="text-base font-display font-semibold text-foreground">Social Media Following</h3>
+            </div>
+            {(r as any).follower_counts && Object.values((r as any).follower_counts as Record<string, number>).some(v => v > 0) ? (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {[
+                  { key: 'instagram', label: 'Instagram', icon: '📷', handle: r.instagram },
+                  { key: 'facebook', label: 'Facebook', icon: '📘', handle: (r as any).facebook },
+                  { key: 'tiktok', label: 'TikTok', icon: '🎵', handle: (r as any).tiktok },
+                  { key: 'twitter', label: 'Twitter/X', icon: '𝕏', handle: (r as any).twitter },
+                  { key: 'linkedin', label: 'LinkedIn', icon: '💼', handle: (r as any).linkedin },
+                ].map(platform => {
+                  const count = ((r as any).follower_counts as Record<string, number>)?.[platform.key] || 0;
+                  return (
+                    <div key={platform.key} className={`text-center p-3 rounded-lg border ${count > 0 ? 'bg-cream/50 border-border/20' : 'bg-muted/30 border-border/10 opacity-50'}`}>
+                      <span className="text-lg">{platform.icon}</span>
+                      <p className="text-lg font-display font-bold text-foreground mt-1">{count > 0 ? count.toLocaleString() : '—'}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{platform.label}</p>
+                      {platform.handle && <p className="text-[10px] text-gold-dark mt-0.5 truncate">{platform.handle}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-6 bg-cream/30 rounded-lg border border-border/10">
+                <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">No follower data yet — run "AI Verify Social" to estimate follower counts</p>
+              </div>
+            )}
+          </div>
+
+          {/* Website Traffic & Reviews */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Website Traffic */}
+            <div className="card-premium p-6">
+              <div className="flex items-center gap-2.5 mb-4">
+                <Globe className="w-5 h-5 text-gold" strokeWidth={1.5} />
+                <h3 className="text-base font-display font-semibold text-foreground">Website Traffic</h3>
+              </div>
+              {(r as any).estimated_monthly_traffic ? (
+                <div className="text-center py-4">
+                  <p className="text-3xl font-display font-bold shimmer-gold">{((r as any).estimated_monthly_traffic as number).toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Est. Monthly Visitors</p>
+                  {r.website && <a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gold hover:text-gold-dark mt-2 inline-block">{r.website.replace('https://', '').replace('http://', '')}</a>}
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-cream/30 rounded-lg border border-border/10">
+                  <Globe className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">{r.website ? 'No traffic data yet' : 'No website recorded'}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Google Reviews */}
+            <div className="card-premium p-6">
+              <div className="flex items-center gap-2.5 mb-4">
+                <Star className="w-5 h-5 text-gold" strokeWidth={1.5} />
+                <h3 className="text-base font-display font-semibold text-foreground">Online Reviews</h3>
+                {r.rating ? <span className="text-sm font-semibold text-warning">{r.rating} ★ ({r.review_count})</span> : null}
+              </div>
+              {(r as any).google_review_summary ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-foreground leading-relaxed italic font-display">{(r as any).google_review_summary}</p>
+                  {(r as any).google_review_highlights && ((r as any).google_review_highlights as Array<{text: string; sentiment: string}>).length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-border/10">
+                      {((r as any).google_review_highlights as Array<{text: string; sentiment: string}>).map((h, i) => (
+                        <div key={i} className="flex items-start gap-2 py-1">
+                          {h.sentiment === 'positive' ? <ThumbsUp className="w-3 h-3 text-success mt-0.5 flex-shrink-0" strokeWidth={1.5} /> : h.sentiment === 'negative' ? <ThumbsDown className="w-3 h-3 text-destructive mt-0.5 flex-shrink-0" strokeWidth={1.5} /> : <Minus className="w-3 h-3 text-muted-foreground mt-0.5 flex-shrink-0" strokeWidth={1.5} />}
+                          <span className="text-xs text-muted-foreground">{h.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-cream/30 rounded-lg border border-border/10">
+                  <Star className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">No review data yet — run "AI Verify Social" to fetch review insights</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
