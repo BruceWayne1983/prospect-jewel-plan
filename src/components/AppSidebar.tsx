@@ -23,6 +23,7 @@ const navItems = [
   { title: "Strategy Simulator", url: "/simulator", icon: FlaskConical },
   { title: "Account Planner", url: "/planner", icon: CalendarDays },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Brand Hub", url: "/brand", icon: Gem },
   { title: "Data Hub", url: "/data-hub", icon: FolderOpen },
 ];
 
