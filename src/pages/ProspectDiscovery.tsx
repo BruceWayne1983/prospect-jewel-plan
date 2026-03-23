@@ -833,7 +833,7 @@ export default function ProspectDiscovery() {
                     <Button variant="outline" size="sm" onClick={() => updateStatus(p.id, 'accepted')} className="text-[10px] h-7 px-2 border-success/40 text-success hover:bg-success-light">
                       <CheckCircle className="w-3 h-3 mr-1" /> Accept
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => updateStatus(p.id, 'dismissed')} className="text-[10px] h-7 px-2 text-muted-foreground/50">
+                    <Button variant="ghost" size="sm" onClick={() => openDismissDialog(p)} className="text-[10px] h-7 px-2 text-muted-foreground/50">
                       <XCircle className="w-3 h-3" />
                     </Button>
                   </div>
