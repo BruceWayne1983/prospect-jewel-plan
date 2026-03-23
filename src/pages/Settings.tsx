@@ -29,7 +29,7 @@ export default function Settings() {
           </div>
           <div>
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Role</Label>
-            <Input defaultValue="Sales Agent — South West UK" className="mt-1.5 bg-background border-border/40 h-10" />
+            <Input defaultValue="Sales Agent — South West & South Wales" className="mt-1.5 bg-background border-border/40 h-10" />
           </div>
           <div>
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email</Label>
@@ -152,7 +152,7 @@ export default function Settings() {
         </div>
         <div>
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">Assigned Region</Label>
-          <Input defaultValue="South West England" className="mt-1.5 bg-cream border-border/30 h-10" readOnly />
+          <Input defaultValue="South West England & South Wales" className="mt-1.5 bg-cream border-border/30 h-10" readOnly />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">Counties</Label>
@@ -199,7 +199,7 @@ export default function Settings() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Nomination Italy — Premium Italian charm jewellery and accessories. Targeting independent jewellers, boutiques and premium lifestyle retailers across the South West UK territory.
+          Nomination Italy — Premium Italian charm jewellery and accessories. Targeting independent jewellers, boutiques and premium lifestyle retailers across the South West UK & South Wales territory.
         </p>
       </div>
     </div>
