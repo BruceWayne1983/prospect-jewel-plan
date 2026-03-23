@@ -50,6 +50,7 @@ function AppRoutes() {
         <Route path="/accounts" element={<CurrentAccounts />} />
         <Route path="/brand" element={<BrandHub />} />
         <Route path="/locations" element={<RetailLocations />} />
+        <Route path="/prospect/:id" element={<ProspectProfile />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
