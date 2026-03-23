@@ -119,8 +119,11 @@ export type Database = {
             | Database["public"]["Enums"]["store_positioning"]
             | null
           estimated_store_quality: number | null
+          facebook: string | null
           id: string
+          instagram: string | null
           lat: number | null
+          linkedin: string | null
           lng: number | null
           name: string
           phone: string | null
@@ -128,8 +131,11 @@ export type Database = {
           rating: number | null
           raw_data: Json | null
           review_count: number | null
+          social_verified: boolean | null
           status: Database["public"]["Enums"]["prospect_status"]
+          tiktok: string | null
           town: string
+          twitter: string | null
           updated_at: string
           user_id: string
           website: string | null
@@ -147,8 +153,11 @@ export type Database = {
             | Database["public"]["Enums"]["store_positioning"]
             | null
           estimated_store_quality?: number | null
+          facebook?: string | null
           id?: string
+          instagram?: string | null
           lat?: number | null
+          linkedin?: string | null
           lng?: number | null
           name: string
           phone?: string | null
@@ -156,8 +165,11 @@ export type Database = {
           rating?: number | null
           raw_data?: Json | null
           review_count?: number | null
+          social_verified?: boolean | null
           status?: Database["public"]["Enums"]["prospect_status"]
+          tiktok?: string | null
           town: string
+          twitter?: string | null
           updated_at?: string
           user_id: string
           website?: string | null
@@ -175,8 +187,11 @@ export type Database = {
             | Database["public"]["Enums"]["store_positioning"]
             | null
           estimated_store_quality?: number | null
+          facebook?: string | null
           id?: string
+          instagram?: string | null
           lat?: number | null
+          linkedin?: string | null
           lng?: number | null
           name?: string
           phone?: string | null
@@ -184,8 +199,11 @@ export type Database = {
           rating?: number | null
           raw_data?: Json | null
           review_count?: number | null
+          social_verified?: boolean | null
           status?: Database["public"]["Enums"]["prospect_status"]
+          tiktok?: string | null
           town?: string
+          twitter?: string | null
           updated_at?: string
           user_id?: string
           website?: string | null
@@ -240,11 +258,13 @@ export type Database = {
           county: string
           created_at: string
           email: string | null
+          facebook: string | null
           fit_score: number | null
           id: string
           instagram: string | null
           is_independent: boolean | null
           lat: number | null
+          linkedin: string | null
           lng: number | null
           name: string
           outreach: Json | null
@@ -258,11 +278,14 @@ export type Database = {
           rating: number | null
           review_count: number | null
           risk_flags: string[] | null
+          social_verified: boolean | null
           spend_potential_score: number | null
           store_positioning:
             | Database["public"]["Enums"]["store_positioning"]
             | null
+          tiktok: string | null
           town: string
+          twitter: string | null
           updated_at: string
           user_id: string
           website: string | null
@@ -278,11 +301,13 @@ export type Database = {
           county: string
           created_at?: string
           email?: string | null
+          facebook?: string | null
           fit_score?: number | null
           id?: string
           instagram?: string | null
           is_independent?: boolean | null
           lat?: number | null
+          linkedin?: string | null
           lng?: number | null
           name: string
           outreach?: Json | null
@@ -296,11 +321,14 @@ export type Database = {
           rating?: number | null
           review_count?: number | null
           risk_flags?: string[] | null
+          social_verified?: boolean | null
           spend_potential_score?: number | null
           store_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null
+          tiktok?: string | null
           town: string
+          twitter?: string | null
           updated_at?: string
           user_id: string
           website?: string | null
@@ -316,11 +344,13 @@ export type Database = {
           county?: string
           created_at?: string
           email?: string | null
+          facebook?: string | null
           fit_score?: number | null
           id?: string
           instagram?: string | null
           is_independent?: boolean | null
           lat?: number | null
+          linkedin?: string | null
           lng?: number | null
           name?: string
           outreach?: Json | null
@@ -334,11 +364,14 @@ export type Database = {
           rating?: number | null
           review_count?: number | null
           risk_flags?: string[] | null
+          social_verified?: boolean | null
           spend_potential_score?: number | null
           store_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null
+          tiktok?: string | null
           town?: string
+          twitter?: string | null
           updated_at?: string
           user_id?: string
           website?: string | null
