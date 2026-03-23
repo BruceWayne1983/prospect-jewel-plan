@@ -353,7 +353,10 @@ export default function RetailerProfile() {
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{outreach.suggestedFirstMessage}</p>
               </div>
             </div>
+            </div>
           )}
+
+          <FollowUpDrafter retailer={r} />
         </TabsContent>
 
         {/* ACTIVITY */}
