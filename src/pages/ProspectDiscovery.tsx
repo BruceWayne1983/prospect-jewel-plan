@@ -107,12 +107,16 @@ export default function ProspectDiscovery() {
     return Array.from(set).sort();
   }, [prospects]);
 
-  // Get existing retailer towns for "close to current" filter
+  // Get existing retailer names and towns for dedup and "close to current" filter
   const [existingTowns, setExistingTowns] = useState<string[]>([]);
+  const [existingRetailerKeys, setExistingRetailerKeys] = useState<Set<string>>(new Set());
   const [filterNearCurrent, setFilterNearCurrent] = useState(false);
   useEffect(() => {
-    supabase.from("retailers").select("town").then(({ data }) => {
-      if (data) setExistingTowns(data.map(r => r.town));
+    supabase.from("retailers").select("name, town").then(({ data }) => {
+      if (data) {
+        setExistingTowns(data.map(r => r.town));
+        setExistingRetailerKeys(new Set(data.map(r => `${r.name.toLowerCase().trim()}|${r.town.toLowerCase().trim()}`)));
+      }
     });
   }, []);
 
