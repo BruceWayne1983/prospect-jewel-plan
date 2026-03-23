@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import ProspectFinder from "@/pages/ProspectFinder";
@@ -18,26 +18,11 @@ import ProspectDiscovery from "@/pages/ProspectDiscovery";
 import TerritorySimulator from "@/pages/TerritorySimulator";
 import SalesCalendar from "@/pages/SalesCalendar";
 import SalesForecast from "@/pages/SalesForecast";
-import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground text-sm">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Auth />;
-  }
-
   return (
     <AppLayout>
       <Routes>
