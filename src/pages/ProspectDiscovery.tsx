@@ -51,6 +51,17 @@ export default function ProspectDiscovery() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [brandSearch, setBrandSearch] = useState("");
   const [suggestedBrands, setSuggestedBrands] = useState<string[]>([]);
+  // Advanced filters
+  const [filterCounty, setFilterCounty] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterSource, setFilterSource] = useState<string>("all");
+  const [filterBrandStockist, setFilterBrandStockist] = useState<string>("all");
+  const [filterHasWebsite, setFilterHasWebsite] = useState<string>("all");
+  const [filterHasContact, setFilterHasContact] = useState<string>("all");
+  const [filterFitMin, setFilterFitMin] = useState<string>("0");
+  const [filterRatingMin, setFilterRatingMin] = useState<string>("0");
+  const [sortBy, setSortBy] = useState<string>("newest");
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
