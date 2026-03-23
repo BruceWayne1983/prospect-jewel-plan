@@ -372,6 +372,7 @@ export default function RetailerProfile() {
                   {(r as any).twitter && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://x.com/${(r as any).twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">X: {(r as any).twitter}</a></div>}
                   {(r as any).linkedin && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={(r as any).linkedin.startsWith('http') ? (r as any).linkedin : `https://linkedin.com/company/${(r as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">LinkedIn</a></div>}
                   {(r as any).social_verified && <div className="flex items-center gap-2 mt-2"><CheckCircle className="w-3.5 h-3.5 text-success" strokeWidth={1.5} /><span className="text-[10px] text-success font-medium">Social accounts verified by AI</span></div>}
+                  {r.address && <div className="flex items-center gap-3"><MapPin className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.address}{r.postcode ? `, ${r.postcode}` : ''}</span></div>}
                 </div>
               )}
             </div>
