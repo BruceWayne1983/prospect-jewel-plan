@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarDays, Phone, MapPin, Users, MessageSquare, Briefcase, ChevronLeft, ChevronRight, Clock, Navigation, Loader2 } from "lucide-react";
+import { CalendarDays, Phone, MapPin, Users, MessageSquare, Briefcase, Clock, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useRetailers } from "@/hooks/useRetailers";
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -33,7 +32,6 @@ export default function SalesCalendar() {
   const [view, setView] = useState<'week' | 'list'>('week');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const { retailers } = useRetailers();
 
   useEffect(() => {
     supabase.from("calendar_events").select("*").order("date", { ascending: true }).then(({ data }) => {
@@ -174,44 +172,6 @@ export default function SalesCalendar() {
         )}
       </div>
 
-      {/* Journey Planner */}
-      {retailers.length > 0 && (
-        <div className="card-premium p-6">
-          <div className="flex items-center gap-2.5 mb-5">
-            <Navigation className="w-5 h-5 text-gold" strokeWidth={1.5} />
-            <div>
-              <h3 className="text-lg font-display font-semibold text-foreground">Territory Journey Planner</h3>
-              <p className="text-[10px] text-muted-foreground">Optimised visit routes by region</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {clusters.map(route => {
-              const routeRetailers = retailers.filter(r => route.towns.includes(r.town));
-              if (routeRetailers.length === 0) return null;
-              return (
-                <div key={route.region} className={`bg-cream/50 rounded-xl p-5 border ${route.priority === 'high' ? 'border-gold/20' : 'border-border/15'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-foreground">{route.region}</h4>
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${route.priority === 'high' ? 'bg-success-light text-success' : route.priority === 'medium' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground'}`}>{route.priority} priority</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mb-3">
-                    <MapPin className="w-3 h-3 inline mr-1" />{route.towns.join(' → ')} · {route.estimatedDrive}
-                  </p>
-                  <div className="space-y-1.5">
-                    {routeRetailers.slice(0, 4).map(r => (
-                      <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)}
-                        className="flex items-center justify-between py-1.5 cursor-pointer hover:text-gold-dark transition-colors">
-                        <span className="text-xs text-foreground">{r.name}</span>
-                        <span className={`text-xs font-display font-bold ${(r.fit_score ?? 0) >= 85 ? 'score-excellent' : (r.fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{r.fit_score ?? 0}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            }).filter(Boolean)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

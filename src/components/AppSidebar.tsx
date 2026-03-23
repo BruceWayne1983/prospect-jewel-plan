@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store, Route
 } from "lucide-react";
 import nominationLogo from "@/assets/nomination-logo.webp";
 import { NavLink } from "@/components/NavLink";
@@ -18,6 +18,7 @@ const navItems = [
   { title: "Current Accounts", url: "/accounts", icon: Store },
   { title: "Territory Map", url: "/map", icon: Map },
   { title: "Sales Calendar", url: "/calendar", icon: Calendar },
+  { title: "Journey Planner", url: "/journeys", icon: Route },
   { title: "Sales Forecast", url: "/forecast", icon: TrendingUp },
   { title: "Strategy Simulator", url: "/simulator", icon: FlaskConical },
   { title: "Account Planner", url: "/planner", icon: CalendarDays },
