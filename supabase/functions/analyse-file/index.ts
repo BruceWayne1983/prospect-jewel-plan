@@ -83,9 +83,10 @@ Deno.serve(async (req) => {
     const isText = file.file_type?.startsWith("text/") ||
       lower.endsWith(".csv") || lower.endsWith(".json") ||
       lower.endsWith(".txt") || lower.endsWith(".md");
-    const isBinary = lower.endsWith(".pdf") || lower.endsWith(".xlsx") ||
-      lower.endsWith(".xls") || lower.endsWith(".docx") ||
-      lower.endsWith(".doc") || lower.endsWith(".pptx");
+    const isPdf = lower.endsWith(".pdf");
+    const isImage = lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp") || lower.endsWith(".gif");
+    const isOffice = lower.endsWith(".xlsx") || lower.endsWith(".xls") ||
+      lower.endsWith(".docx") || lower.endsWith(".doc") || lower.endsWith(".pptx");
 
     const categoryContext: Record<string, string> = {
       sales_data: "This is sales data. Look for trends, top performers, seasonal patterns, and actionable insights.",
@@ -109,11 +110,11 @@ Deno.serve(async (req) => {
         { role: "system", content: systemPrompt },
         { role: "user", content: `Analyse this file:\n\n${contextLine}\n\nContent:\n${contentPreview}` },
       ];
-    } else if (isBinary) {
-      // Use Gemini multimodal: send file as base64 inline_data
+    } else if (isPdf || isImage) {
+      // PDFs and images are supported as multimodal by Gemini
       const buffer = await fileData.arrayBuffer();
       const base64Data = arrayBufferToBase64(buffer);
-      const mimeType = getMimeType(file.file_name, file.file_type);
+      const mimeType = isPdf ? "application/pdf" : getMimeType(file.file_name, file.file_type);
 
       messages = [
         { role: "system", content: systemPrompt },
@@ -130,6 +131,32 @@ Deno.serve(async (req) => {
           ],
         },
       ];
+    } else if (isOffice) {
+      // Office files (Excel, Word, PowerPoint) are NOT supported as multimodal by Gemini.
+      // Read as text — for CSV-like Excel files this may extract some content,
+      // otherwise describe the file metadata and ask AI to provide guidance.
+      let extractedText = "";
+      try {
+        const text = await fileData.text();
+        // Check if the text extraction yielded anything readable
+        const printable = text.replace(/[^\x20-\x7E\r\n\t]/g, "");
+        if (printable.length > 100) {
+          extractedText = printable.substring(0, 8000);
+        }
+      } catch { /* ignore */ }
+
+      if (extractedText.length > 100) {
+        messages = [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Analyse this file:\n\n${contextLine}\n\nExtracted text content (may be partial):\n${extractedText}` },
+        ];
+      } else {
+        // Can't extract meaningful text — provide file metadata analysis
+        messages = [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Analyse this file based on its metadata:\n\n${contextLine}\n\nFile type: ${file.file_type}\nFile size: ${file.file_size} bytes\nFile name: ${file.file_name}\n${file.description ? `Description: ${file.description}` : ""}\n\nThis is an Office document (${lower.split('.').pop()?.toUpperCase()}) that could not be directly read. Based on the file name, category, description, and size, provide:\n1. What this file likely contains\n2. How it could be used for sales strategy\n3. Suggest the user export it as CSV or PDF for full AI analysis` },
+        ];
+      }
     } else {
       messages = [
         { role: "system", content: systemPrompt },
@@ -151,8 +178,18 @@ Deno.serve(async (req) => {
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("AI error:", errText);
-      return new Response(JSON.stringify({ error: "AI analysis failed" }), {
+      console.error("AI error:", aiResponse.status, errText);
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again in a moment" }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds in Settings > Workspace > Usage." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ error: "AI analysis failed — please try re-uploading as CSV or PDF" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
