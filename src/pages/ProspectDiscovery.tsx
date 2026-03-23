@@ -37,10 +37,12 @@ export default function ProspectDiscovery() {
   const [filter, setFilter] = useState<'all' | 'new' | 'reviewing' | 'accepted' | 'dismissed'>('all');
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [scanType, setScanType] = useState<'idle' | 'ai' | 'web' | 'full'>('idle');
+  const [scanType, setScanType] = useState<'idle' | 'ai' | 'web' | 'full' | 'brand'>('idle');
   const [scanProgress, setScanProgress] = useState("");
   const [selectedCounty, setSelectedCounty] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [brandSearch, setBrandSearch] = useState("");
+  const [suggestedBrands, setSuggestedBrands] = useState<string[]>([]);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
