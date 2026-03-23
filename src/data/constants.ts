@@ -62,6 +62,12 @@ export const territoryOpportunities = [
   { town: 'Stow-on-the-Wold', county: 'Gloucestershire', opportunityScore: 78, currentProspects: 0, predictedValue: '£6,000–£12,000', characteristics: 'Premium Cotswolds destination, exceptional tourist trade, affluent demographics', similarTo: ['Broadway', 'Burford'] },
   { town: 'Dartmouth', county: 'Devon', opportunityScore: 74, currentProspects: 0, predictedValue: '£5,000–£10,000', characteristics: 'Premium harbour town, sailing community, seasonal tourist peak', similarTo: ['Salcombe', 'Fowey'] },
   { town: 'Marlborough', county: 'Wiltshire', opportunityScore: 76, currentProspects: 0, predictedValue: '£5,000–£10,000', characteristics: 'Affluent market town, wide high street, premium independent retail', similarTo: ['Hungerford', 'Tetbury'] },
+  { town: 'Cardiff', county: 'Cardiff', opportunityScore: 93, currentProspects: 0, predictedValue: '£25,000–£40,000', characteristics: 'Capital city, Victorian arcades, affluent suburbs, strong independent retail scene', similarTo: ['Bristol', 'Bath'] },
+  { town: 'Swansea', county: 'Swansea', opportunityScore: 78, currentProspects: 0, predictedValue: '£10,000–£18,000', characteristics: 'Coastal city, Mumbles village premium retail, growing independent scene', similarTo: ['Bournemouth', 'Plymouth'] },
+  { town: 'Cowbridge', county: 'Vale of Glamorgan', opportunityScore: 85, currentProspects: 0, predictedValue: '£8,000–£14,000', characteristics: 'Affluent market town, strong independent boutiques, premium demographic', similarTo: ['Marlborough', 'Tetbury'] },
+  { town: 'Abergavenny', county: 'Monmouthshire', opportunityScore: 74, currentProspects: 0, predictedValue: '£5,000–£9,000', characteristics: 'Food capital of Wales, growing artisan retail, affluent market town', similarTo: ['Stow-on-the-Wold', 'Ludlow'] },
+  { town: 'Tenby', county: 'Pembrokeshire', opportunityScore: 72, currentProspects: 0, predictedValue: '£5,000–£10,000', characteristics: 'Premium coastal resort, strong seasonal tourist trade, gift-buying visitors', similarTo: ['Dartmouth', 'Fowey'] },
+  { town: 'Mumbles', county: 'Swansea', opportunityScore: 80, currentProspects: 0, predictedValue: '£7,000–£12,000', characteristics: 'Affluent seaside village, strong independent boutique scene, premium gifting', similarTo: ['Salcombe', 'Padstow'] },
 ];
 
 export const salesForecast = [
