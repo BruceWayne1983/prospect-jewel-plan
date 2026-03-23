@@ -741,11 +741,11 @@ export default function ProspectDiscovery() {
       {/* Prospect Cards */}
       <div className="space-y-4">
         {filtered.map(p => (
-          <div key={p.id} className={`card-premium p-6 ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
+          <div key={p.id} onClick={() => navigate(`/prospect/${p.id}`)} className={`card-premium p-6 cursor-pointer hover:shadow-md transition-shadow ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2.5 mb-2">
-                  <h3 className="text-base font-display font-semibold text-foreground">{p.name}</h3>
+                  <h3 className="text-base font-display font-semibold text-foreground hover:text-gold transition-colors">{p.name}</h3>
                   <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
