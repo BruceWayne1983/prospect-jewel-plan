@@ -40,6 +40,7 @@ function AppRoutes() {
         <Route path="/discovery" element={<ProspectDiscovery />} />
         <Route path="/simulator" element={<TerritorySimulator />} />
         <Route path="/calendar" element={<SalesCalendar />} />
+        <Route path="/journeys" element={<JourneyPlanner />} />
         <Route path="/forecast" element={<SalesForecast />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/data-hub" element={<DataHub />} />
