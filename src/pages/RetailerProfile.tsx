@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { type Retailer, getOutreach, getActivity, getAIIntelligence, getPerformancePrediction, getQualification, getCompetitorBrands } from "@/hooks/useRetailers";
 import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3, Clock, Send, FileText, Loader2, Route, Image, Users, TrendingUp as Traffic, ThumbsUp, ThumbsDown, Minus } from "lucide-react";
