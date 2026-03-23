@@ -393,13 +393,24 @@ export default function ProspectDiscovery() {
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
                 </div>
-                <div className="flex items-center gap-4 mb-3">
+                <div className="flex items-center gap-4 mb-2">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" />{p.rating} ({p.review_count})</span>
                   {p.website && (
                     <a href={p.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-info hover:underline">
                       <Globe className="w-3 h-3" />Website
                     </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 mb-3">
+                  {(p as any).phone && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" strokeWidth={1.5} />{(p as any).phone}</span>
+                  )}
+                  {(p as any).email && (
+                    <a href={`mailto:${(p as any).email}`} className="flex items-center gap-1 text-xs text-info hover:underline"><Mail className="w-3 h-3" strokeWidth={1.5} />{(p as any).email}</a>
+                  )}
+                  {p.address && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[300px]">{p.address}</span>
                   )}
                 </div>
                 {p.ai_reason && (
