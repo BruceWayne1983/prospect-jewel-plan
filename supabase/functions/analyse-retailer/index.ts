@@ -111,6 +111,11 @@ Deno.serve(async (req) => {
                     suggestedFirstMessage: { type: "string", description: "A professional 3-4 sentence intro email" },
                     callPrepNotes: { type: "string", description: "Talking points for a phone call" },
                     visitPrepNotes: { type: "string", description: "What to look for during a store visit" },
+                    contactName: { type: "string", description: "Owner or manager name if identifiable from the business name, website or local knowledge" },
+                    contactRole: { type: "string", description: "e.g. Owner, Manager, Buyer" },
+                    contactEmail: { type: "string", description: "Likely email address based on website domain and common patterns (e.g. info@domain.com, sales@domain.com)" },
+                    contactPhone: { type: "string", description: "UK phone number if inferable from the business" },
+                    bestContactMethod: { type: "string", enum: ["email", "phone", "visit", "instagram"], description: "Recommended first contact method" },
                     objections: {
                       type: "array",
                       items: {
@@ -124,7 +129,20 @@ Deno.serve(async (req) => {
                       },
                     },
                   },
-                  required: ["outreachPriority", "bestOutreachAngle", "productAngle", "suggestedFirstMessage", "callPrepNotes", "visitPrepNotes", "objections"],
+                  required: ["outreachPriority", "bestOutreachAngle", "productAngle", "suggestedFirstMessage", "callPrepNotes", "visitPrepNotes", "bestContactMethod", "objections"],
+                  additionalProperties: false,
+                },
+                contact_enrichment: {
+                  type: "object",
+                  description: "Attempt to find or infer contact details for this retailer based on the business name, town, website domain, and category",
+                  properties: {
+                    phone: { type: "string", description: "UK phone number for the business. Try to infer from the area (e.g. 01onal codes for the town). Leave empty string if unsure." },
+                    email: { type: "string", description: "Business email. Infer from website domain if available (e.g. info@website.com). Leave empty string if unsure." },
+                    address: { type: "string", description: "Full address including postcode if inferable from the town/high street. Leave empty string if unsure." },
+                    postcode: { type: "string", description: "UK postcode if inferable. Leave empty string if unsure." },
+                    instagram: { type: "string", description: "Instagram handle if inferable from business name. Leave empty string if unsure." },
+                  },
+                  required: ["phone", "email", "address", "postcode", "instagram"],
                   additionalProperties: false,
                 },
                 qualification: {
