@@ -176,11 +176,11 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a retail analyst. Extract REAL independent retail businesses from the scraped web data below. Only include actual named businesses — skip directories, aggregator sites, and chains. For Nomination Italy charm jewellery, assess fit based on the store type, positioning, and whether they sell comparable brands.",
+            content: "You are a retail analyst. Extract REAL independent retail businesses from the scraped web data below. Only include actual named businesses — skip directories, aggregator sites, and chains. For Nomination Italy charm jewellery, assess fit based on the store type, positioning, and whether they sell comparable brands. Extract phone numbers, email addresses, full addresses with postcodes, and website URLs whenever they appear in the scraped content.",
           },
           {
             role: "user",
-            content: `Extract all real independent retail businesses from these search results for "${targetCategory.replace("_", " ")}" stores in ${county}. Only include genuinely independent shops, not chains or directories.\n\n${scrapedContent}`,
+            content: `Extract all real independent retail businesses from these search results for "${targetCategory.replace("_", " ")}" stores in ${county}. Only include genuinely independent shops, not chains or directories. Make sure to capture any contact details (phone, email) and full addresses with postcodes from the scraped content.\n\n${scrapedContent}`,
           },
         ],
       }),
