@@ -1,8 +1,9 @@
 import { COUNTIES } from "@/data/constants";
 import { useRetailers } from "@/hooks/useRetailers";
+import { useDataInsights } from "@/hooks/useDataInsights";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
-import { TrendingUp, Target, Users, Loader2 } from "lucide-react";
+import { TrendingUp, Target, Users, Loader2, Sparkles, Database, BarChart3 } from "lucide-react";
 
 export default function Reports() {
   const navigate = useNavigate();
