@@ -76,8 +76,8 @@ async function discoverBatch(
       tool_choice: { type: "function", function: { name: "generate_prospects" } },
       messages: [
         {
-          role: "system",
-          content: "You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.",
+            role: "system",
+            content: "You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.",
         },
         {
           role: "user",
