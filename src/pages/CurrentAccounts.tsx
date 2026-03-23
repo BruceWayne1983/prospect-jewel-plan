@@ -1,17 +1,17 @@
 import { useState, useMemo } from "react";
-import { useRetailers, getOutreach, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { useNavigate } from "react-router-dom";
-import { Loader2, Store, MapPin, Phone, Mail, Globe, ArrowUpRight, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, RefreshCw } from "lucide-react";
+import { useRetailers, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
+import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScoreBar } from "@/components/ScoreIndicators";
+import { Progress } from "@/components/ui/progress";
 import { COUNTIES } from "@/data/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AccountCard } from "@/components/accounts/AccountCard";
+import { AtRiskSection } from "@/components/accounts/AtRiskSection";
 
 export default function CurrentAccounts() {
-  const navigate = useNavigate();
   const { retailers, loading, refetch } = useRetailers();
   const [search, setSearch] = useState("");
   const [filterCounty, setFilterCounty] = useState("all");
@@ -36,10 +36,16 @@ export default function CurrentAccounts() {
     }
   };
 
+  // All established (unfiltered) for stats
+  const allEstablished = useMemo(
+    () => retailers.filter((r) => r.pipeline_stage === "approved"),
+    [retailers]
+  );
+
   const runBulkAIAnalysis = async () => {
-    const unanalysed = established.filter(r => {
+    const unanalysed = allEstablished.filter((r) => {
       const ai = getAIIntelligence(r);
-      return !ai.summary || ai.lastAnalysed === 'Not yet analysed';
+      return !ai.summary || ai.lastAnalysed === "Not yet analysed";
     });
     if (unanalysed.length === 0) {
       toast.info("All accounts already have AI analysis");
@@ -55,24 +61,24 @@ export default function CurrentAccounts() {
         });
         if (!error && data?.success) success++;
       } catch {}
-      setAnalysisProgress(prev => ({ ...prev, done: prev.done + 1 }));
-      // Small delay to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      setAnalysisProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
     toast.success(`AI analysis complete: ${success}/${unanalysed.length} accounts analysed`);
     setAnalysingAll(false);
     await refetch();
   };
-  // Established accounts = approved pipeline stage
+
+  // Filtered & sorted list
   const established = useMemo(() => {
-    let list = retailers.filter(r => r.pipeline_stage === "approved");
+    let list = [...allEstablished];
 
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(r => r.name.toLowerCase().includes(q) || r.town.toLowerCase().includes(q));
+      list = list.filter((r) => r.name.toLowerCase().includes(q) || r.town.toLowerCase().includes(q));
     }
-    if (filterCounty !== "all") list = list.filter(r => r.county === filterCounty);
-    if (filterCategory !== "all") list = list.filter(r => r.category === filterCategory);
+    if (filterCounty !== "all") list = list.filter((r) => r.county === filterCounty);
+    if (filterCategory !== "all") list = list.filter((r) => r.category === filterCategory);
 
     list.sort((a, b) => {
       switch (sortBy) {
@@ -84,27 +90,39 @@ export default function CurrentAccounts() {
       }
     });
     return list;
-  }, [retailers, search, filterCounty, filterCategory, sortBy]);
+  }, [allEstablished, search, filterCounty, filterCategory, sortBy]);
 
-  const totalValue = established.reduce((s, r) => {
+  // Stats from unfiltered list
+  const totalValue = allEstablished.reduce((s, r) => {
     const pred = getPerformancePrediction(r);
-    const val = String(pred.predictedAnnualValue).replace(/[^0-9.]/g, '');
+    const val = String(pred.predictedAnnualValue).replace(/[^0-9.]/g, "");
     return s + (parseFloat(val) || 0);
   }, 0);
 
-  const avgFit = established.length > 0
-    ? Math.round(established.reduce((s, r) => s + (r.fit_score ?? 0), 0) / established.length)
+  const avgFit = allEstablished.length > 0
+    ? Math.round(allEstablished.reduce((s, r) => s + (r.fit_score ?? 0), 0) / allEstablished.length)
     : 0;
 
-  const withRisks = established.filter(r => (r.risk_flags ?? []).length > 0).length;
-  const withMeetings = established.filter(r => getActivity(r).meetingScheduled).length;
+  const withRisks = allEstablished.filter((r) => (r.risk_flags ?? []).length > 0).length;
+  const withAI = allEstablished.filter((r) => {
+    const ai = getAIIntelligence(r);
+    return ai.summary && ai.lastAnalysed !== "Not yet analysed";
+  }).length;
 
   if (loading) {
-    return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
+    return (
+      <div className="page-container flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-6 w-6 animate-spin text-gold" />
+      </div>
+    );
   }
+
+  const formatValue = (v: number) =>
+    v >= 1000 ? `£${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : `£${v.toFixed(0)}`;
 
   return (
     <div className="page-container">
+      {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <p className="section-header mb-2">Manage</p>
@@ -123,7 +141,7 @@ export default function CurrentAccounts() {
           </Button>
           <Button
             onClick={runBulkAIAnalysis}
-            disabled={analysingAll || syncing || established.length === 0}
+            disabled={analysingAll || syncing || allEstablished.length === 0}
             className="text-xs h-9 gold-gradient text-sidebar-background"
           >
             {analysingAll ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
@@ -132,14 +150,25 @@ export default function CurrentAccounts() {
         </div>
       </div>
 
+      {/* Progress bar during bulk analysis */}
+      {analysingAll && (
+        <div className="space-y-1">
+          <Progress value={(analysisProgress.done / analysisProgress.total) * 100} className="h-2" />
+          <p className="text-[10px] text-muted-foreground">
+            Analysing account {analysisProgress.done + 1} of {analysisProgress.total}…
+          </p>
+        </div>
+      )}
+
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
-          { label: "Active Accounts", value: established.length.toString(), icon: Store, sub: "Approved stockists" },
+          { label: "Active Accounts", value: allEstablished.length.toString(), icon: Store, sub: "Approved stockists" },
+          { label: "Portfolio Value", value: formatValue(totalValue), icon: PoundSterling, sub: "Predicted annual" },
           { label: "Avg Fit Score", value: `${avgFit}%`, icon: TrendingUp, sub: "Brand alignment" },
-          { label: "Meetings Active", value: withMeetings.toString(), icon: Calendar, sub: "Scheduled follow-ups" },
-          { label: "Risk Flags", value: withRisks.toString(), icon: AlertTriangle, sub: "Accounts needing attention" },
-        ].map(s => (
+          { label: "AI Analysed", value: `${withAI}/${allEstablished.length}`, icon: Sparkles, sub: "Intelligence coverage" },
+          { label: "Risk Flags", value: withRisks.toString(), icon: AlertTriangle, sub: "Need attention" },
+        ].map((s) => (
           <div key={s.label} className="stat-card">
             <div className="flex items-start justify-between mb-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-muted">
@@ -153,25 +182,31 @@ export default function CurrentAccounts() {
         ))}
       </div>
 
+      {/* At-Risk Accounts */}
+      <AtRiskSection retailers={allEstablished} />
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search accounts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
+          <Input placeholder="Search accounts..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
         </div>
         <Select value={filterCounty} onValueChange={setFilterCounty}>
-          <SelectTrigger className="w-[160px] h-9 text-xs"><Filter className="w-3 h-3 mr-1.5 text-muted-foreground" /><SelectValue placeholder="County" /></SelectTrigger>
+          <SelectTrigger className="w-[160px] h-9 text-xs">
+            <Filter className="w-3 h-3 mr-1.5 text-muted-foreground" />
+            <SelectValue placeholder="County" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Counties</SelectItem>
-            {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {COUNTIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {["jeweller","gift_shop","fashion_boutique","lifestyle_store","premium_accessories","concept_store"].map(c => (
-              <SelectItem key={c} value={c}>{c.replace(/_/g, ' ')}</SelectItem>
+            {["jeweller", "gift_shop", "fashion_boutique", "lifestyle_store", "premium_accessories", "concept_store"].map((c) => (
+              <SelectItem key={c} value={c}>{c.replace(/_/g, " ")}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -185,7 +220,10 @@ export default function CurrentAccounts() {
             <SelectItem value="recent">Recently Updated</SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-[10px] text-muted-foreground ml-auto">{established.length} account{established.length !== 1 ? 's' : ''}</span>
+        <span className="text-[10px] text-muted-foreground ml-auto">
+          {established.length} account{established.length !== 1 ? "s" : ""}
+          {established.length !== allEstablished.length && ` of ${allEstablished.length}`}
+        </span>
       </div>
 
       {/* Account Cards */}
@@ -197,66 +235,9 @@ export default function CurrentAccounts() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {established.map(r => {
-            const outreach = getOutreach(r);
-            const activity = getActivity(r);
-            const pred = getPerformancePrediction(r);
-            const ai = getAIIntelligence(r);
-            const risks = r.risk_flags ?? [];
-
-            return (
-              <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="card-premium p-5 cursor-pointer group hover:border-gold/30 transition-all">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-foreground group-hover:text-gold-dark transition-colors truncate">{r.name}</h3>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                      <p className="text-[11px] text-muted-foreground truncate">{r.town}, {r.county}</p>
-                    </div>
-                  </div>
-                  <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-gold transition-colors flex-shrink-0" />
-                </div>
-
-                <div className="divider-gold opacity-30 mb-3" />
-
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <div className="text-center">
-                    <span className={`text-sm font-display font-bold ${(r.fit_score ?? 0) >= 85 ? 'score-excellent' : (r.fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{r.fit_score ?? 0}%</span>
-                    <p className="text-[8px] text-muted-foreground uppercase">Fit</p>
-                  </div>
-                  <div className="text-center">
-                    <span className="text-sm font-display font-bold text-foreground">{r.priority_score ?? 0}</span>
-                    <p className="text-[8px] text-muted-foreground uppercase">Priority</p>
-                  </div>
-                  <div className="text-center">
-                    <span className="text-sm font-display font-bold text-foreground">{pred.predictedAnnualValue}</span>
-                    <p className="text-[8px] text-muted-foreground uppercase">Annual</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="badge-category text-[9px]">{r.category.replace(/_/g, ' ')}</span>
-                  {r.store_positioning && <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{r.store_positioning.replace('_', ' ')}</span>}
-                  {activity.meetingScheduled && <span className="text-[9px] px-1.5 py-0.5 rounded bg-champagne text-gold-dark font-medium">Meeting</span>}
-                </div>
-
-                {/* Contact quick-view */}
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                  {outreach.contactName && <span className="truncate">{outreach.contactName}</span>}
-                  {r.phone && <Phone className="w-3 h-3 flex-shrink-0" />}
-                  {r.email && <Mail className="w-3 h-3 flex-shrink-0" />}
-                  {r.website && <Globe className="w-3 h-3 flex-shrink-0" />}
-                </div>
-
-                {risks.length > 0 && (
-                  <div className="mt-2 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3 text-warning flex-shrink-0" />
-                    <span className="text-[9px] text-warning truncate">{risks[0]}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {established.map((r) => (
+            <AccountCard key={r.id} retailer={r} />
+          ))}
         </div>
       )}
     </div>
