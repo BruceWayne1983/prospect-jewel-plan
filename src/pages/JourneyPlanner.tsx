@@ -269,8 +269,17 @@ export default function JourneyPlanner() {
     saveHome(next);
   };
 
+  // Sync customRouteAccounts to localStorage
+  const syncRouteToStorage = (accounts: Set<string>) => {
+    localStorage.setItem('custom_route_accounts', JSON.stringify([...accounts]));
+  };
+
   const addAccountToRoute = (id: string) => {
-    setCustomRouteAccounts(prev => new Set([...prev, id]));
+    setCustomRouteAccounts(prev => {
+      const next = new Set([...prev, id]);
+      syncRouteToStorage(next);
+      return next;
+    });
     setSelectedRoute('📌 My Custom Route');
   };
 
@@ -278,6 +287,7 @@ export default function JourneyPlanner() {
     setCustomRouteAccounts(prev => {
       const next = new Set(prev);
       next.delete(id);
+      syncRouteToStorage(next);
       return next;
     });
   };
