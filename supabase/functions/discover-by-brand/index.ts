@@ -193,6 +193,8 @@ For each prospect, explain the brand connection — why stocking "${brand}" (or 
       estimated_price_positioning: p.estimated_price_positioning,
       website: p.website || null,
       address: p.address || null,
+      phone: p.phone || null,
+      email: p.email || null,
       discovery_source: `Brand: ${brand}`,
       status: "new",
     }));

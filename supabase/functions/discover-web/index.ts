@@ -226,6 +226,8 @@ Deno.serve(async (req) => {
       estimated_price_positioning: p.estimated_price_positioning,
       website: p.website || null,
       address: p.address || null,
+      phone: p.phone || null,
+      email: p.email || null,
       discovery_source: "Web Scanner",
       status: "new",
     }));
