@@ -1,0 +1,370 @@
+import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, Sparkles, CheckCircle, XCircle, Eye, ArrowUpRight, Loader2, Tag, Users, Instagram } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScoreRing } from "@/components/ScoreIndicators";
+import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type DiscoveredProspect = Database["public"]["Tables"]["discovered_prospects"]["Row"];
+
+function ConfidenceBadge({ score }: { score: number }) {
+  const cls = score >= 80 ? 'bg-success-light text-success' : score >= 70 ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground';
+  const label = score >= 80 ? 'High Confidence' : score >= 70 ? 'Medium Confidence' : 'Low Confidence';
+  return <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${cls}`}>{label}</span>;
+}
+
+export default function ProspectProfile() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [prospect, setProspect] = useState<DiscoveredProspect | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [dismissDialog, setDismissDialog] = useState<{ open: boolean; reason: string; detail: string }>({ open: false, reason: 'not_fit', detail: '' });
+
+  const fetchProspect = async () => {
+    if (!id) return;
+    const { data, error } = await supabase.from("discovered_prospects").select("*").eq("id", id).single();
+    if (error) {
+      console.error("Error fetching prospect:", error);
+      toast.error("Prospect not found");
+    } else {
+      setProspect(data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchProspect(); }, [id]);
+
+  const updateStatus = async (status: DiscoveredProspect['status']) => {
+    if (!id) return;
+    const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
+    if (error) { toast.error("Failed to update status"); return; }
+    setProspect(prev => prev ? { ...prev, status } : prev);
+    const labels: Record<string, string> = { accepted: 'Accepted', dismissed: 'Dismissed', reviewing: 'Marked for review' };
+    toast.success(labels[status] || 'Updated');
+  };
+
+  const confirmDismiss = async () => {
+    if (!prospect) return;
+    const { reason, detail } = dismissDialog;
+
+    await supabase.from("discovered_prospects").update({
+      status: 'dismissed' as any,
+      dismiss_reason: `${reason}${detail ? ': ' + detail : ''}` as any,
+    } as any).eq("id", prospect.id);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("disqualification_patterns").insert({
+        user_id: user.id,
+        prospect_name: prospect.name,
+        prospect_town: prospect.town,
+        prospect_county: prospect.county,
+        prospect_category: prospect.category,
+        reason,
+        reason_detail: detail || null,
+        patterns: {
+          category: prospect.category,
+          discovery_source: prospect.discovery_source,
+          rating: prospect.rating,
+          predicted_fit_score: prospect.predicted_fit_score,
+          ai_reason: prospect.ai_reason,
+        },
+      } as any);
+    }
+
+    setProspect(prev => prev ? { ...prev, status: 'dismissed' as any } : prev);
+    setDismissDialog({ open: false, reason: 'not_fit', detail: '' });
+    toast.success('Dismissed — pattern logged for AI learning');
+  };
+
+  const promoteToRetailer = async () => {
+    if (!prospect) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Please sign in"); return; }
+
+    const p = prospect;
+    const { data: inserted, error } = await supabase.from("retailers").insert({
+      user_id: user.id, name: p.name, town: p.town, county: p.county,
+      category: p.category, rating: p.rating, review_count: p.review_count,
+      store_positioning: p.estimated_price_positioning, fit_score: p.predicted_fit_score,
+      address: p.address, website: p.website, lat: p.lat, lng: p.lng,
+      phone: p.phone || null, email: p.email || null,
+      instagram: p.instagram || null, facebook: p.facebook || null,
+      tiktok: p.tiktok || null, twitter: p.twitter || null,
+      linkedin: p.linkedin || null, social_verified: p.social_verified || false,
+      pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
+      store_images: p.store_images || [],
+      follower_counts: p.follower_counts || {},
+      estimated_monthly_traffic: p.estimated_monthly_traffic || null,
+      google_review_summary: p.google_review_summary || null,
+      google_review_highlights: p.google_review_highlights || [],
+    }).select().single();
+
+    if (error) { toast.error("Failed to promote prospect"); console.error(error); return; }
+    await supabase.from("discovered_prospects").delete().eq("id", p.id);
+    toast.success(`${p.name} promoted to Pipeline!`);
+    if (inserted) {
+      navigate(`/retailer/${inserted.id}`);
+    } else {
+      navigate('/discovery');
+    }
+  };
+
+  if (loading) return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
+  if (!prospect) return <div className="page-container text-muted-foreground">Prospect not found.</div>;
+
+  const p = prospect;
+  const fc = (p.follower_counts ?? {}) as Record<string, number>;
+  const totalFollowers = Object.values(fc).reduce((s, v) => s + (v || 0), 0);
+
+  return (
+    <div className="page-container max-w-5xl">
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground -ml-3 mb-2">
+        <ArrowLeft className="w-4 h-4 mr-1.5" strokeWidth={1.5} /> Back
+      </Button>
+
+      {/* Header */}
+      <div className="card-premium p-8">
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex-1">
+            <div className="flex items-center gap-2.5 mb-2">
+              <span className="badge-category">{p.category.replace('_', ' ')}</span>
+              <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider ${
+                p.status === 'accepted' ? 'bg-success-light text-success' :
+                p.status === 'reviewing' ? 'bg-warning-light text-warning' :
+                p.status === 'dismissed' ? 'bg-destructive/10 text-destructive' :
+                'bg-champagne text-gold-dark'
+              }`}>{p.status}</span>
+              <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
+              {p.discovery_source && <span className="text-[10px] text-muted-foreground">{p.discovery_source}</span>}
+            </div>
+            <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">{p.name}</h1>
+            <div className="flex items-center gap-4 mt-2 flex-wrap">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="w-3.5 h-3.5" strokeWidth={1.5} />{p.address && `${p.address}, `}{p.town}, {p.county}</span>
+              <span className="flex items-center gap-1 text-sm text-muted-foreground"><Star className="w-3.5 h-3.5 text-warning" />{p.rating ?? 0} ({p.review_count ?? 0})</span>
+            </div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="section-header text-[9px] mb-1">Predicted Fit</p>
+            <p className={`text-3xl font-display font-bold ${(p.predicted_fit_score ?? 0) >= 80 ? 'score-excellent' : (p.predicted_fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predicted_fit_score}</p>
+          </div>
+        </div>
+
+        <div className="divider-gold mt-6 mb-6" />
+
+        {/* Scores */}
+        <div className="flex items-center justify-center gap-10">
+          <ScoreRing score={p.predicted_fit_score ?? 0} label="Predicted Fit" size={80} />
+          <ScoreRing score={p.estimated_store_quality ?? 0} label="Store Quality" size={80} />
+          <ScoreRing score={p.rating ? Math.round((p.rating / 5) * 100) : 0} label="Rating" size={80} />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="card-premium p-6">
+        <h3 className="text-sm font-display font-semibold text-foreground mb-4">Actions</h3>
+        <div className="flex items-center gap-3 flex-wrap">
+          {(p.status === 'new' || p.status === 'reviewing') && (
+            <>
+              <Button onClick={() => updateStatus('reviewing')} variant="outline" className="text-xs h-9 px-4 border-border/40">
+                <Eye className="w-3.5 h-3.5 mr-1.5" /> Mark for Review
+              </Button>
+              <Button onClick={() => updateStatus('accepted')} variant="outline" className="text-xs h-9 px-4 border-success/40 text-success hover:bg-success-light">
+                <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Accept
+              </Button>
+              <Button onClick={() => setDismissDialog({ open: true, reason: 'not_fit', detail: '' })} variant="outline" className="text-xs h-9 px-4 border-destructive/40 text-destructive hover:bg-destructive/10">
+                <XCircle className="w-3.5 h-3.5 mr-1.5" /> Decline
+              </Button>
+            </>
+          )}
+          {p.status === 'accepted' && (
+            <>
+              <Button onClick={promoteToRetailer} className="gold-gradient text-sidebar-background text-xs h-9 px-4">
+                <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Promote to Pipeline
+              </Button>
+              <Button onClick={() => setDismissDialog({ open: true, reason: 'not_fit', detail: '' })} variant="outline" className="text-xs h-9 px-4 border-destructive/40 text-destructive hover:bg-destructive/10">
+                <XCircle className="w-3.5 h-3.5 mr-1.5" /> Decline
+              </Button>
+            </>
+          )}
+          {p.status === 'dismissed' && (
+            <>
+              <Button onClick={() => updateStatus('new')} variant="outline" className="text-xs h-9 px-4">
+                Restore to New
+              </Button>
+              <span className="text-xs text-muted-foreground italic">
+                {p.dismiss_reason && `Reason: ${p.dismiss_reason}`}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Contact & Details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Contact Info */}
+        <div className="card-premium p-6">
+          <h3 className="text-sm font-display font-semibold text-foreground mb-4">Contact Information</h3>
+          <div className="space-y-3">
+            {p.phone && (
+              <div className="flex items-center gap-2.5">
+                <Phone className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                <a href={`tel:${p.phone}`} className="text-sm text-foreground hover:text-info">{p.phone}</a>
+              </div>
+            )}
+            {p.email && (
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                <a href={`mailto:${p.email}`} className="text-sm text-info hover:underline">{p.email}</a>
+              </div>
+            )}
+            {p.website && (
+              <div className="flex items-center gap-2.5">
+                <Globe className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                <a href={p.website} target="_blank" rel="noopener noreferrer" className="text-sm text-info hover:underline truncate">{p.website}</a>
+              </div>
+            )}
+            {p.address && (
+              <div className="flex items-center gap-2.5">
+                <MapPin className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                <span className="text-sm text-foreground">{p.address}</span>
+              </div>
+            )}
+            {!p.phone && !p.email && !p.website && (
+              <p className="text-xs text-muted-foreground italic">No contact information available</p>
+            )}
+          </div>
+        </div>
+
+        {/* Social & Online */}
+        <div className="card-premium p-6">
+          <h3 className="text-sm font-display font-semibold text-foreground mb-4">Social & Online Presence</h3>
+          <div className="space-y-3">
+            {p.instagram && (
+              <a href={`https://instagram.com/${p.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-sm text-info hover:underline">
+                📷 Instagram: {p.instagram} {fc.instagram ? `(${fc.instagram.toLocaleString()} followers)` : ''}
+              </a>
+            )}
+            {p.facebook && (
+              <a href={p.facebook.startsWith('http') ? p.facebook : `https://facebook.com/${p.facebook}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-sm text-info hover:underline">
+                Facebook {fc.facebook ? `(${fc.facebook.toLocaleString()} followers)` : ''}
+              </a>
+            )}
+            {p.tiktok && (
+              <a href={`https://tiktok.com/@${p.tiktok.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-sm text-info hover:underline">
+                🎵 TikTok: {p.tiktok}
+              </a>
+            )}
+            {p.twitter && (
+              <a href={`https://x.com/${p.twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-sm text-info hover:underline">
+                𝕏 Twitter: {p.twitter}
+              </a>
+            )}
+            {p.linkedin && (
+              <a href={p.linkedin.startsWith('http') ? p.linkedin : `https://linkedin.com/company/${p.linkedin}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-sm text-info hover:underline">
+                LinkedIn
+              </a>
+            )}
+            {p.social_verified && <span className="text-[10px] px-2 py-0.5 rounded-full bg-success-light text-success font-medium">✓ Socials Verified</span>}
+            {totalFollowers > 0 && <p className="text-xs text-muted-foreground">👥 {totalFollowers.toLocaleString()} total followers</p>}
+            {p.estimated_monthly_traffic && p.estimated_monthly_traffic > 0 && <p className="text-xs text-muted-foreground">🌐 ~{p.estimated_monthly_traffic.toLocaleString()}/mo website visitors</p>}
+            {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
+              <p className="text-xs text-muted-foreground italic">No social accounts found</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* AI Reason */}
+      {p.ai_reason && (
+        <div className="card-premium p-6 border-gold/20">
+          <div className="flex items-center gap-2.5 mb-3">
+            <Sparkles className="w-4 h-4 text-gold" strokeWidth={1.5} />
+            <h3 className="text-sm font-display font-semibold text-foreground">AI Analysis</h3>
+          </div>
+          <div className="bg-champagne/15 rounded-lg p-4 border border-gold/10">
+            <p className="text-sm text-foreground leading-relaxed italic font-display">{p.ai_reason}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Google Reviews */}
+      {p.google_review_summary && (
+        <div className="card-premium p-6">
+          <h3 className="text-sm font-display font-semibold text-foreground mb-3">Google Review Summary</h3>
+          <p className="text-sm text-foreground leading-relaxed">{p.google_review_summary}</p>
+          {p.google_review_highlights && Array.isArray(p.google_review_highlights) && (p.google_review_highlights as any[]).length > 0 && (
+            <div className="mt-3 space-y-2">
+              {(p.google_review_highlights as any[]).map((h: any, i: number) => (
+                <div key={i} className="bg-cream/50 rounded-lg p-3 border border-border/15">
+                  <p className="text-xs text-foreground">"{h.text || h}"</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Store Images */}
+      {p.store_images && p.store_images.length > 0 && (
+        <div className="card-premium p-6">
+          <h3 className="text-sm font-display font-semibold text-foreground mb-3">Store Images</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {p.store_images.map((img, i) => (
+              <img key={i} src={img} alt={`${p.name} store`} className="rounded-lg object-cover h-32 w-full border border-border/20" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dismiss Dialog */}
+      <Dialog open={dismissDialog.open} onOpenChange={(open) => !open && setDismissDialog({ open: false, reason: 'not_fit', detail: '' })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-display">Dismiss {prospect?.name}</DialogTitle>
+            <DialogDescription className="text-xs">
+              Your feedback helps the AI learn what doesn't fit — improving future discovery results.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Reason</label>
+              <Select value={dismissDialog.reason} onValueChange={(v) => setDismissDialog(prev => ({ ...prev, reason: v }))}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_fit">Not a brand fit</SelectItem>
+                  <SelectItem value="wrong_category">Wrong store type (e.g. toy store, chain)</SelectItem>
+                  <SelectItem value="wrong_positioning">Wrong price positioning</SelectItem>
+                  <SelectItem value="too_small">Too small / low quality</SelectItem>
+                  <SelectItem value="wrong_location">Wrong location / area</SelectItem>
+                  <SelectItem value="already_approached">Already approached / declined</SelectItem>
+                  <SelectItem value="competitor_conflict">Competitor conflict</SelectItem>
+                  <SelectItem value="closed">Store closed / no longer trading</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Details (optional)</label>
+              <Textarea
+                placeholder="e.g. 'Purely a toy shop, no jewellery or gift accessories'"
+                value={dismissDialog.detail}
+                onChange={(e) => setDismissDialog(prev => ({ ...prev, detail: e.target.value }))}
+                className="text-xs min-h-[60px]"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setDismissDialog({ open: false, reason: 'not_fit', detail: '' })}>Cancel</Button>
+              <Button size="sm" className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={confirmDismiss}>Dismiss & Log Pattern</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
