@@ -1,6 +1,7 @@
 import { COUNTIES, PIPELINE_STAGES } from "@/data/constants";
 import { useRetailers, getOutreach, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { TrendingUp, Users, Target, MapPin, ArrowUpRight, Sparkles, Calendar, Brain, Radar, Zap, FileText, Phone, Loader2 } from "lucide-react";
+import { useDataInsights } from "@/hooks/useDataInsights";
+import { TrendingUp, Users, Target, MapPin, ArrowUpRight, Sparkles, Calendar, Brain, Radar, Zap, FileText, Phone, Loader2, BarChart3, Database } from "lucide-react";
 import nominationLogo from "@/assets/nomination-logo.webp";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
