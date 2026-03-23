@@ -1,0 +1,1 @@
+ALTER TABLE public.uploaded_files ADD COLUMN parsed_data jsonb DEFAULT '{}'::jsonb;
