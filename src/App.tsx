@@ -40,6 +40,7 @@ function AppRoutes() {
         <Route path="/calendar" element={<SalesCalendar />} />
         <Route path="/forecast" element={<SalesForecast />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/data-hub" element={<DataHub />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
