@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, Car, MapPin, CalendarDays, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Clock, Car, MapPin, CalendarDays, CheckCircle2, AlertTriangle, Loader2, Home } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { DayPreference, ScheduledVisit } from "./DiaryWeekView";
+import type { HomeBase } from "@/pages/JourneyPlanner";
+import { haversine, estimateDriveMinutes } from "@/pages/JourneyPlanner";
 
 interface RouteCluster {
   town: string;
@@ -18,20 +20,9 @@ interface PlannedRoute {
   clusters: RouteCluster[];
   totalStops: number;
   estimatedDriveMinutes: number;
+  driveFromHomeMinutes: number;
+  driveHomeMinutes: number;
   priority: 'high' | 'medium' | 'low';
-}
-
-// Haversine distance in km
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function estimateDriveMinutes(km: number): number {
-  return Math.round(km * 2);
 }
 
 function addMinutesToTime(time: string, mins: number): string {
@@ -49,48 +40,44 @@ interface RouteSchedulerProps {
   route: PlannedRoute;
   selectedDate: string;
   dayPref: DayPreference;
+  homeBase: HomeBase;
   onScheduled: (visits: ScheduledVisit[]) => void;
 }
 
-export function RouteScheduler({ route, selectedDate, dayPref, onScheduled }: RouteSchedulerProps) {
+export function RouteScheduler({ route, selectedDate, dayPref, homeBase, onScheduled }: RouteSchedulerProps) {
   const [booking, setBooking] = useState(false);
-  const visitDuration = 30; // minutes per visit
+  const visitDuration = 30;
 
-  // Check if route fits within the day's constraints
-  const routeFitsDay = (): { fits: boolean; warnings: string[]; schedule: ScheduledVisit[] } => {
+  const routeFitsDay = (): { fits: boolean; warnings: string[]; schedule: ScheduledVisit[]; leaveHomeTime: string; arriveHomeTime: string } => {
     const warnings: string[] = [];
     const schedule: ScheduledVisit[] = [];
-    let currentTime = dayPref.startTime;
+
+    // Start with drive from home
+    const leaveHomeTime = dayPref.startTime;
+    let currentTime = addMinutesToTime(leaveHomeTime, route.driveFromHomeMinutes);
     const endMinutes = timeToMinutes(dayPref.endTime);
 
-    // Check drive time constraint for local_only days
     if (dayPref.availability === 'local_only' && dayPref.maxDriveMinutes > 0) {
-      if (route.estimatedDriveMinutes > dayPref.maxDriveMinutes * 2) {
-        warnings.push(`Route needs ~${route.estimatedDriveMinutes}m driving — exceeds ${dayPref.maxDriveMinutes}m local limit`);
+      if (route.driveFromHomeMinutes > dayPref.maxDriveMinutes) {
+        warnings.push(`${route.driveFromHomeMinutes}m drive from home — exceeds ${dayPref.maxDriveMinutes}m local limit`);
       }
     }
 
     for (let ci = 0; ci < route.clusters.length; ci++) {
       const cluster = route.clusters[ci];
 
-      // Drive time from previous cluster
       if (ci > 0) {
         const prev = route.clusters[ci - 1];
         const driveKm = haversine(prev.lat, prev.lng, cluster.lat, cluster.lng);
         const driveMins = estimateDriveMinutes(driveKm);
-        const leaveTime = currentTime;
         currentTime = addMinutesToTime(currentTime, driveMins);
 
-        // Check if we've overrun the day
         if (timeToMinutes(currentTime) > endMinutes) {
           warnings.push(`Visits to ${cluster.town} would run past ${dayPref.endTime}`);
         }
       }
 
       for (const r of cluster.retailers) {
-        const leaveTime = ci === 0 && cluster.retailers.indexOf(r) === 0
-          ? addMinutesToTime(currentTime, -15) // Leave 15m before first visit
-          : currentTime;
         const arrivalTime = currentTime;
         const visitEnd = addMinutesToTime(currentTime, visitDuration);
 
@@ -99,15 +86,14 @@ export function RouteScheduler({ route, selectedDate, dayPref, onScheduled }: Ro
           retailerName: r.name,
           town: cluster.town,
           date: selectedDate,
-          leaveTime,
+          leaveTime: ci === 0 && cluster.retailers.indexOf(r) === 0 ? leaveHomeTime : currentTime,
           arrivalTime,
           visitEndTime: visitEnd,
-          driveMinutes: ci > 0 && cluster.retailers.indexOf(r) === 0
-            ? estimateDriveMinutes(haversine(
-                route.clusters[ci - 1].lat, route.clusters[ci - 1].lng,
-                cluster.lat, cluster.lng
-              ))
-            : 0,
+          driveMinutes: ci === 0 && cluster.retailers.indexOf(r) === 0
+            ? route.driveFromHomeMinutes
+            : ci > 0 && cluster.retailers.indexOf(r) === 0
+              ? estimateDriveMinutes(haversine(route.clusters[ci - 1].lat, route.clusters[ci - 1].lng, cluster.lat, cluster.lng))
+              : 0,
           routeName: route.name,
         });
 
@@ -115,20 +101,17 @@ export function RouteScheduler({ route, selectedDate, dayPref, onScheduled }: Ro
       }
     }
 
-    // Check total time
-    const totalMinutes = timeToMinutes(currentTime) - timeToMinutes(dayPref.startTime);
-    const availableMinutes = endMinutes - timeToMinutes(dayPref.startTime);
+    // Drive home
+    const arriveHomeTime = addMinutesToTime(currentTime, route.driveHomeMinutes);
 
-    if (dayPref.availability === 'morning_only' || dayPref.availability === 'afternoon_only') {
-      if (totalMinutes > availableMinutes) {
-        warnings.push(`Route needs ~${Math.round(totalMinutes / 60)}h but only ${Math.round(availableMinutes / 60)}h available`);
-      }
+    if (timeToMinutes(arriveHomeTime) > endMinutes) {
+      warnings.push(`Won't be home until ${arriveHomeTime} — after ${dayPref.endTime} end time`);
     }
 
-    return { fits: warnings.length === 0, warnings, schedule };
+    return { fits: warnings.length === 0, warnings, schedule, leaveHomeTime, arriveHomeTime };
   };
 
-  const { fits, warnings, schedule } = routeFitsDay();
+  const { fits, warnings, schedule, leaveHomeTime, arriveHomeTime } = routeFitsDay();
 
   const bookRoute = async () => {
     setBooking(true);
@@ -136,7 +119,6 @@ export function RouteScheduler({ route, selectedDate, dayPref, onScheduled }: Ro
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Please sign in first"); setBooking(false); return; }
 
-      // Create calendar events for each visit
       const events = schedule.map(v => ({
         user_id: user.id,
         title: `Visit: ${v.retailerName}`,
@@ -172,7 +154,6 @@ export function RouteScheduler({ route, selectedDate, dayPref, onScheduled }: Ro
         {!fits && <AlertTriangle className="w-4 h-4 text-warning" />}
       </div>
 
-      {/* Warnings */}
       {warnings.length > 0 && (
         <div className="mb-3 space-y-1">
           {warnings.map((w, i) => (
@@ -183,19 +164,32 @@ export function RouteScheduler({ route, selectedDate, dayPref, onScheduled }: Ro
         </div>
       )}
 
-      {/* Time schedule preview */}
       <div className="bg-muted/30 rounded-lg p-3 mb-3">
         <div className="space-y-1.5">
+          {/* Leave home */}
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground pb-1">
+            <Home className="w-3 h-3 text-primary" />
+            <span className="text-primary font-mono font-medium w-10">{leaveHomeTime}</span>
+            <span className="font-medium text-foreground">Leave home</span>
+            <span className="text-muted-foreground">({homeBase.address})</span>
+          </div>
+
+          <div className="flex items-center gap-1 text-muted-foreground/60 w-full pb-1 text-[10px]">
+            <Car className="w-3 h-3" />
+            <span>{route.driveFromHomeMinutes}m drive to {route.clusters[0]?.town}</span>
+            <div className="flex-1 border-b border-dashed border-border/20" />
+          </div>
+
           {schedule.map((v, i) => (
-            <div key={i} className="flex items-center gap-3 text-[10px]">
+            <div key={i}>
               {v.driveMinutes > 0 && i > 0 && (
-                <div className="flex items-center gap-1 text-muted-foreground/60 w-full pb-1">
+                <div className="flex items-center gap-1 text-muted-foreground/60 w-full pb-1 text-[10px]">
                   <Car className="w-3 h-3" />
-                  <span>Leave {v.leaveTime} · {v.driveMinutes}m drive</span>
+                  <span>{v.driveMinutes}m drive</span>
                   <div className="flex-1 border-b border-dashed border-border/20" />
                 </div>
               )}
-              <div className="flex items-center justify-between w-full">
+              <div className="flex items-center justify-between w-full text-[10px]">
                 <div className="flex items-center gap-2">
                   <span className="text-primary font-mono font-medium w-10">{v.arrivalTime}</span>
                   <MapPin className="w-3 h-3 text-muted-foreground" />
@@ -206,9 +200,21 @@ export function RouteScheduler({ route, selectedDate, dayPref, onScheduled }: Ro
               </div>
             </div>
           ))}
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-1.5 border-t border-border/15 mt-1.5">
-            <Clock className="w-3 h-3" />
-            <span>Day ends ~{schedule.length > 0 ? schedule[schedule.length - 1].visitEndTime : dayPref.endTime} · Back by {dayPref.endTime}</span>
+
+          {/* Drive home */}
+          <div className="flex items-center gap-1 text-muted-foreground/60 w-full pt-1 text-[10px]">
+            <Car className="w-3 h-3" />
+            <span>{route.driveHomeMinutes}m drive home</span>
+            <div className="flex-1 border-b border-dashed border-border/20" />
+          </div>
+
+          <div className="flex items-center gap-2 text-[10px] pt-1.5 border-t border-border/15 mt-1.5">
+            <Home className="w-3 h-3 text-primary" />
+            <span className="text-primary font-mono font-medium w-10">{arriveHomeTime}</span>
+            <span className="font-medium text-foreground">Arrive home</span>
+            {timeToMinutes(arriveHomeTime) > timeToMinutes(dayPref.endTime) && (
+              <span className="text-warning text-[9px]">⚠ past {dayPref.endTime}</span>
+            )}
           </div>
         </div>
       </div>
