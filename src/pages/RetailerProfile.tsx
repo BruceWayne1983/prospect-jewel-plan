@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { type Retailer, getOutreach, getActivity, getAIIntelligence, getPerformancePrediction, getQualification, getCompetitorBrands } from "@/hooks/useRetailers";
-import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3, Clock, Send, FileText, Loader2, Route, Image, Users, TrendingUp as Traffic, ThumbsUp, ThumbsDown, Minus } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3, Clock, Send, FileText, Loader2, Route, Image, Users, TrendingUp as Traffic, ThumbsUp, ThumbsDown, Minus, Upload, Trash2, Camera } from "lucide-react";
 import { PreVisitBriefing } from "@/components/retailer/PreVisitBriefing";
 import { FollowUpDrafter } from "@/components/retailer/FollowUpDrafter";
 import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
@@ -47,6 +47,8 @@ export default function RetailerProfile() {
   const [analysing, setAnalysing] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
   const [verifyingSocial, setVerifyingSocial] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', facebook: '', tiktok: '', twitter: '', linkedin: '', address: '', postcode: '' });
 
   const fetchRetailer = () => {
@@ -544,24 +546,116 @@ export default function RetailerProfile() {
         <TabsContent value="gallery" className="space-y-5 mt-0">
           {/* Store Images */}
           <div className="card-premium p-6">
-            <div className="flex items-center gap-2.5 mb-4">
-              <Image className="w-5 h-5 text-gold" strokeWidth={1.5} />
-              <h3 className="text-base font-display font-semibold text-foreground">Store Imagery</h3>
-              <span className="text-[10px] text-muted-foreground">Interior, exterior & social media photos</span>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <Image className="w-5 h-5 text-gold" strokeWidth={1.5} />
+                <h3 className="text-base font-display font-semibold text-foreground">Store Imagery</h3>
+                <span className="text-[10px] text-muted-foreground">Interior, exterior & social media photos</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files || !id || !r) return;
+                    setUploadingImage(true);
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user) { toast.error("Please sign in"); return; }
+                      const newUrls: string[] = [];
+                      for (const file of Array.from(files)) {
+                        if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} is too large (max 5MB)`); continue; }
+                        const ext = file.name.split('.').pop() || 'jpg';
+                        const path = `${user.id}/${id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                        const { error: uploadErr } = await supabase.storage.from('store-images').upload(path, file);
+                        if (uploadErr) { toast.error(`Failed to upload ${file.name}`); continue; }
+                        const { data: urlData } = supabase.storage.from('store-images').getPublicUrl(path);
+                        newUrls.push(urlData.publicUrl);
+                      }
+                      if (newUrls.length > 0) {
+                        const existing = ((r as any).store_images as string[]) || [];
+                        const updated = [...existing, ...newUrls];
+                        await supabase.from("retailers").update({ store_images: updated } as any).eq("id", id);
+                        toast.success(`${newUrls.length} image${newUrls.length > 1 ? 's' : ''} uploaded!`);
+                        fetchRetailer();
+                      }
+                    } catch (err: any) {
+                      toast.error(err.message || "Upload failed");
+                    } finally {
+                      setUploadingImage(false);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="text-[10px] h-7 px-3 border-gold/30 text-gold-dark hover:bg-champagne/30"
+                >
+                  {uploadingImage ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Upload className="w-3 h-3 mr-1.5" />}
+                  {uploadingImage ? 'Uploading...' : 'Upload Photos'}
+                </Button>
+              </div>
             </div>
             {(r as any).store_images && (r as any).store_images.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {((r as any).store_images as string[]).map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block aspect-video rounded-lg overflow-hidden bg-muted border border-border/20 hover:border-gold/40 transition-all hover:shadow-md">
-                    <img src={url} alt={`${r.name} store image ${i + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  </a>
+                  <div key={i} className="relative group aspect-video rounded-lg overflow-hidden bg-muted border border-border/20 hover:border-gold/40 transition-all hover:shadow-md">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                      <img src={url} alt={`${r.name} store image ${i + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = ''; (e.target as HTMLImageElement).classList.add('bg-muted'); }} />
+                    </a>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const images = [...((r as any).store_images as string[])];
+                        // Try to delete from storage if it's our bucket
+                        if (url.includes('store-images')) {
+                          const pathMatch = url.split('/store-images/')[1];
+                          if (pathMatch) {
+                            await supabase.storage.from('store-images').remove([decodeURIComponent(pathMatch)]);
+                          }
+                        }
+                        images.splice(i, 1);
+                        await supabase.from("retailers").update({ store_images: images } as any).eq("id", id);
+                        toast.success("Image removed");
+                        fetchRetailer();
+                      }}
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 ))}
+                {/* Upload placeholder tile */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="aspect-video rounded-lg border-2 border-dashed border-border/30 hover:border-gold/40 bg-cream/20 hover:bg-cream/40 flex flex-col items-center justify-center gap-2 transition-all"
+                >
+                  {uploadingImage ? <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" /> : <Camera className="w-5 h-5 text-muted-foreground/50" />}
+                  <span className="text-[10px] text-muted-foreground">Add more photos</span>
+                </button>
               </div>
             ) : (
-              <div className="text-center py-8 bg-cream/30 rounded-lg border border-border/10">
-                <Image className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">No store images yet — click "AI Verify Social" on the Research tab to discover images</p>
-              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="w-full text-center py-12 bg-cream/30 rounded-lg border-2 border-dashed border-border/20 hover:border-gold/30 hover:bg-cream/50 transition-all cursor-pointer"
+              >
+                {uploadingImage ? (
+                  <Loader2 className="w-8 h-8 text-gold mx-auto mb-2 animate-spin" />
+                ) : (
+                  <Camera className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                )}
+                <p className="text-xs text-muted-foreground font-medium">Click to upload store photos</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-1">Interior, exterior, displays & products · Max 5MB per image</p>
+              </button>
             )}
           </div>
 
