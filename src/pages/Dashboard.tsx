@@ -55,7 +55,7 @@ export default function Dashboard() {
         <div>
           <p className="section-header mb-2">Good morning, {displayName}</p>
           <h1 className="page-title">Territory Overview</h1>
-          <p className="page-subtitle">South West UK & South Wales · Nomination Brand Development</p>
+          <p className="page-subtitle">Brioso · Nomination Brand Development · South West UK & South Wales</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
