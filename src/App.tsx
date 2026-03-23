@@ -19,6 +19,7 @@ import TerritorySimulator from "@/pages/TerritorySimulator";
 import SalesCalendar from "@/pages/SalesCalendar";
 import SalesForecast from "@/pages/SalesForecast";
 import DataHub from "@/pages/DataHub";
+import CurrentAccounts from "@/pages/CurrentAccounts";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
