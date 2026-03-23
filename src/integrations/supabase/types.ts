@@ -115,11 +115,15 @@ export type Database = {
           discovered_date: string
           discovery_source: string | null
           email: string | null
+          estimated_monthly_traffic: number | null
           estimated_price_positioning:
             | Database["public"]["Enums"]["store_positioning"]
             | null
           estimated_store_quality: number | null
           facebook: string | null
+          follower_counts: Json | null
+          google_review_highlights: Json | null
+          google_review_summary: string | null
           id: string
           instagram: string | null
           lat: number | null
@@ -133,6 +137,7 @@ export type Database = {
           review_count: number | null
           social_verified: boolean | null
           status: Database["public"]["Enums"]["prospect_status"]
+          store_images: string[] | null
           tiktok: string | null
           town: string
           twitter: string | null
@@ -149,11 +154,15 @@ export type Database = {
           discovered_date?: string
           discovery_source?: string | null
           email?: string | null
+          estimated_monthly_traffic?: number | null
           estimated_price_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null
           estimated_store_quality?: number | null
           facebook?: string | null
+          follower_counts?: Json | null
+          google_review_highlights?: Json | null
+          google_review_summary?: string | null
           id?: string
           instagram?: string | null
           lat?: number | null
@@ -167,6 +176,7 @@ export type Database = {
           review_count?: number | null
           social_verified?: boolean | null
           status?: Database["public"]["Enums"]["prospect_status"]
+          store_images?: string[] | null
           tiktok?: string | null
           town: string
           twitter?: string | null
@@ -183,11 +193,15 @@ export type Database = {
           discovered_date?: string
           discovery_source?: string | null
           email?: string | null
+          estimated_monthly_traffic?: number | null
           estimated_price_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null
           estimated_store_quality?: number | null
           facebook?: string | null
+          follower_counts?: Json | null
+          google_review_highlights?: Json | null
+          google_review_summary?: string | null
           id?: string
           instagram?: string | null
           lat?: number | null
@@ -201,6 +215,7 @@ export type Database = {
           review_count?: number | null
           social_verified?: boolean | null
           status?: Database["public"]["Enums"]["prospect_status"]
+          store_images?: string[] | null
           tiktok?: string | null
           town?: string
           twitter?: string | null
@@ -258,8 +273,12 @@ export type Database = {
           county: string
           created_at: string
           email: string | null
+          estimated_monthly_traffic: number | null
           facebook: string | null
           fit_score: number | null
+          follower_counts: Json | null
+          google_review_highlights: Json | null
+          google_review_summary: string | null
           id: string
           instagram: string | null
           is_independent: boolean | null
@@ -280,6 +299,7 @@ export type Database = {
           risk_flags: string[] | null
           social_verified: boolean | null
           spend_potential_score: number | null
+          store_images: string[] | null
           store_positioning:
             | Database["public"]["Enums"]["store_positioning"]
             | null
@@ -301,8 +321,12 @@ export type Database = {
           county: string
           created_at?: string
           email?: string | null
+          estimated_monthly_traffic?: number | null
           facebook?: string | null
           fit_score?: number | null
+          follower_counts?: Json | null
+          google_review_highlights?: Json | null
+          google_review_summary?: string | null
           id?: string
           instagram?: string | null
           is_independent?: boolean | null
@@ -323,6 +347,7 @@ export type Database = {
           risk_flags?: string[] | null
           social_verified?: boolean | null
           spend_potential_score?: number | null
+          store_images?: string[] | null
           store_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null
@@ -344,8 +369,12 @@ export type Database = {
           county?: string
           created_at?: string
           email?: string | null
+          estimated_monthly_traffic?: number | null
           facebook?: string | null
           fit_score?: number | null
+          follower_counts?: Json | null
+          google_review_highlights?: Json | null
+          google_review_summary?: string | null
           id?: string
           instagram?: string | null
           is_independent?: boolean | null
@@ -366,6 +395,7 @@ export type Database = {
           risk_flags?: string[] | null
           social_verified?: boolean | null
           spend_potential_score?: number | null
+          store_images?: string[] | null
           store_positioning?:
             | Database["public"]["Enums"]["store_positioning"]
             | null

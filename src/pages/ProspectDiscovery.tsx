@@ -174,6 +174,11 @@ export default function ProspectDiscovery() {
       tiktok: (p as any).tiktok || null, twitter: (p as any).twitter || null,
       linkedin: (p as any).linkedin || null, social_verified: (p as any).social_verified || false,
       pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
+      store_images: (p as any).store_images || [],
+      follower_counts: (p as any).follower_counts || {},
+      estimated_monthly_traffic: (p as any).estimated_monthly_traffic || null,
+      google_review_summary: (p as any).google_review_summary || null,
+      google_review_highlights: (p as any).google_review_highlights || [],
     });
 
     if (error) { toast.error("Failed to promote prospect"); console.error(error); return; }
@@ -674,6 +679,35 @@ export default function ProspectDiscovery() {
                     {(p as any).social_verified && <span className="text-[9px] px-2 py-0.5 rounded-full bg-success-light text-success font-medium">✓ Verified</span>}
                   </div>
                 )}
+                {/* Follower counts & traffic */}
+                {((p as any).follower_counts && Object.values((p as any).follower_counts as Record<string, number>).some(v => v > 0)) || (p as any).estimated_monthly_traffic ? (
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+                    {(p as any).follower_counts && (() => {
+                      const fc = (p as any).follower_counts as Record<string, number>;
+                      const total = Object.values(fc).reduce((s, v) => s + (v || 0), 0);
+                      return total > 0 ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-champagne/30 text-gold-dark border border-gold/10">
+                          👥 {total.toLocaleString()} total followers
+                        </span>
+                      ) : null;
+                    })()}
+                    {(p as any).estimated_monthly_traffic > 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-info-light text-info border border-info/10">
+                        🌐 ~{((p as any).estimated_monthly_traffic as number).toLocaleString()}/mo visitors
+                      </span>
+                    )}
+                    {(p as any).google_review_summary && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning-light text-warning border border-warning/10" title={(p as any).google_review_summary}>
+                        ⭐ Reviews analysed
+                      </span>
+                    )}
+                    {(p as any).store_images?.length > 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-foreground border border-border/20">
+                        📸 {(p as any).store_images.length} images
+                      </span>
+                    )}
+                  </div>
+                ) : null}
                 {p.ai_reason && (
                   <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
                     <div className="flex items-start gap-2">
