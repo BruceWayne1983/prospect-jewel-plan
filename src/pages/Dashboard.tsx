@@ -237,6 +237,83 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Data Hub Insights */}
+      {!dataInsights.loading && dataInsights.analysedFiles > 0 && (
+        <div className="card-premium p-6 border-gold/20">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
+                <Database className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-background))' }} />
+              </div>
+              <div>
+                <h3 className="text-lg font-display font-semibold text-foreground">Data Hub Insights</h3>
+                <p className="text-[10px] text-muted-foreground">Extracted from {dataInsights.analysedFiles} analysed file(s)</p>
+              </div>
+            </div>
+            <button onClick={() => navigate('/data-hub')} className="text-xs text-gold hover:text-gold-dark transition-colors flex items-center gap-1 font-medium">
+              Data Hub <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            {dataInsights.aggregatedMetrics.total_revenue > 0 && (
+              <div className="bg-cream/30 rounded-lg p-3 text-center">
+                <p className="text-xl font-display font-bold text-foreground">£{(dataInsights.aggregatedMetrics.total_revenue / 1000).toFixed(0)}k</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Revenue</p>
+              </div>
+            )}
+            {dataInsights.aggregatedMetrics.total_accounts > 0 && (
+              <div className="bg-cream/30 rounded-lg p-3 text-center">
+                <p className="text-xl font-display font-bold text-foreground">{dataInsights.aggregatedMetrics.total_accounts}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Accounts</p>
+              </div>
+            )}
+            {dataInsights.aggregatedMetrics.average_order_value > 0 && (
+              <div className="bg-cream/30 rounded-lg p-3 text-center">
+                <p className="text-xl font-display font-bold text-foreground">£{dataInsights.aggregatedMetrics.average_order_value}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Avg Order Value</p>
+              </div>
+            )}
+            {dataInsights.aggregatedMetrics.growth_rate && (
+              <div className="bg-cream/30 rounded-lg p-3 text-center">
+                <p className="text-xl font-display font-bold text-success">{dataInsights.aggregatedMetrics.growth_rate}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Growth Rate</p>
+              </div>
+            )}
+          </div>
+
+          {dataInsights.allStockists.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Current Stockists from Data ({dataInsights.allStockists.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {dataInsights.allStockists.slice(0, 12).map((s, i) => (
+                  <span key={i} className="text-[10px] px-2.5 py-1 rounded-full bg-champagne/30 text-foreground border border-gold/10">
+                    {s.name}{s.town ? ` · ${s.town}` : ''}{s.sales_value ? ` · £${s.sales_value.toLocaleString()}` : ''}
+                  </span>
+                ))}
+                {dataInsights.allStockists.length > 12 && (
+                  <span className="text-[10px] px-2.5 py-1 text-muted-foreground">+{dataInsights.allStockists.length - 12} more</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {dataInsights.allInsights.length > 0 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Key Insights</p>
+              <div className="space-y-1.5">
+                {dataInsights.allInsights.slice(0, 5).map((insight, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Sparkles className="w-3 h-3 text-gold mt-0.5 flex-shrink-0" />
+                    <p className="text-[11px] text-foreground">{insight}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Empty state */}
       {retailers.length === 0 && (
         <div className="card-premium p-12 text-center">
