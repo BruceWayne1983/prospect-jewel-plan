@@ -9,6 +9,7 @@ import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
 import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
 import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
