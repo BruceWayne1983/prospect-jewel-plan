@@ -6,8 +6,115 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Companies House API is free and public - just needs an API key
 const CH_BASE = "https://api.company-information.service.gov.uk";
+
+const creditAssessmentTool = {
+  type: "function" as const,
+  function: {
+    name: "assess_business_with_credit",
+    description: "Provide a business health and credit assessment based on available data",
+    parameters: {
+      type: "object",
+      properties: {
+        companyStatus: { type: "string", description: "Likely company status" },
+        businessHealthScore: { type: "integer", description: "0-100 health score" },
+        riskLevel: { type: "string", enum: ["low", "medium", "high"] },
+        riskFactors: { type: "array", items: { type: "string" } },
+        positiveIndicators: { type: "array", items: { type: "string" } },
+        estimatedYearsTrading: { type: "string" },
+        recommendation: { type: "string" },
+        note: { type: "string" },
+        creditProfile: {
+          type: "object",
+          properties: {
+            creditScore: { type: "integer", description: "Estimated credit score 0-100" },
+            creditRating: { type: "string", enum: ["excellent", "good", "fair", "poor", "very_poor"], description: "Overall credit rating" },
+            paymentRiskLevel: { type: "string", enum: ["very_low", "low", "moderate", "high", "very_high"] },
+            estimatedTurnover: { type: "string", description: "Estimated annual turnover range e.g. £100k-£250k" },
+            estimatedEmployees: { type: "string", description: "Estimated number of employees e.g. 2-5" },
+            ccjsOrDefaults: { type: "string", description: "Likelihood of CCJs or defaults: none_likely, possible, likely" },
+            lateFilingHistory: { type: "string", description: "Late filing pattern: none, occasional, frequent" },
+            creditLimit: { type: "string", description: "Suggested maximum credit limit e.g. £500-£1,000" },
+            creditFactors: { type: "array", items: { type: "string" }, description: "Key factors affecting credit assessment" },
+            tradePaymentTrend: { type: "string", enum: ["improving", "stable", "declining", "unknown"] },
+          },
+          required: ["creditScore", "creditRating", "paymentRiskLevel", "estimatedTurnover", "estimatedEmployees", "ccjsOrDefaults", "lateFilingHistory", "creditLimit", "creditFactors", "tradePaymentTrend"],
+        },
+      },
+      required: ["companyStatus", "businessHealthScore", "riskLevel", "riskFactors", "positiveIndicators", "estimatedYearsTrading", "recommendation", "note", "creditProfile"],
+      additionalProperties: false,
+    },
+  },
+};
+
+async function buildAIAssessment(retailer: any, companyData?: any) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("No API keys configured");
+
+  const companyContext = companyData
+    ? `Companies House Data:
+Company: ${companyData.title} (#${companyData.company_number})
+Status: ${companyData.company_status}
+Founded: ${companyData.date_of_creation || "unknown"}
+Address: ${companyData.address_snippet || "unknown"}
+Active Directors: ${companyData.activeDirectorCount ?? "unknown"}
+Single Director: ${companyData.singleDirector ? "Yes" : "No"}
+Latest Filing: ${companyData.latestFilingDate || "unknown"}
+Filing Age (months): ${companyData.filingAgeMonths ?? "unknown"}`
+    : `No Companies House data available. This may be a sole trader or unregistered business.`;
+
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      tools: [creditAssessmentTool],
+      tool_choice: { type: "function", function: { name: "assess_business_with_credit" } },
+      messages: [
+        {
+          role: "system",
+          content: `You are a UK business credit analyst. Assess the business health AND credit worthiness of a retail business. 
+Be realistic about credit risks. Consider:
+- Company age and stability for credit scoring
+- Filing compliance as indicator of financial discipline
+- Single director = key person risk for credit
+- Rating/reviews as proxy for business health
+- Independent retailers typically have lower turnover ranges
+- Suggest conservative credit limits for new wholesale relationships
+- Consider the store positioning (premium vs budget) for turnover estimates
+${companyData ? "Use the real Companies House data for accurate assessment." : "Provide AI-estimated assessment based on available signals."}`,
+        },
+        {
+          role: "user",
+          content: `Assess this retailer's business health AND credit worthiness:
+Name: ${retailer.name}
+Town: ${retailer.town}, ${retailer.county}
+Category: ${retailer.category}
+Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
+Independent: ${retailer.is_independent ? "Yes" : "No"}
+Positioning: ${retailer.store_positioning || "unknown"}
+${retailer.website ? `Website: ${retailer.website}` : "No website"}
+Commercial Health Score: ${retailer.commercial_health_score}/100
+
+${companyContext}`,
+        },
+      ],
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    const status = aiResponse.status;
+    if (status === 429) throw { status: 429, message: "Rate limit exceeded" };
+    if (status === 402) throw { status: 402, message: "AI credits exhausted" };
+    throw { status: 500, message: "Assessment failed" };
+  }
+
+  const aiData = await aiResponse.json();
+  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall) throw { status: 500, message: "AI did not return data" };
+
+  return JSON.parse(toolCall.function.arguments);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -29,74 +136,16 @@ Deno.serve(async (req) => {
     if (fetchErr || !retailer) return new Response(JSON.stringify({ error: "Retailer not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const CH_API_KEY = Deno.env.get("COMPANIES_HOUSE_API_KEY");
+
     if (!CH_API_KEY) {
-      // Fallback: use AI to generate a simulated assessment based on available data
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) return new Response(JSON.stringify({ error: "No API keys configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          tools: [{
-            type: "function",
-            function: {
-              name: "assess_business",
-              description: "Provide a business health assessment based on available retailer data",
-              parameters: {
-                type: "object",
-                properties: {
-                  companyStatus: { type: "string", description: "Likely company status" },
-                  businessHealthScore: { type: "integer", description: "0-100 health score" },
-                  riskLevel: { type: "string", enum: ["low", "medium", "high"] },
-                  riskFactors: { type: "array", items: { type: "string" }, description: "Identified risk factors" },
-                  positiveIndicators: { type: "array", items: { type: "string" }, description: "Positive business indicators" },
-                  estimatedYearsTrading: { type: "string", description: "Estimated time in business" },
-                  recommendation: { type: "string", description: "Overall recommendation for sales approach" },
-                  note: { type: "string", description: "Note that this is AI-estimated, not from Companies House" },
-                },
-                required: ["companyStatus", "businessHealthScore", "riskLevel", "riskFactors", "positiveIndicators", "estimatedYearsTrading", "recommendation", "note"],
-                additionalProperties: false,
-              },
-            },
-          }],
-          tool_choice: { type: "function", function: { name: "assess_business" } },
-          messages: [
-            { role: "system", content: "You are a UK business analyst. Assess the health and risk of a retail business based on available data. Be realistic and flag genuine risks." },
-            {
-              role: "user",
-              content: `Assess this retailer's business health:
-Name: ${retailer.name}
-Town: ${retailer.town}, ${retailer.county}
-Category: ${retailer.category}
-Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
-Independent: ${retailer.is_independent ? "Yes" : "No"}
-Positioning: ${retailer.store_positioning || "unknown"}
-${retailer.website ? `Website: ${retailer.website}` : "No website"}
-Commercial Health Score: ${retailer.commercial_health_score}/100
-
-Note: Companies House API key is not configured, so provide an AI-estimated assessment.`,
-            },
-          ],
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        const status = aiResponse.status;
-        if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        await aiResponse.text();
-        return new Response(JSON.stringify({ error: "Assessment failed" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // AI-only assessment with credit profile
+      try {
+        const assessment = await buildAIAssessment(retailer);
+        assessment.source = "ai_estimated";
+        return new Response(JSON.stringify({ success: true, assessment }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err.message || "Assessment failed" }), { status: err.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-
-      const aiData = await aiResponse.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (!toolCall) return new Response(JSON.stringify({ error: "AI did not return data" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-      const assessment = JSON.parse(toolCall.function.arguments);
-      assessment.source = "ai_estimated";
-      return new Response(JSON.stringify({ success: true, assessment }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Real Companies House lookup
@@ -108,8 +157,7 @@ Note: Companies House API key is not configured, so provide an AI-estimated asse
     });
 
     if (!searchRes.ok) {
-      const body = await searchRes.text();
-      console.error("CH search error:", searchRes.status, body);
+      console.error("CH search error:", searchRes.status, await searchRes.text());
       return new Response(JSON.stringify({ error: "Companies House search failed" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -117,96 +165,65 @@ Note: Companies House API key is not configured, so provide an AI-estimated asse
     const companies = searchData.items || [];
 
     if (companies.length === 0) {
-      return new Response(JSON.stringify({ success: true, assessment: { source: "companies_house", companyStatus: "not_found", note: "No matching company found on Companies House. This may be a sole trader or unregistered business.", riskLevel: "medium", riskFactors: ["Not registered at Companies House"], positiveIndicators: [], businessHealthScore: 50 } }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // No CH match - do AI-only with credit
+      try {
+        const assessment = await buildAIAssessment(retailer);
+        assessment.source = "ai_estimated";
+        assessment.note = "No matching company found on Companies House. This may be a sole trader or unregistered business. " + (assessment.note || "");
+        return new Response(JSON.stringify({ success: true, assessment }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err.message }), { status: err.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     const company = companies[0];
     const companyNumber = company.company_number;
 
-    // Fetch officers
-    let officers: any[] = [];
-    try {
-      const officersRes = await fetch(`${CH_BASE}/company/${companyNumber}/officers`, {
-        headers: { Authorization: `Basic ${authString}` },
-      });
-      if (officersRes.ok) {
-        const officersData = await officersRes.json();
-        officers = officersData.items || [];
-      }
-    } catch (e) { console.error("Officers fetch error:", e); }
+    // Fetch officers & filings in parallel
+    const [officersRes, filingsRes] = await Promise.all([
+      fetch(`${CH_BASE}/company/${companyNumber}/officers`, { headers: { Authorization: `Basic ${authString}` } }).catch(() => null),
+      fetch(`${CH_BASE}/company/${companyNumber}/filing-history?items_per_page=5`, { headers: { Authorization: `Basic ${authString}` } }).catch(() => null),
+    ]);
 
-    // Fetch filing history
-    let filings: any[] = [];
-    try {
-      const filingsRes = await fetch(`${CH_BASE}/company/${companyNumber}/filing-history?items_per_page=5`, {
-        headers: { Authorization: `Basic ${authString}` },
-      });
-      if (filingsRes.ok) {
-        const filingsData = await filingsRes.json();
-        filings = filingsData.items || [];
-      }
-    } catch (e) { console.error("Filings fetch error:", e); }
-
-    // Build assessment
-    const riskFactors: string[] = [];
-    const positiveIndicators: string[] = [];
-
-    if (company.company_status !== "active") riskFactors.push(`Company status: ${company.company_status}`);
-    else positiveIndicators.push("Company is active");
-
-    if (company.date_of_creation) {
-      const years = Math.floor((Date.now() - new Date(company.date_of_creation).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-      if (years >= 5) positiveIndicators.push(`Established ${years} years`);
-      else if (years < 2) riskFactors.push(`Relatively new company (${years} years)`);
-    }
-
-    // Check directors for retirement risk
-    officers.filter((o: any) => o.officer_role === "director" && !o.resigned_on).forEach((d: any) => {
-      if (d.date_of_birth) {
-        const age = new Date().getFullYear() - d.date_of_birth.year;
-        if (age >= 60) riskFactors.push(`Director ${d.name} is approximately ${age} years old (retirement risk)`);
-      }
-    });
+    const officers = officersRes?.ok ? (await officersRes.json()).items || [] : [];
+    const filings = filingsRes?.ok ? (await filingsRes.json()).items || [] : [];
 
     const activeDirectors = officers.filter((o: any) => o.officer_role === "director" && !o.resigned_on);
-    if (activeDirectors.length === 1) riskFactors.push("Single director (key person risk)");
+    const latestFilingDate = filings.length > 0 ? filings[0].date : null;
+    const filingAgeMonths = latestFilingDate ? Math.floor((Date.now() - new Date(latestFilingDate).getTime()) / (30 * 24 * 60 * 60 * 1000)) : null;
 
-    if (filings.length > 0) {
-      const latestFiling = filings[0];
-      const filingDate = new Date(latestFiling.date);
-      const monthsAgo = Math.floor((Date.now() - filingDate.getTime()) / (30 * 24 * 60 * 60 * 1000));
-      if (monthsAgo > 15) riskFactors.push(`Last filing was ${monthsAgo} months ago`);
-      else positiveIndicators.push("Recent filing activity");
-    }
+    // Build AI assessment with real CH data for credit scoring
+    try {
+      const assessment = await buildAIAssessment(retailer, {
+        ...company,
+        activeDirectorCount: activeDirectors.length,
+        singleDirector: activeDirectors.length === 1,
+        latestFilingDate,
+        filingAgeMonths,
+      });
 
-    const healthScore = Math.max(0, Math.min(100, 70 + positiveIndicators.length * 8 - riskFactors.length * 12));
-    const riskLevel = riskFactors.length >= 3 ? "high" : riskFactors.length >= 1 ? "medium" : "low";
-
-    const assessment = {
-      source: "companies_house",
-      companyName: company.title,
-      companyNumber,
-      companyStatus: company.company_status,
-      dateOfCreation: company.date_of_creation,
-      registeredAddress: company.address_snippet,
-      directors: activeDirectors.map((d: any) => ({
+      assessment.source = "companies_house";
+      assessment.companyName = company.title;
+      assessment.companyNumber = companyNumber;
+      assessment.companyStatus = company.company_status;
+      assessment.dateOfCreation = company.date_of_creation;
+      assessment.registeredAddress = company.address_snippet;
+      assessment.directors = activeDirectors.map((d: any) => ({
         name: d.name,
         role: d.officer_role,
         appointedOn: d.appointed_on,
         ...(d.date_of_birth ? { approximateAge: new Date().getFullYear() - d.date_of_birth.year } : {}),
-      })),
-      recentFilings: filings.slice(0, 3).map((f: any) => ({
+      }));
+      assessment.recentFilings = filings.slice(0, 3).map((f: any) => ({
         description: f.description,
         date: f.date,
         type: f.type,
-      })),
-      businessHealthScore: healthScore,
-      riskLevel,
-      riskFactors,
-      positiveIndicators,
-    };
+      }));
 
-    return new Response(JSON.stringify({ success: true, assessment }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, assessment }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } catch (err: any) {
+      return new Response(JSON.stringify({ error: err.message }), { status: err.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
   } catch (error) {
     console.error("Error:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
