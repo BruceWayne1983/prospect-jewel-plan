@@ -1,11 +1,22 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Database } from "@/integrations/supabase/types";
 
 type DiscoveredProspect = Database["public"]["Tables"]["discovered_prospects"]["Row"];
+
+const COUNTIES = ["Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Avon"];
+const CATEGORIES = [
+  { value: "jeweller", label: "Jewellers" },
+  { value: "gift_shop", label: "Gift Shops" },
+  { value: "fashion_boutique", label: "Fashion Boutiques" },
+  { value: "lifestyle_store", label: "Lifestyle Stores" },
+  { value: "premium_accessories", label: "Premium Accessories" },
+  { value: "concept_store", label: "Concept Stores" },
+];
 
 function ConfidenceBadge({ score }: { score: number }) {
   const cls = score >= 80 ? 'bg-success-light text-success' : score >= 70 ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground';
@@ -13,11 +24,22 @@ function ConfidenceBadge({ score }: { score: number }) {
   return <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${cls}`}>{label}</span>;
 }
 
+function SourceBadge({ source }: { source: string | null }) {
+  if (source === "Web Scanner") {
+    return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info flex items-center gap-1"><Globe className="w-2.5 h-2.5" />Web Verified</span>;
+  }
+  return <span className="text-[10px] text-gold-dark">{source}</span>;
+}
+
 export default function ProspectDiscovery() {
   const [prospects, setProspects] = useState<DiscoveredProspect[]>([]);
   const [filter, setFilter] = useState<'all' | 'new' | 'reviewing' | 'accepted' | 'dismissed'>('all');
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [scanType, setScanType] = useState<'idle' | 'ai' | 'web' | 'full'>('idle');
+  const [scanProgress, setScanProgress] = useState("");
+  const [selectedCounty, setSelectedCounty] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -34,25 +56,18 @@ export default function ProspectDiscovery() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchProspects();
-  }, []);
+  useEffect(() => { fetchProspects(); }, []);
 
-  const filtered = filter === 'all' ? prospects : prospects.filter(p => p.status === filter);
+  const filtered = prospects.filter(p => {
+    if (filter !== 'all' && p.status !== filter) return false;
+    return true;
+  });
 
   const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
-    const { error } = await supabase
-      .from("discovered_prospects")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Failed to update status");
-      return;
-    }
-
+    const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
+    if (error) { toast.error("Failed to update status"); return; }
     setProspects(prev => prev.map(p => p.id === id ? { ...p, status } : p));
-    const labels: Record<string, string> = { accepted: 'Accepted — added to prospect list', dismissed: 'Dismissed', reviewing: 'Marked for review' };
+    const labels: Record<string, string> = { accepted: 'Accepted', dismissed: 'Dismissed', reviewing: 'Marked for review' };
     toast.success(labels[status] || 'Updated');
   };
 
@@ -61,43 +76,30 @@ export default function ProspectDiscovery() {
     if (!user) { toast.error("Please sign in"); return; }
 
     const { error } = await supabase.from("retailers").insert({
-      user_id: user.id,
-      name: p.name,
-      town: p.town,
-      county: p.county,
-      category: p.category,
-      rating: p.rating,
-      review_count: p.review_count,
-      store_positioning: p.estimated_price_positioning,
-      fit_score: p.predicted_fit_score,
-      address: p.address,
-      website: p.website,
-      lat: p.lat,
-      lng: p.lng,
-      pipeline_stage: 'new_lead',
-      ai_notes: p.ai_reason,
+      user_id: user.id, name: p.name, town: p.town, county: p.county,
+      category: p.category, rating: p.rating, review_count: p.review_count,
+      store_positioning: p.estimated_price_positioning, fit_score: p.predicted_fit_score,
+      address: p.address, website: p.website, lat: p.lat, lng: p.lng,
+      pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
     });
 
-    if (error) {
-      toast.error("Failed to promote prospect");
-      console.error(error);
-      return;
-    }
-
+    if (error) { toast.error("Failed to promote prospect"); console.error(error); return; }
     await supabase.from("discovered_prospects").delete().eq("id", p.id);
     setProspects(prev => prev.filter(x => x.id !== p.id));
     toast.success(`${p.name} promoted to Pipeline!`);
   };
 
-  const runDiscovery = async () => {
+  const runAIScan = async () => {
     setScanning(true);
+    setScanType('ai');
+    setScanProgress("Generating prospects...");
     try {
-      const { data, error } = await supabase.functions.invoke("discover-prospects", {
-        body: { count: 5 },
-      });
+      const body: any = { count: 15 };
+      if (selectedCounty !== "all") body.county = selectedCounty;
+      if (selectedCategory !== "all") body.category = selectedCategory;
 
+      const { data, error } = await supabase.functions.invoke("discover-prospects", { body });
       if (error) throw error;
-
       if (data?.success) {
         toast.success(`Discovered ${data.prospects?.length || 0} new prospects!`);
         await fetchProspects();
@@ -105,16 +107,76 @@ export default function ProspectDiscovery() {
         toast.error(data?.error || "Discovery failed");
       }
     } catch (err: any) {
-      console.error("Discovery error:", err);
       toast.error(err.message || "Failed to run discovery");
     } finally {
       setScanning(false);
+      setScanType('idle');
+      setScanProgress("");
+    }
+  };
+
+  const runWebScan = async () => {
+    if (selectedCounty === "all") {
+      toast.error("Please select a county for web scanning");
+      return;
+    }
+    setScanning(true);
+    setScanType('web');
+    setScanProgress(`Searching the web for real stores in ${selectedCounty}...`);
+    try {
+      const body: any = { county: selectedCounty };
+      if (selectedCategory !== "all") body.category = selectedCategory;
+
+      const { data, error } = await supabase.functions.invoke("discover-web", { body });
+      if (error) throw error;
+      if (data?.success) {
+        const count = data.prospects?.length || 0;
+        toast.success(count > 0 ? `Found ${count} real stores!` : (data.message || "No new stores found"));
+        await fetchProspects();
+      } else {
+        toast.error(data?.error || "Web scan failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Web scan failed");
+    } finally {
+      setScanning(false);
+      setScanType('idle');
+      setScanProgress("");
+    }
+  };
+
+  const runFullScan = async () => {
+    setScanning(true);
+    setScanType('full');
+    setScanProgress("Running full territory scan across all counties...");
+    try {
+      const { data, error } = await supabase.functions.invoke("discover-prospects", {
+        body: { fullScan: true },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        const count = data.prospects?.length || 0;
+        const msg = data.partial
+          ? `Found ${count} prospects (stopped early: ${data.error})`
+          : `Full scan complete! Found ${count} new prospects!`;
+        toast.success(msg);
+        await fetchProspects();
+      } else {
+        toast.error(data?.error || "Full scan failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Full scan failed");
+    } finally {
+      setScanning(false);
+      setScanType('full');
+      setScanProgress("");
     }
   };
 
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
+  const webCount = prospects.filter(p => p.discovery_source === 'Web Scanner').length;
 
   if (loading) {
     return (
@@ -130,33 +192,69 @@ export default function ProspectDiscovery() {
         <div>
           <p className="section-header mb-2">AI Discovery</p>
           <h1 className="page-title">Prospect Discovery Engine</h1>
-          <p className="page-subtitle">AI-identified potential retailers across the South West territory</p>
+          <p className="page-subtitle">AI + Web scanning to find real retailers across the South West</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={runDiscovery}
-            disabled={scanning}
-            className="gold-gradient text-sidebar-background text-xs h-8 px-4"
-          >
-            {scanning ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Radar className="w-3.5 h-3.5 mr-1.5" />}
-            {scanning ? "Scanning..." : "Run AI Scan"}
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${scanning ? 'bg-warning' : 'bg-success'} animate-pulse`} />
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              {scanning ? 'Scanning...' : 'Ready'}
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${scanning ? 'bg-warning' : 'bg-success'} animate-pulse`} />
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+            {scanning ? scanProgress || 'Scanning...' : 'Ready'}
+          </span>
         </div>
       </div>
       <div className="divider-gold" />
 
+      {/* Scan Controls */}
+      <div className="card-premium p-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={selectedCounty} onValueChange={setSelectedCounty}>
+            <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
+              <SelectValue placeholder="All Counties" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Counties</SelectItem>
+              {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[180px] h-8 text-xs bg-cream/30 border-border/30">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <div className="h-6 w-px bg-border/30" />
+
+          <Button onClick={runAIScan} disabled={scanning} className="gold-gradient text-sidebar-background text-xs h-8 px-4">
+            {scanning && scanType === 'ai' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Radar className="w-3.5 h-3.5 mr-1.5" />}
+            AI Scan (15)
+          </Button>
+
+          <Button onClick={runWebScan} disabled={scanning || selectedCounty === "all"} variant="outline" className="text-xs h-8 px-4 border-info/30 text-info hover:bg-info-light">
+            {scanning && scanType === 'web' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Globe className="w-3.5 h-3.5 mr-1.5" />}
+            Web Scan
+          </Button>
+
+          <Button onClick={runFullScan} disabled={scanning} variant="outline" className="text-xs h-8 px-4 border-gold/30 text-gold-dark hover:bg-champagne/30">
+            {scanning && scanType === 'full' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 mr-1.5" />}
+            Full Territory Scan
+          </Button>
+        </div>
+        {selectedCounty === "all" && (
+          <p className="text-[10px] text-muted-foreground mt-2">Select a county to enable Web Scan (searches real business directories)</p>
+        )}
+      </div>
+
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         {[
           { label: 'New', value: newCount, color: 'bg-champagne text-gold-dark' },
           { label: 'Reviewing', value: reviewingCount, color: 'bg-info-light text-info' },
           { label: 'Accepted', value: acceptedCount, color: 'bg-success-light text-success' },
+          { label: 'Web Verified', value: webCount, color: 'bg-info-light text-info' },
           { label: 'Total Scanned', value: prospects.length, color: 'bg-muted text-muted-foreground' },
         ].map(s => (
           <div key={s.label} className="stat-card text-center">
@@ -181,11 +279,7 @@ export default function ProspectDiscovery() {
         <div className="card-premium p-12 text-center">
           <Radar className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
           <h3 className="text-base font-display font-semibold text-foreground mb-2">No prospects yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">Run the AI Scanner to discover potential retailers in your territory</p>
-          <Button onClick={runDiscovery} disabled={scanning} className="gold-gradient text-sidebar-background text-xs">
-            {scanning ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Radar className="w-3.5 h-3.5 mr-1.5" />}
-            Run First Scan
-          </Button>
+          <p className="text-sm text-muted-foreground mb-4">Run an AI Scan or Full Territory Scan to discover potential retailers</p>
         </div>
       )}
 
@@ -199,11 +293,16 @@ export default function ProspectDiscovery() {
                   <h3 className="text-base font-display font-semibold text-foreground">{p.name}</h3>
                   <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
+                  <SourceBadge source={p.discovery_source} />
                 </div>
                 <div className="flex items-center gap-4 mb-3">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" />{p.rating} ({p.review_count})</span>
-                  <span className="text-[10px] text-gold-dark">{p.discovery_source}</span>
+                  {p.website && (
+                    <a href={p.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-info hover:underline">
+                      <Globe className="w-3 h-3" />Website
+                    </a>
+                  )}
                 </div>
                 {p.ai_reason && (
                   <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
