@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -62,6 +62,8 @@ export default function ProspectDiscovery() {
   const [filterRatingMin, setFilterRatingMin] = useState<string>("0");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [showFilters, setShowFilters] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState({ done: 0, total: 0 });
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -315,11 +317,38 @@ export default function ProspectDiscovery() {
     }
   };
 
+  const runBulkEnrich = async () => {
+    const accepted = prospects.filter(p => p.status === 'accepted' && !p.social_verified);
+    if (accepted.length === 0) {
+      toast.info("No unenriched accepted prospects to process");
+      return;
+    }
+    setEnriching(true);
+    setEnrichProgress({ done: 0, total: accepted.length });
+    let successCount = 0;
+    for (const p of accepted) {
+      try {
+        const { data, error } = await supabase.functions.invoke("verify-social", {
+          body: { prospectId: p.id, name: p.name, town: p.town, county: p.county, website: p.website },
+        });
+        if (!error && data?.success) successCount++;
+      } catch (err) {
+        console.error(`Enrich failed for ${p.name}:`, err);
+      }
+      setEnrichProgress(prev => ({ ...prev, done: prev.done + 1 }));
+    }
+    toast.success(`Enriched ${successCount} of ${accepted.length} prospects`);
+    await fetchProspects();
+    setEnriching(false);
+    setEnrichProgress({ done: 0, total: 0 });
+  };
+
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
   const webCount = prospects.filter(p => p.discovery_source === 'Web Scanner').length;
   const brandCount = prospects.filter(p => p.discovery_source?.startsWith('Brand:')).length;
+  const unenrichedAccepted = prospects.filter(p => p.status === 'accepted' && !p.social_verified).length;
 
   if (loading) {
     return (
@@ -475,6 +504,26 @@ export default function ProspectDiscovery() {
             {f.charAt(0).toUpperCase() + f.slice(1)} {f === 'all' ? `(${prospects.length})` : `(${prospects.filter(p => p.status === f).length})`}
           </button>
         ))}
+
+        <Button
+          onClick={runBulkEnrich}
+          disabled={enriching || unenrichedAccepted === 0}
+          variant="outline"
+          size="sm"
+          className="text-[10px] h-8 px-3 border-gold/30 text-gold-dark hover:bg-champagne/30"
+        >
+          {enriching ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              Enriching {enrichProgress.done}/{enrichProgress.total}...
+            </>
+          ) : (
+            <>
+              <Users className="w-3.5 h-3.5 mr-1.5" />
+              Enrich All Accepted {unenrichedAccepted > 0 ? `(${unenrichedAccepted})` : ''}
+            </>
+          )}
+        </Button>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
             className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
