@@ -174,6 +174,11 @@ export default function ProspectDiscovery() {
       tiktok: (p as any).tiktok || null, twitter: (p as any).twitter || null,
       linkedin: (p as any).linkedin || null, social_verified: (p as any).social_verified || false,
       pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
+      store_images: (p as any).store_images || [],
+      follower_counts: (p as any).follower_counts || {},
+      estimated_monthly_traffic: (p as any).estimated_monthly_traffic || null,
+      google_review_summary: (p as any).google_review_summary || null,
+      google_review_highlights: (p as any).google_review_highlights || [],
     });
 
     if (error) { toast.error("Failed to promote prospect"); console.error(error); return; }
