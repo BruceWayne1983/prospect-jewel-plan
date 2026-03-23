@@ -139,6 +139,61 @@ export default function SalesForecast() {
         </div>
       </div>
 
+      {/* Data Hub Seasonal Trends */}
+      {!dataInsights.loading && dataInsights.seasonalTrends.length > 0 && (
+        <div className="card-premium p-6 border-gold/20">
+          <div className="flex items-center gap-2.5 mb-4">
+            <Database className="w-5 h-5 text-gold" strokeWidth={1.5} />
+            <h3 className="text-lg font-display font-semibold text-foreground">Seasonal Trends (from uploaded data)</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {dataInsights.seasonalTrends.map((trend, i) => (
+              <div key={i} className={`bg-cream/50 rounded-lg p-4 border ${trend.impact === 'high' ? 'border-gold/20' : 'border-border/15'}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <h4 className="text-xs font-semibold text-foreground">{trend.season}</h4>
+                  {trend.revenue_share && <span className="text-[9px] px-2 py-0.5 rounded-full bg-champagne text-gold-dark font-medium">{trend.revenue_share}</span>}
+                </div>
+                {trend.notes && <p className="text-[11px] text-muted-foreground leading-relaxed">{trend.notes}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Current Stockists from Data */}
+      {!dataInsights.loading && dataInsights.allStockists.length > 0 && (
+        <div className="card-premium p-6">
+          <div className="flex items-center gap-2.5 mb-4">
+            <Sparkles className="w-5 h-5 text-gold" strokeWidth={1.5} />
+            <div>
+              <h3 className="text-lg font-display font-semibold text-foreground">Current Stockists (from uploaded data)</h3>
+              <p className="text-[10px] text-muted-foreground">{dataInsights.allStockists.length} stockists extracted from uploaded files</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/30">
+                  {['Stockist', 'Location', 'Sales Value', 'Source'].map(h => (
+                    <th key={h} className="text-left py-2.5 section-header text-[10px]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dataInsights.allStockists.slice(0, 15).map((s, i) => (
+                  <tr key={i} className="border-b border-border/10">
+                    <td className="py-2.5 text-sm font-medium text-foreground">{s.name}</td>
+                    <td className="py-2.5 text-sm text-muted-foreground">{[s.town, s.county].filter(Boolean).join(', ') || '—'}</td>
+                    <td className="py-2.5 text-sm text-foreground">{s.sales_value ? `£${s.sales_value.toLocaleString()}` : '—'}</td>
+                    <td className="py-2.5 text-[10px] text-muted-foreground">{s.source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="card-premium p-6 border-gold/20">
         <div className="flex items-center gap-2.5 mb-4">
           <Zap className="w-5 h-5 text-gold" strokeWidth={1.5} />
