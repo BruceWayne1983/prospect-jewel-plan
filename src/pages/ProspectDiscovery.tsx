@@ -323,16 +323,27 @@ export default function ProspectDiscovery() {
               {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <Input
-              placeholder="e.g. Joma Jewellery, Pandora, ChloBo..."
-              value={brandSearch}
-              onChange={e => setBrandSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !scanning && runBrandScan()}
-              className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
-            />
-          </div>
+          <Select value={brandSearch} onValueChange={(v) => { setBrandSearch(v === '__other__' ? '' : v); }}>
+            <SelectTrigger className="w-[220px] h-8 text-xs bg-cream/30 border-border/30">
+              <SelectValue placeholder="Select a brand..." />
+            </SelectTrigger>
+            <SelectContent>
+              {BRAND_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              <SelectItem value="__other__">Other (type below)</SelectItem>
+            </SelectContent>
+          </Select>
+          {(brandSearch === '' || !BRAND_OPTIONS.includes(brandSearch)) && (
+            <div className="relative flex-1 min-w-[160px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
+              <Input
+                placeholder="Type a brand name..."
+                value={brandSearch}
+                onChange={e => setBrandSearch(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !scanning && runBrandScan()}
+                className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
+              />
+            </div>
+          )}
           <Button onClick={() => runBrandScan()} disabled={scanning || brandSearch.trim().length < 2} className="text-xs h-8 px-4 bg-accent text-accent-foreground hover:bg-accent/80">
             {scanning && scanType === 'brand' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Tag className="w-3.5 h-3.5 mr-1.5" />}
             Brand Scan
