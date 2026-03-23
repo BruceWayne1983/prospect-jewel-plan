@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
           },
           {
             role: "user",
-            content: `Analyse this retailer as a potential Nomination Italy stockist and generate a comprehensive intelligence report:
+            content: `Analyse this retailer as a potential Nomination Italy stockist and generate a comprehensive intelligence report. IMPORTANT: Also try to find or infer their contact details (phone, email, address, postcode, Instagram) based on the business name, town, website domain, and retail category.
 
 Name: ${retailer.name}
 Town: ${retailer.town}, ${retailer.county}
@@ -205,11 +205,15 @@ Category: ${retailer.category}
 Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
 Store Positioning: ${retailer.store_positioning || 'unknown'}
 Independent: ${retailer.is_independent ? 'Yes' : 'No'}
+${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: NOT YET KNOWN — please try to find or infer'}
+${retailer.email ? `Email: ${retailer.email}` : 'Email: NOT YET KNOWN — please try to infer from website domain'}
 ${retailer.ai_notes ? `AI Notes from discovery: ${retailer.ai_notes}` : ''}
-${retailer.website ? `Website: ${retailer.website}` : ''}
-${retailer.address ? `Address: ${retailer.address}` : ''}
+${retailer.website ? `Website: ${retailer.website}` : 'Website: NOT YET KNOWN'}
+${retailer.address ? `Address: ${retailer.address}` : 'Address: NOT YET KNOWN — please try to infer'}
+${retailer.postcode ? `Postcode: ${retailer.postcode}` : ''}
+${retailer.instagram ? `Instagram: ${retailer.instagram}` : ''}
 
-Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with a suggested first message, qualification assessment, scores, and any risk flags.`,
+Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with contact details, qualification assessment, scores, and any risk flags. For contact_enrichment, try to provide plausible contact details even if you need to infer them (e.g. info@ + website domain for email, local area code for phone).`,
           },
         ],
       }),
