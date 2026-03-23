@@ -12,12 +12,57 @@ import { toast } from "sonner";
 
 export default function CurrentAccounts() {
   const navigate = useNavigate();
-  const { retailers, loading } = useRetailers();
+  const { retailers, loading, refetch } = useRetailers();
   const [search, setSearch] = useState("");
   const [filterCounty, setFilterCounty] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState("priority");
+  const [syncing, setSyncing] = useState(false);
+  const [analysingAll, setAnalysingAll] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
 
+  const syncFromDataHub = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-current-accounts");
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      toast.success(`Synced: ${data.created} new accounts added, ${data.skipped} duplicates skipped`);
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const runBulkAIAnalysis = async () => {
+    const unanalysed = established.filter(r => {
+      const ai = getAIIntelligence(r);
+      return !ai.summary || ai.lastAnalysed === 'Not yet analysed';
+    });
+    if (unanalysed.length === 0) {
+      toast.info("All accounts already have AI analysis");
+      return;
+    }
+    setAnalysingAll(true);
+    setAnalysisProgress({ done: 0, total: unanalysed.length });
+    let success = 0;
+    for (const r of unanalysed) {
+      try {
+        const { data, error } = await supabase.functions.invoke("analyse-retailer", {
+          body: { retailerId: r.id },
+        });
+        if (!error && data?.success) success++;
+      } catch {}
+      setAnalysisProgress(prev => ({ ...prev, done: prev.done + 1 }));
+      // Small delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    toast.success(`AI analysis complete: ${success}/${unanalysed.length} accounts analysed`);
+    setAnalysingAll(false);
+    await refetch();
+  };
   // Established accounts = approved pipeline stage
   const established = useMemo(() => {
     let list = retailers.filter(r => r.pipeline_stage === "approved");
