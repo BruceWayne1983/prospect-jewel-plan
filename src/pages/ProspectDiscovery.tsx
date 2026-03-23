@@ -317,11 +317,38 @@ export default function ProspectDiscovery() {
     }
   };
 
+  const runBulkEnrich = async () => {
+    const accepted = prospects.filter(p => p.status === 'accepted' && !p.social_verified);
+    if (accepted.length === 0) {
+      toast.info("No unenriched accepted prospects to process");
+      return;
+    }
+    setEnriching(true);
+    setEnrichProgress({ done: 0, total: accepted.length });
+    let successCount = 0;
+    for (const p of accepted) {
+      try {
+        const { data, error } = await supabase.functions.invoke("verify-social", {
+          body: { prospectId: p.id, name: p.name, town: p.town, county: p.county, website: p.website },
+        });
+        if (!error && data?.success) successCount++;
+      } catch (err) {
+        console.error(`Enrich failed for ${p.name}:`, err);
+      }
+      setEnrichProgress(prev => ({ ...prev, done: prev.done + 1 }));
+    }
+    toast.success(`Enriched ${successCount} of ${accepted.length} prospects`);
+    await fetchProspects();
+    setEnriching(false);
+    setEnrichProgress({ done: 0, total: 0 });
+  };
+
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
   const webCount = prospects.filter(p => p.discovery_source === 'Web Scanner').length;
   const brandCount = prospects.filter(p => p.discovery_source?.startsWith('Brand:')).length;
+  const unenrichedAccepted = prospects.filter(p => p.status === 'accepted' && !p.social_verified).length;
 
   if (loading) {
     return (
