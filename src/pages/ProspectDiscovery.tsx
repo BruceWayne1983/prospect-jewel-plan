@@ -504,6 +504,26 @@ export default function ProspectDiscovery() {
             {f.charAt(0).toUpperCase() + f.slice(1)} {f === 'all' ? `(${prospects.length})` : `(${prospects.filter(p => p.status === f).length})`}
           </button>
         ))}
+
+        <Button
+          onClick={runBulkEnrich}
+          disabled={enriching || unenrichedAccepted === 0}
+          variant="outline"
+          size="sm"
+          className="text-[10px] h-8 px-3 border-gold/30 text-gold-dark hover:bg-champagne/30"
+        >
+          {enriching ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              Enriching {enrichProgress.done}/{enrichProgress.total}...
+            </>
+          ) : (
+            <>
+              <Users className="w-3.5 h-3.5 mr-1.5" />
+              Enrich All Accepted {unenrichedAccepted > 0 ? `(${unenrichedAccepted})` : ''}
+            </>
+          )}
+        </Button>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
             className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
