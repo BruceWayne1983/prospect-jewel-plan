@@ -192,10 +192,48 @@ export default function ProspectDiscovery() {
     }
   };
 
+  const runBrandScan = async (brand?: string) => {
+    const searchBrand = brand || brandSearch.trim();
+    if (!searchBrand || searchBrand.length < 2) {
+      toast.error("Please enter a brand name (at least 2 characters)");
+      return;
+    }
+    setScanning(true);
+    setScanType('brand');
+    setScanProgress(`Finding retailers that stock ${searchBrand}...`);
+    try {
+      const body: any = { brand: searchBrand, count: 12 };
+      if (selectedCounty !== "all") body.county = selectedCounty;
+
+      const { data, error } = await supabase.functions.invoke("discover-by-brand", { body });
+      if (error) throw error;
+      if (data?.success) {
+        const count = data.prospects?.length || 0;
+        const msg = count > 0
+          ? `Found ${count} retailers linked to ${searchBrand}!`
+          : (data.message || "No new prospects found for this brand");
+        count > 0 ? toast.success(msg) : toast.info(msg);
+        if (data.similarBrands?.length) {
+          toast.info(`Similar brands: ${data.similarBrands.join(", ")}`, { duration: 6000 });
+        }
+        await fetchProspects();
+      } else {
+        toast.error(data?.error || "Brand scan failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Brand scan failed");
+    } finally {
+      setScanning(false);
+      setScanType('idle');
+      setScanProgress("");
+    }
+  };
+
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
   const webCount = prospects.filter(p => p.discovery_source === 'Web Scanner').length;
+  const brandCount = prospects.filter(p => p.discovery_source?.startsWith('Brand:')).length;
 
   if (loading) {
     return (
