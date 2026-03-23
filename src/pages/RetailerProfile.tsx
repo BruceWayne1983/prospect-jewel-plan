@@ -398,6 +398,25 @@ export default function RetailerProfile() {
             </div>
           )}
         </TabsContent>
+        {/* BRIEFING */}
+        <TabsContent value="briefing" className="space-y-5 mt-0">
+          <PreVisitBriefing retailer={r} />
+        </TabsContent>
+
+        {/* PITCH */}
+        <TabsContent value="pitch" className="space-y-5 mt-0">
+          <PitchPersonaliser retailer={r} />
+        </TabsContent>
+
+        {/* VOICE-TO-CRM */}
+        <TabsContent value="voice" className="space-y-5 mt-0">
+          <VoiceToCRM retailer={r} onUpdate={fetchRetailer} />
+        </TabsContent>
+
+        {/* BUSINESS HEALTH */}
+        <TabsContent value="health" className="space-y-5 mt-0">
+          <CompaniesHouseCheck retailer={r} />
+        </TabsContent>
       </Tabs>
     </div>
   );
