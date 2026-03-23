@@ -42,6 +42,7 @@ function AppRoutes() {
         <Route path="/forecast" element={<SalesForecast />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/data-hub" element={<DataHub />} />
+        <Route path="/accounts" element={<CurrentAccounts />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
