@@ -185,6 +185,9 @@ export default function CurrentAccounts() {
         ))}
       </div>
 
+      {/* Account Health Summary */}
+      <AccountHealthSummary retailers={allEstablished} />
+
       {/* At-Risk Accounts */}
       <AtRiskSection retailers={allEstablished} />
 
