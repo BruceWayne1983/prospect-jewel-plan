@@ -68,6 +68,23 @@ export default function RetailerProfile() {
 
   useEffect(() => { fetchRetailer(); }, [id]);
 
+  const saveContact = async () => {
+    if (!id) return;
+    const updates: Record<string, string | null> = {};
+    if (contactForm.phone !== (r?.phone || '')) updates.phone = contactForm.phone || null;
+    if (contactForm.email !== (r?.email || '')) updates.email = contactForm.email || null;
+    if (contactForm.website !== (r?.website || '')) updates.website = contactForm.website || null;
+    if (contactForm.instagram !== (r?.instagram || '')) updates.instagram = contactForm.instagram || null;
+    if (contactForm.address !== (r?.address || '')) updates.address = contactForm.address || null;
+    if (contactForm.postcode !== (r?.postcode || '')) updates.postcode = contactForm.postcode || null;
+    if (Object.keys(updates).length === 0) { setEditingContact(false); return; }
+    const { error } = await supabase.from("retailers").update(updates).eq("id", id);
+    if (error) { toast.error("Failed to save"); return; }
+    toast.success("Contact details updated");
+    setEditingContact(false);
+    fetchRetailer();
+  };
+
   const runAnalysis = async () => {
     if (!id) return;
     setAnalysing(true);
