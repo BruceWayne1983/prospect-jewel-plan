@@ -78,11 +78,15 @@ async function discoverBatch(
       messages: [
         {
             role: "system",
-            content: "You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.",
+            content: `You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.
+
+CRITICAL: Do NOT include toy stores, children's shops, chain stores, or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores.${notFitContext}`,
         },
         {
           role: "user",
-          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name, a plausible full address with postcode, a plausible phone number, and a plausible contact email.${excludeClause}`,
+          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name, a plausible full address with postcode, a plausible phone number, and a plausible contact email.
+
+Do NOT suggest toy stores, children's shops, or chain retailers.${excludeClause}`,
         },
       ],
     }),
