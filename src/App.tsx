@@ -18,7 +18,7 @@ import ProspectDiscovery from "@/pages/ProspectDiscovery";
 import TerritorySimulator from "@/pages/TerritorySimulator";
 import SalesCalendar from "@/pages/SalesCalendar";
 import SalesForecast from "@/pages/SalesForecast";
-import Auth from "@/pages/Auth";
+import NotFound from "@/pages/NotFound";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
