@@ -99,6 +99,7 @@ export default function ProspectDiscovery() {
       category: p.category, rating: p.rating, review_count: p.review_count,
       store_positioning: p.estimated_price_positioning, fit_score: p.predicted_fit_score,
       address: p.address, website: p.website, lat: p.lat, lng: p.lng,
+      phone: (p as any).phone || null, email: (p as any).email || null,
       pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
     });
 
