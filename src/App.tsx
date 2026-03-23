@@ -21,6 +21,7 @@ import SalesForecast from "@/pages/SalesForecast";
 import JourneyPlanner from "@/pages/JourneyPlanner";
 import DataHub from "@/pages/DataHub";
 import CurrentAccounts from "@/pages/CurrentAccounts";
+import BrandHub from "@/pages/BrandHub";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
