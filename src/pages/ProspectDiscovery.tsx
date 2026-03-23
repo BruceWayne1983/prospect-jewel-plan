@@ -25,6 +25,7 @@ const BRAND_OPTIONS = [
   "Gecko", "Hot Diamonds", "Fiorelli", "Lola Rose", "Missoma",
   "Monica Vinader", "Astley Clarke", "Clogau", "Carrie Elizabeth", "Tutti & Co",
   "Pilgrim", "Ania Haie", "Orelia", "Estella Bartlett", "Scream Pretty",
+  "Jellycat", "Katie Loxton", "Radley", "Joules", "Emma Bridgewater",
 ];
 
 function ConfidenceBadge({ score }: { score: number }) {
