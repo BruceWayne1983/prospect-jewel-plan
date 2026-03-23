@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 export default function Dashboard() {
   const navigate = useNavigate();
   const { retailers, loading } = useRetailers();
+  const dataInsights = useDataInsights();
   const [prospectCount, setProspectCount] = useState(0);
   const [profile, setProfile] = useState<{ display_name: string | null } | null>(null);
 
