@@ -66,6 +66,22 @@ Deno.serve(async (req) => {
       ...(existingProspects || []).map((p: any) => p.name),
     ];
 
+    // Fetch disqualification patterns to teach the AI what to avoid
+    const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
+    let notFitContext = "";
+    if (disqualPatterns && disqualPatterns.length > 0) {
+      const reasonCounts: Record<string, number> = {};
+      const examples: string[] = [];
+      disqualPatterns.forEach((dp: any) => {
+        reasonCounts[dp.reason] = (reasonCounts[dp.reason] || 0) + 1;
+        if (examples.length < 10) {
+          examples.push(`"${dp.prospect_name}" (${dp.prospect_town}) — ${dp.reason}${dp.reason_detail ? ': ' + dp.reason_detail : ''}`);
+        }
+      });
+      const topReasons = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => `${r} (${c}x)`).join(", ");
+      notFitContext = `\n\nIMPORTANT — LEARNED "NOT FIT" PATTERNS from previous disqualifications:\nTop reasons for rejection: ${topReasons}\nExamples of rejected stores:\n${examples.join("\n")}\n\nAvoid suggesting stores that match these patterns. The user has repeatedly rejected these types of stores.`;
+    }
+
     const excludeClause = existingNames.length > 0
       ? `\n\nDo NOT include any of these existing stores: ${existingNames.join(", ")}`
       : "";
