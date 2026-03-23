@@ -105,12 +105,32 @@ export default function CurrentAccounts() {
 
   return (
     <div className="page-container">
-      <div>
-        <p className="section-header mb-2">Manage</p>
-        <h1 className="page-title">Current Accounts</h1>
-        <p className="page-subtitle">Established stockists actively carrying Nomination</p>
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <p className="section-header mb-2">Manage</p>
+          <h1 className="page-title">Current Accounts</h1>
+          <p className="page-subtitle">Established stockists actively carrying Nomination</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={syncFromDataHub}
+            disabled={syncing || analysingAll}
+            variant="outline"
+            className="text-xs h-9 border-gold/30 text-gold-dark hover:bg-champagne/30"
+          >
+            {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <DatabaseZap className="w-3.5 h-3.5 mr-1.5" />}
+            {syncing ? "Syncing..." : "Sync from Data Hub"}
+          </Button>
+          <Button
+            onClick={runBulkAIAnalysis}
+            disabled={analysingAll || syncing || established.length === 0}
+            className="text-xs h-9 gold-gradient text-sidebar-background"
+          >
+            {analysingAll ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
+            {analysingAll ? `Analysing ${analysisProgress.done}/${analysisProgress.total}...` : "Run AI on All"}
+          </Button>
+        </div>
       </div>
-      <div className="divider-gold" />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
