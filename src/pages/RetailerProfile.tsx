@@ -334,9 +334,15 @@ export default function RetailerProfile() {
             <div className="card-premium p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-display font-semibold text-foreground">Contact & Location</h3>
-                <Button variant="ghost" size="sm" onClick={() => { if (editingContact) saveContact(); else setEditingContact(true); }} className="text-[10px] h-7 px-2 text-gold-dark">
-                  {editingContact ? 'Save' : (!r.phone && !r.email ? '+ Add Details' : 'Edit')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={verifySocial} disabled={verifyingSocial} className="text-[10px] h-7 px-2 border-gold/30 text-gold-dark hover:bg-champagne/30">
+                    {verifyingSocial ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                    {verifyingSocial ? 'Verifying...' : 'AI Verify Social'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { if (editingContact) saveContact(); else setEditingContact(true); }} className="text-[10px] h-7 px-2 text-gold-dark">
+                    {editingContact ? 'Save' : (!r.phone && !r.email ? '+ Add Details' : 'Edit')}
+                  </Button>
+                </div>
               </div>
               {editingContact ? (
                 <div className="space-y-2.5">
