@@ -314,6 +314,15 @@ export default function ProspectDiscovery() {
           <span className="text-[10px] text-muted-foreground">— Discover retailers stocking a specific brand or similar brands</span>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <Select value={selectedCounty} onValueChange={setSelectedCounty}>
+            <SelectTrigger className="w-[180px] h-8 text-xs bg-cream/30 border-border/30">
+              <SelectValue placeholder="All counties" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Counties</SelectItem>
+              {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
             <Input
