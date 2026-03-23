@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
                   description: "List of risk flags, can be empty",
                 },
               },
-              required: ["ai_intelligence", "performance_prediction", "outreach", "qualification", "scores", "risk_flags"],
+              required: ["ai_intelligence", "performance_prediction", "outreach", "contact_enrichment", "qualification", "scores", "risk_flags"],
               additionalProperties: false,
             },
           },
