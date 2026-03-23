@@ -162,7 +162,12 @@ export default function JourneyPlanner() {
   const [editingHome, setEditingHome] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [addSearch, setAddSearch] = useState('');
-  const [customRouteAccounts, setCustomRouteAccounts] = useState<Set<string>>(new Set());
+  const [customRouteAccounts, setCustomRouteAccounts] = useState<Set<string>>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('custom_route_accounts') || '[]') as string[];
+      return new Set(saved);
+    } catch { return new Set(); }
+  });
 
   const enrichedRetailers: RetailerWithMeta[] = useMemo(() =>
     retailers.map(r => {
@@ -264,8 +269,17 @@ export default function JourneyPlanner() {
     saveHome(next);
   };
 
+  // Sync customRouteAccounts to localStorage
+  const syncRouteToStorage = (accounts: Set<string>) => {
+    localStorage.setItem('custom_route_accounts', JSON.stringify([...accounts]));
+  };
+
   const addAccountToRoute = (id: string) => {
-    setCustomRouteAccounts(prev => new Set([...prev, id]));
+    setCustomRouteAccounts(prev => {
+      const next = new Set([...prev, id]);
+      syncRouteToStorage(next);
+      return next;
+    });
     setSelectedRoute('📌 My Custom Route');
   };
 
@@ -273,6 +287,7 @@ export default function JourneyPlanner() {
     setCustomRouteAccounts(prev => {
       const next = new Set(prev);
       next.delete(id);
+      syncRouteToStorage(next);
       return next;
     });
   };
@@ -393,7 +408,7 @@ export default function JourneyPlanner() {
                   <h4 className="text-sm font-display font-semibold text-foreground">Build a Route</h4>
                 </div>
                 {customRouteAccounts.size > 0 && (
-                  <button onClick={() => setCustomRouteAccounts(new Set())} className="text-[9px] text-destructive hover:text-destructive/80 font-medium">Clear all</button>
+                  <button onClick={() => { setCustomRouteAccounts(new Set()); syncRouteToStorage(new Set()); }} className="text-[9px] text-destructive hover:text-destructive/80 font-medium">Clear all</button>
                 )}
               </div>
 

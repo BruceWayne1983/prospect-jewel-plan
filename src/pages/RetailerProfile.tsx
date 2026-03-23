@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { type Retailer, getOutreach, getActivity, getAIIntelligence, getPerformancePrediction, getQualification, getCompetitorBrands } from "@/hooks/useRetailers";
-import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3, Clock, Send, FileText, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3, Clock, Send, FileText, Loader2, Route } from "lucide-react";
 import { PreVisitBriefing } from "@/components/retailer/PreVisitBriefing";
 import { FollowUpDrafter } from "@/components/retailer/FollowUpDrafter";
 import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
@@ -169,6 +169,28 @@ export default function RetailerProfile() {
             >
               {analysing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
               {analysing ? "Analysing..." : ai.summary ? "Re-analyse" : "Run AI Analysis"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 px-4"
+              onClick={() => {
+                try {
+                  const existing = JSON.parse(localStorage.getItem('custom_route_accounts') || '[]') as string[];
+                  if (existing.includes(r.id)) {
+                    toast.info(`${r.name} is already on your route`);
+                    return;
+                  }
+                  existing.push(r.id);
+                  localStorage.setItem('custom_route_accounts', JSON.stringify(existing));
+                  toast.success(`${r.name} added to route`);
+                } catch {
+                  toast.error('Failed to add to route');
+                }
+              }}
+            >
+              <Route className="w-3.5 h-3.5 mr-1.5" />
+              Add to Route
             </Button>
           </div>
         </div>
