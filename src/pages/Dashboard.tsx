@@ -36,9 +36,9 @@ export default function Dashboard() {
   const displayName = profile?.display_name?.split(' ')[0] ?? 'there';
 
   const stats = [
-    { label: "Total Prospects", value: retailers.length.toString(), icon: Users, sub: "Across South West UK" },
+    { label: "Total Accounts", value: retailers.length.toString(), icon: Users, sub: "South West & South Wales" },
     { label: "Qualified", value: qualified.length.toString(), icon: Target, sub: "Passed brand fit evaluation" },
-    { label: "Pipeline Value", value: `${retailers.length}`, icon: TrendingUp, sub: "Active in pipeline", accent: true },
+    { label: "Pipeline Active", value: `${retailers.filter(r => r.pipeline_stage !== 'rejected').length}`, icon: TrendingUp, sub: "Active in pipeline", accent: true },
     { label: "Meetings Booked", value: meetings.length.toString(), icon: Calendar, sub: "Active conversations" },
   ];
 
