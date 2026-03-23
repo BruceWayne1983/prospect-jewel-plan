@@ -67,6 +67,7 @@ export default function ProspectDiscovery() {
   const [showFilters, setShowFilters] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState({ done: 0, total: 0 });
+  const [dismissDialog, setDismissDialog] = useState<{ open: boolean; prospect: DiscoveredProspect | null; reason: string; detail: string }>({ open: false, prospect: null, reason: 'not_fit', detail: '' });
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
