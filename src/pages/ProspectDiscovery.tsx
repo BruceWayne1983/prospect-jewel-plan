@@ -45,6 +45,7 @@ function SourceBadge({ source }: { source: string | null }) {
 }
 
 export default function ProspectDiscovery() {
+  const navigate = useNavigate();
   const [prospects, setProspects] = useState<DiscoveredProspect[]>([]);
   const [filter, setFilter] = useState<'all' | 'new' | 'reviewing' | 'accepted' | 'dismissed'>('all');
   const [loading, setLoading] = useState(true);
