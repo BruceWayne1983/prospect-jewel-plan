@@ -15,6 +15,7 @@ const navItems = [
   { title: "Discovery Engine", url: "/discovery", icon: Radar },
   { title: "Prospect Finder", url: "/prospects", icon: Search },
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
+  { title: "Current Accounts", url: "/accounts", icon: Store },
   { title: "Territory Map", url: "/map", icon: Map },
   { title: "Sales Calendar", url: "/calendar", icon: Calendar },
   { title: "Sales Forecast", url: "/forecast", icon: TrendingUp },
