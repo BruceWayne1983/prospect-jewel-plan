@@ -1,20 +1,68 @@
 import { useState, useMemo } from "react";
 import { useRetailers, getOutreach, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Store, MapPin, Phone, Mail, Globe, ArrowUpRight, Search, TrendingUp, Calendar, AlertTriangle, Filter } from "lucide-react";
+import { Loader2, Store, MapPin, Phone, Mail, Globe, ArrowUpRight, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { COUNTIES } from "@/data/constants";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function CurrentAccounts() {
   const navigate = useNavigate();
-  const { retailers, loading } = useRetailers();
+  const { retailers, loading, refetch } = useRetailers();
   const [search, setSearch] = useState("");
   const [filterCounty, setFilterCounty] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState("priority");
+  const [syncing, setSyncing] = useState(false);
+  const [analysingAll, setAnalysingAll] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
 
+  const syncFromDataHub = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-current-accounts");
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      toast.success(`Synced: ${data.created} new accounts added, ${data.skipped} duplicates skipped`);
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const runBulkAIAnalysis = async () => {
+    const unanalysed = established.filter(r => {
+      const ai = getAIIntelligence(r);
+      return !ai.summary || ai.lastAnalysed === 'Not yet analysed';
+    });
+    if (unanalysed.length === 0) {
+      toast.info("All accounts already have AI analysis");
+      return;
+    }
+    setAnalysingAll(true);
+    setAnalysisProgress({ done: 0, total: unanalysed.length });
+    let success = 0;
+    for (const r of unanalysed) {
+      try {
+        const { data, error } = await supabase.functions.invoke("analyse-retailer", {
+          body: { retailerId: r.id },
+        });
+        if (!error && data?.success) success++;
+      } catch {}
+      setAnalysisProgress(prev => ({ ...prev, done: prev.done + 1 }));
+      // Small delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    toast.success(`AI analysis complete: ${success}/${unanalysed.length} accounts analysed`);
+    setAnalysingAll(false);
+    await refetch();
+  };
   // Established accounts = approved pipeline stage
   const established = useMemo(() => {
     let list = retailers.filter(r => r.pipeline_stage === "approved");
@@ -57,12 +105,32 @@ export default function CurrentAccounts() {
 
   return (
     <div className="page-container">
-      <div>
-        <p className="section-header mb-2">Manage</p>
-        <h1 className="page-title">Current Accounts</h1>
-        <p className="page-subtitle">Established stockists actively carrying Nomination</p>
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <p className="section-header mb-2">Manage</p>
+          <h1 className="page-title">Current Accounts</h1>
+          <p className="page-subtitle">Established stockists actively carrying Nomination</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={syncFromDataHub}
+            disabled={syncing || analysingAll}
+            variant="outline"
+            className="text-xs h-9 border-gold/30 text-gold-dark hover:bg-champagne/30"
+          >
+            {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <DatabaseZap className="w-3.5 h-3.5 mr-1.5" />}
+            {syncing ? "Syncing..." : "Sync from Data Hub"}
+          </Button>
+          <Button
+            onClick={runBulkAIAnalysis}
+            disabled={analysingAll || syncing || established.length === 0}
+            className="text-xs h-9 gold-gradient text-sidebar-background"
+          >
+            {analysingAll ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
+            {analysingAll ? `Analysing ${analysisProgress.done}/${analysisProgress.total}...` : "Run AI on All"}
+          </Button>
+        </div>
       </div>
-      <div className="divider-gold" />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
