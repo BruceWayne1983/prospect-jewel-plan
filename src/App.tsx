@@ -22,6 +22,7 @@ import JourneyPlanner from "@/pages/JourneyPlanner";
 import DataHub from "@/pages/DataHub";
 import CurrentAccounts from "@/pages/CurrentAccounts";
 import BrandHub from "@/pages/BrandHub";
+import RetailLocations from "@/pages/RetailLocations";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="/data-hub" element={<DataHub />} />
         <Route path="/accounts" element={<CurrentAccounts />} />
         <Route path="/brand" element={<BrandHub />} />
+        <Route path="/locations" element={<RetailLocations />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
