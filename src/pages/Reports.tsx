@@ -1,12 +1,14 @@
 import { COUNTIES } from "@/data/constants";
 import { useRetailers } from "@/hooks/useRetailers";
+import { useDataInsights } from "@/hooks/useDataInsights";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
-import { TrendingUp, Target, Users, Loader2 } from "lucide-react";
+import { TrendingUp, Target, Users, Loader2, Sparkles, Database, BarChart3 } from "lucide-react";
 
 export default function Reports() {
   const navigate = useNavigate();
   const { retailers, loading } = useRetailers();
+  const dataInsights = useDataInsights();
 
   if (loading) {
     return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
@@ -96,10 +98,52 @@ export default function Reports() {
         </div>
       )}
 
+      {/* Data Hub Sales Patterns */}
+      {!dataInsights.loading && dataInsights.allSalesPatterns.length > 0 && (
+        <div className="card-premium p-6 border-gold/20">
+          <div className="flex items-center gap-2.5 mb-5">
+            <Database className="w-5 h-5 text-gold" strokeWidth={1.5} />
+            <h3 className="text-lg font-display font-semibold text-foreground">Sales Patterns (from uploaded data)</h3>
+          </div>
+          <div className="space-y-3">
+            {dataInsights.allSalesPatterns.map((sp, i) => (
+              <div key={i} className="flex items-center justify-between py-2 px-3 bg-cream/30 rounded-lg border border-border/10">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{sp.period}</p>
+                  <p className="text-[10px] text-muted-foreground">Source: {sp.source}</p>
+                </div>
+                <div className="flex items-center gap-5">
+                  {sp.revenue && <div className="text-right"><p className="text-sm font-display font-bold text-foreground">£{sp.revenue.toLocaleString()}</p><p className="text-[8px] text-muted-foreground uppercase">Revenue</p></div>}
+                  {sp.units && <div className="text-right"><p className="text-sm font-display font-bold text-foreground">{sp.units}</p><p className="text-[8px] text-muted-foreground uppercase">Units</p></div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Uploaded Data Insights */}
+      {!dataInsights.loading && dataInsights.allInsights.length > 0 && (
+        <div className="card-premium p-6">
+          <div className="flex items-center gap-2.5 mb-4">
+            <Sparkles className="w-5 h-5 text-gold" strokeWidth={1.5} />
+            <h3 className="text-lg font-display font-semibold text-foreground">AI Insights (from uploaded data)</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {dataInsights.allInsights.map((insight, i) => (
+              <div key={i} className="flex items-start gap-2 bg-cream/30 rounded-lg p-3 border border-border/10">
+                <Sparkles className="w-3 h-3 text-gold mt-0.5 flex-shrink-0" />
+                <p className="text-[11px] text-foreground leading-relaxed">{insight}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {retailers.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-sm">No data to report yet.</p>
-          <p className="text-xs mt-1">Promote prospects from the Discovery Engine to see territory analytics.</p>
+          <p className="text-xs mt-1">Promote prospects from the Discovery Engine or upload sales data in the Data Hub.</p>
         </div>
       )}
     </div>
