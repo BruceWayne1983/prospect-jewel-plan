@@ -177,6 +177,7 @@ export type Database = {
           lat: number | null
           linkedin: string | null
           lng: number | null
+          location_context: string | null
           name: string
           phone: string | null
           predicted_fit_score: number | null
@@ -216,6 +217,7 @@ export type Database = {
           lat?: number | null
           linkedin?: string | null
           lng?: number | null
+          location_context?: string | null
           name: string
           phone?: string | null
           predicted_fit_score?: number | null
@@ -255,6 +257,7 @@ export type Database = {
           lat?: number | null
           linkedin?: string | null
           lng?: number | null
+          location_context?: string | null
           name?: string
           phone?: string | null
           predicted_fit_score?: number | null
@@ -309,6 +312,84 @@ export type Database = {
         }
         Relationships: []
       }
+      retail_locations: {
+        Row: {
+          address: string | null
+          ai_summary: string | null
+          county: string
+          created_at: string
+          discovery_source: string | null
+          footfall_estimate: string | null
+          has_fashion_boutiques: boolean | null
+          has_gift_stores: boolean | null
+          has_jewellery_stores: boolean | null
+          id: string
+          key_tenants: string[] | null
+          lat: number | null
+          lng: number | null
+          location_type: string
+          name: string
+          opportunity_notes: string | null
+          postcode: string | null
+          scraped_data: Json | null
+          tenant_count: number | null
+          town: string
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          ai_summary?: string | null
+          county: string
+          created_at?: string
+          discovery_source?: string | null
+          footfall_estimate?: string | null
+          has_fashion_boutiques?: boolean | null
+          has_gift_stores?: boolean | null
+          has_jewellery_stores?: boolean | null
+          id?: string
+          key_tenants?: string[] | null
+          lat?: number | null
+          lng?: number | null
+          location_type?: string
+          name: string
+          opportunity_notes?: string | null
+          postcode?: string | null
+          scraped_data?: Json | null
+          tenant_count?: number | null
+          town: string
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          ai_summary?: string | null
+          county?: string
+          created_at?: string
+          discovery_source?: string | null
+          footfall_estimate?: string | null
+          has_fashion_boutiques?: boolean | null
+          has_gift_stores?: boolean | null
+          has_jewellery_stores?: boolean | null
+          id?: string
+          key_tenants?: string[] | null
+          lat?: number | null
+          lng?: number | null
+          location_type?: string
+          name?: string
+          opportunity_notes?: string | null
+          postcode?: string | null
+          scraped_data?: Json | null
+          tenant_count?: number | null
+          town?: string
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       retailers: {
         Row: {
           activity: Json | null
@@ -333,6 +414,7 @@ export type Database = {
           lat: number | null
           linkedin: string | null
           lng: number | null
+          location_context: string | null
           name: string
           outreach: Json | null
           performance_prediction: Json | null
@@ -343,6 +425,7 @@ export type Database = {
           qualification: Json | null
           qualification_status: string | null
           rating: number | null
+          retail_location_id: string | null
           review_count: number | null
           risk_flags: string[] | null
           social_verified: boolean | null
@@ -381,6 +464,7 @@ export type Database = {
           lat?: number | null
           linkedin?: string | null
           lng?: number | null
+          location_context?: string | null
           name: string
           outreach?: Json | null
           performance_prediction?: Json | null
@@ -391,6 +475,7 @@ export type Database = {
           qualification?: Json | null
           qualification_status?: string | null
           rating?: number | null
+          retail_location_id?: string | null
           review_count?: number | null
           risk_flags?: string[] | null
           social_verified?: boolean | null
@@ -429,6 +514,7 @@ export type Database = {
           lat?: number | null
           linkedin?: string | null
           lng?: number | null
+          location_context?: string | null
           name?: string
           outreach?: Json | null
           performance_prediction?: Json | null
@@ -439,6 +525,7 @@ export type Database = {
           qualification?: Json | null
           qualification_status?: string | null
           rating?: number | null
+          retail_location_id?: string | null
           review_count?: number | null
           risk_flags?: string[] | null
           social_verified?: boolean | null
@@ -454,7 +541,15 @@ export type Database = {
           user_id?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "retailers_retail_location_id_fkey"
+            columns: ["retail_location_id"]
+            isOneToOne: false
+            referencedRelation: "retail_locations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       uploaded_files: {
         Row: {
