@@ -98,7 +98,7 @@ export function AppSidebar() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-sidebar-accent-foreground truncate">Emma-Louise Gregory</p>
-              <p className="text-[10px] text-sidebar-foreground">South West & South Wales</p>
+              <p className="text-[10px] text-sidebar-foreground">Emma Louise Lux · South West & Wales</p>
             </div>
           </div>
         ) : (
