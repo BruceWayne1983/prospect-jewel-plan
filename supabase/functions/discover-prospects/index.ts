@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const SOUTH_WEST_COUNTIES = [
   "Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Avon",
+  "Cardiff", "Swansea", "Newport", "Vale of Glamorgan", "Bridgend", "Neath Port Talbot", "Carmarthenshire", "Pembrokeshire", "Monmouthshire",
 ];
 
 const CATEGORIES = [

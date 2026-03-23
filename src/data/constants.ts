@@ -16,7 +16,7 @@ export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
   { key: 'rejected', label: 'Rejected' },
 ];
 
-export const COUNTIES = ['Somerset', 'Devon', 'Cornwall', 'Dorset', 'Wiltshire', 'Gloucestershire', 'Avon'];
+export const COUNTIES = ['Somerset', 'Devon', 'Cornwall', 'Dorset', 'Wiltshire', 'Gloucestershire', 'Avon', 'Cardiff', 'Swansea', 'Newport', 'Vale of Glamorgan', 'Bridgend', 'Neath Port Talbot', 'Carmarthenshire', 'Pembrokeshire', 'Monmouthshire'];
 
 export const CATEGORIES: { key: RetailerCategory; label: string }[] = [
   { key: 'jeweller', label: 'Jeweller' },

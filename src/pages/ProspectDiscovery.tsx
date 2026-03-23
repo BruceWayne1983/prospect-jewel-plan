@@ -9,7 +9,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type DiscoveredProspect = Database["public"]["Tables"]["discovered_prospects"]["Row"];
 
-const COUNTIES = ["Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Avon"];
+const COUNTIES = ["Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Avon", "Cardiff", "Swansea", "Newport", "Vale of Glamorgan", "Bridgend", "Neath Port Talbot", "Carmarthenshire", "Pembrokeshire", "Monmouthshire"];
 const CATEGORIES = [
   { value: "jeweller", label: "Jewellers" },
   { value: "gift_shop", label: "Gift Shops" },
