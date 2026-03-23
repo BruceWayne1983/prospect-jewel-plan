@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -99,6 +99,7 @@ export default function ProspectDiscovery() {
       category: p.category, rating: p.rating, review_count: p.review_count,
       store_positioning: p.estimated_price_positioning, fit_score: p.predicted_fit_score,
       address: p.address, website: p.website, lat: p.lat, lng: p.lng,
+      phone: (p as any).phone || null, email: (p as any).email || null,
       pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
     });
 
@@ -392,13 +393,24 @@ export default function ProspectDiscovery() {
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
                 </div>
-                <div className="flex items-center gap-4 mb-3">
+                <div className="flex items-center gap-4 mb-2">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" />{p.rating} ({p.review_count})</span>
                   {p.website && (
                     <a href={p.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-info hover:underline">
                       <Globe className="w-3 h-3" />Website
                     </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 mb-3">
+                  {(p as any).phone && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" strokeWidth={1.5} />{(p as any).phone}</span>
+                  )}
+                  {(p as any).email && (
+                    <a href={`mailto:${(p as any).email}`} className="flex items-center gap-1 text-xs text-info hover:underline"><Mail className="w-3 h-3" strokeWidth={1.5} />{(p as any).email}</a>
+                  )}
+                  {p.address && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[300px]">{p.address}</span>
                   )}
                 </div>
                 {p.ai_reason && (

@@ -158,7 +158,9 @@ Deno.serve(async (req) => {
                       ai_reason: { type: "string", description: "2-sentence explanation from what was found online" },
                       estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
                       website: { type: "string", description: "Website URL if found" },
-                      address: { type: "string", description: "Address if found" },
+                      address: { type: "string", description: "Full address including postcode if found" },
+                      phone: { type: "string", description: "Phone number if found in the scraped content" },
+                      email: { type: "string", description: "Email address if found in the scraped content" },
                     },
                     required: ["name", "town", "category", "rating", "review_count", "estimated_store_quality", "predicted_fit_score", "ai_reason", "estimated_price_positioning"],
                     additionalProperties: false,
@@ -174,11 +176,11 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a retail analyst. Extract REAL independent retail businesses from the scraped web data below. Only include actual named businesses — skip directories, aggregator sites, and chains. For Nomination Italy charm jewellery, assess fit based on the store type, positioning, and whether they sell comparable brands.",
+            content: "You are a retail analyst. Extract REAL independent retail businesses from the scraped web data below. Only include actual named businesses — skip directories, aggregator sites, and chains. For Nomination Italy charm jewellery, assess fit based on the store type, positioning, and whether they sell comparable brands. Extract phone numbers, email addresses, full addresses with postcodes, and website URLs whenever they appear in the scraped content.",
           },
           {
             role: "user",
-            content: `Extract all real independent retail businesses from these search results for "${targetCategory.replace("_", " ")}" stores in ${county}. Only include genuinely independent shops, not chains or directories.\n\n${scrapedContent}`,
+            content: `Extract all real independent retail businesses from these search results for "${targetCategory.replace("_", " ")}" stores in ${county}. Only include genuinely independent shops, not chains or directories. Make sure to capture any contact details (phone, email) and full addresses with postcodes from the scraped content.\n\n${scrapedContent}`,
           },
         ],
       }),
@@ -224,6 +226,8 @@ Deno.serve(async (req) => {
       estimated_price_positioning: p.estimated_price_positioning,
       website: p.website || null,
       address: p.address || null,
+      phone: p.phone || null,
+      email: p.email || null,
       discovery_source: "Web Scanner",
       status: "new",
     }));
