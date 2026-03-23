@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { AtRiskSection } from "@/components/accounts/AtRiskSection";
+import { AccountHealthSummary } from "@/components/accounts/AccountHealthSummary";
+import { getAccountHealth } from "@/utils/accountHealth";
 
 export default function CurrentAccounts() {
   const { retailers, loading, refetch } = useRetailers();
