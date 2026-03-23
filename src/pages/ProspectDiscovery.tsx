@@ -59,7 +59,23 @@ export default function ProspectDiscovery() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchProspects(); }, []);
+  useEffect(() => { fetchProspects(); fetchKnownBrands(); }, []);
+
+  // Extract brands from existing retailers' competitor_brands field
+  const fetchKnownBrands = async () => {
+    const { data } = await supabase.from("retailers").select("competitor_brands");
+    if (!data) return;
+    const brandSet = new Set<string>();
+    data.forEach((r: any) => {
+      const brands = r.competitor_brands;
+      if (Array.isArray(brands)) {
+        brands.forEach((b: any) => {
+          if (b?.name) brandSet.add(b.name);
+        });
+      }
+    });
+    setSuggestedBrands(Array.from(brandSet).sort());
+  };
 
   const filtered = prospects.filter(p => {
     if (filter !== 'all' && p.status !== filter) return false;
