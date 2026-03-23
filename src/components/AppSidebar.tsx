@@ -17,6 +17,7 @@ const navItems = [
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
   { title: "Current Accounts", url: "/accounts", icon: Store },
   { title: "Territory Map", url: "/map", icon: Map },
+  { title: "Retail Locations", url: "/locations", icon: MapPinned },
   { title: "Sales Calendar", url: "/calendar", icon: Calendar },
   { title: "Journey Planner", url: "/journeys", icon: Route },
   { title: "Sales Forecast", url: "/forecast", icon: TrendingUp },

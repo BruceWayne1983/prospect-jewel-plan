@@ -48,6 +48,7 @@ function AppRoutes() {
         <Route path="/data-hub" element={<DataHub />} />
         <Route path="/accounts" element={<CurrentAccounts />} />
         <Route path="/brand" element={<BrandHub />} />
+        <Route path="/locations" element={<RetailLocations />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
