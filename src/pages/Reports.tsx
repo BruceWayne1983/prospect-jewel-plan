@@ -8,6 +8,7 @@ import { TrendingUp, Target, Users, Loader2, Sparkles, Database, BarChart3 } fro
 export default function Reports() {
   const navigate = useNavigate();
   const { retailers, loading } = useRetailers();
+  const dataInsights = useDataInsights();
 
   if (loading) {
     return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
