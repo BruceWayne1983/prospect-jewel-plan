@@ -152,7 +152,7 @@ export default function Settings() {
         </div>
         <div>
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">Assigned Region</Label>
-          <Input defaultValue="South West England" className="mt-1.5 bg-cream border-border/30 h-10" readOnly />
+          <Input defaultValue="South West England & South Wales" className="mt-1.5 bg-cream border-border/30 h-10" readOnly />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">Counties</Label>
