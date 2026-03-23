@@ -107,17 +107,24 @@ export default function ProspectDiscovery() {
     return Array.from(set).sort();
   }, [prospects]);
 
-  // Get existing retailer towns for "close to current" filter
+  // Get existing retailer names and towns for dedup and "close to current" filter
   const [existingTowns, setExistingTowns] = useState<string[]>([]);
+  const [existingRetailerKeys, setExistingRetailerKeys] = useState<Set<string>>(new Set());
   const [filterNearCurrent, setFilterNearCurrent] = useState(false);
   useEffect(() => {
-    supabase.from("retailers").select("town").then(({ data }) => {
-      if (data) setExistingTowns(data.map(r => r.town));
+    supabase.from("retailers").select("name, town").then(({ data }) => {
+      if (data) {
+        setExistingTowns(data.map(r => r.town));
+        setExistingRetailerKeys(new Set(data.map(r => `${r.name.toLowerCase().trim()}|${r.town.toLowerCase().trim()}`)));
+      }
     });
   }, []);
 
   const filtered = useMemo(() => {
     let result = prospects.filter(p => {
+      // Exclude prospects that already exist as current accounts
+      const key = `${p.name.toLowerCase().trim()}|${p.town.toLowerCase().trim()}`;
+      if (existingRetailerKeys.has(key)) return false;
       if (filter !== 'all' && p.status !== filter) return false;
       if (filterCounty !== 'all' && p.county !== filterCounty) return false;
       if (filterCategory !== 'all' && p.category !== filterCategory) return false;
@@ -150,7 +157,7 @@ export default function ProspectDiscovery() {
       default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
     }
     return result;
-  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, sortBy, existingTowns]);
+  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, sortBy, existingTowns, existingRetailerKeys]);
 
   const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
     const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
