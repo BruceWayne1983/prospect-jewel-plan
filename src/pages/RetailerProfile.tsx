@@ -3,6 +3,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { type Retailer, getOutreach, getActivity, getAIIntelligence, getPerformancePrediction, getQualification, getCompetitorBrands } from "@/hooks/useRetailers";
 import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, ExternalLink, Instagram, CheckCircle, XCircle, Building2, ShieldCheck, Target, MessageSquare, Calendar, TrendingUp, Copy, Brain, Radar, Shield, Zap, BarChart3, Clock, Send, FileText, Loader2 } from "lucide-react";
+import { PreVisitBriefing } from "@/components/retailer/PreVisitBriefing";
+import { FollowUpDrafter } from "@/components/retailer/FollowUpDrafter";
+import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
+import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
+import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
 import { Button } from "@/components/ui/button";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -154,10 +159,14 @@ export default function RetailerProfile() {
       <Tabs defaultValue="intelligence" className="space-y-5">
         <TabsList className="bg-cream/50 border border-border/30 p-1 h-auto gap-1 flex-wrap">
           <TabsTrigger value="intelligence" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🧠 AI Intelligence</TabsTrigger>
+          <TabsTrigger value="briefing" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">📋 Briefing</TabsTrigger>
+          <TabsTrigger value="pitch" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🎯 Pitch</TabsTrigger>
           <TabsTrigger value="research" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Research</TabsTrigger>
           <TabsTrigger value="qualification" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Qualification</TabsTrigger>
           <TabsTrigger value="outreach" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Outreach</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">Activity</TabsTrigger>
+          <TabsTrigger value="voice" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🎙️ Voice</TabsTrigger>
+          <TabsTrigger value="health" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">🏢 Health</TabsTrigger>
         </TabsList>
 
         {/* AI INTELLIGENCE */}
@@ -345,6 +354,8 @@ export default function RetailerProfile() {
               </div>
             </div>
           )}
+
+          <FollowUpDrafter retailer={r} />
         </TabsContent>
 
         {/* ACTIVITY */}
@@ -388,6 +399,25 @@ export default function RetailerProfile() {
               </div>
             </div>
           )}
+        </TabsContent>
+        {/* BRIEFING */}
+        <TabsContent value="briefing" className="space-y-5 mt-0">
+          <PreVisitBriefing retailer={r} />
+        </TabsContent>
+
+        {/* PITCH */}
+        <TabsContent value="pitch" className="space-y-5 mt-0">
+          <PitchPersonaliser retailer={r} />
+        </TabsContent>
+
+        {/* VOICE-TO-CRM */}
+        <TabsContent value="voice" className="space-y-5 mt-0">
+          <VoiceToCRM retailer={r} onUpdate={fetchRetailer} />
+        </TabsContent>
+
+        {/* BUSINESS HEALTH */}
+        <TabsContent value="health" className="space-y-5 mt-0">
+          <CompaniesHouseCheck retailer={r} />
         </TabsContent>
       </Tabs>
     </div>

@@ -5,3 +5,18 @@ verify_jwt = false
 
 [functions.analyse-retailer]
 verify_jwt = false
+
+[functions.generate-briefing]
+verify_jwt = false
+
+[functions.generate-followup]
+verify_jwt = false
+
+[functions.generate-pitch]
+verify_jwt = false
+
+[functions.voice-to-crm]
+verify_jwt = false
+
+[functions.companies-house]
+verify_jwt = false
