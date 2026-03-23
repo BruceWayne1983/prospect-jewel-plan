@@ -79,6 +79,10 @@ export default function RetailerProfile() {
     if (contactForm.email !== (r?.email || '')) updates.email = contactForm.email || null;
     if (contactForm.website !== (r?.website || '')) updates.website = contactForm.website || null;
     if (contactForm.instagram !== (r?.instagram || '')) updates.instagram = contactForm.instagram || null;
+    if (contactForm.facebook !== ((r as any)?.facebook || '')) updates.facebook = contactForm.facebook || null;
+    if (contactForm.tiktok !== ((r as any)?.tiktok || '')) updates.tiktok = contactForm.tiktok || null;
+    if (contactForm.twitter !== ((r as any)?.twitter || '')) updates.twitter = contactForm.twitter || null;
+    if (contactForm.linkedin !== ((r as any)?.linkedin || '')) updates.linkedin = contactForm.linkedin || null;
     if (contactForm.address !== (r?.address || '')) updates.address = contactForm.address || null;
     if (contactForm.postcode !== (r?.postcode || '')) updates.postcode = contactForm.postcode || null;
     if (Object.keys(updates).length === 0) { setEditingContact(false); return; }
