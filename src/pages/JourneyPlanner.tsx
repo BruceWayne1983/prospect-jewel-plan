@@ -408,7 +408,7 @@ export default function JourneyPlanner() {
                   <h4 className="text-sm font-display font-semibold text-foreground">Build a Route</h4>
                 </div>
                 {customRouteAccounts.size > 0 && (
-                  <button onClick={() => setCustomRouteAccounts(new Set())} className="text-[9px] text-destructive hover:text-destructive/80 font-medium">Clear all</button>
+                  <button onClick={() => { setCustomRouteAccounts(new Set()); syncRouteToStorage(new Set()); }} className="text-[9px] text-destructive hover:text-destructive/80 font-medium">Clear all</button>
                 )}
               </div>
 
