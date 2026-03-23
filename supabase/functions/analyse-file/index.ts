@@ -98,7 +98,22 @@ Deno.serve(async (req) => {
       other: "Analyse this file and provide useful insights.",
     };
 
-    const systemPrompt = "You are a sales analyst for Nomination Italy (premium Italian charm jewellery). Analyse uploaded files and provide concise, actionable summaries. Format with bullet points and clear sections. Keep under 500 words.";
+    const systemPrompt = `You are a sales analyst for Nomination Italy (premium Italian charm jewellery). Analyse uploaded files and provide TWO outputs:
+
+1. A concise, actionable summary (under 500 words) with bullet points and clear sections.
+
+2. A structured JSON block at the END of your response, wrapped in \`\`\`json ... \`\`\` fences, containing extracted data in this exact format:
+{
+  "stockists": [{"name": "Store Name", "town": "Town", "county": "County", "sales_value": 1234, "notes": "any relevant info"}],
+  "sales_patterns": [{"period": "Q1 2026", "revenue": 12345, "units": 100, "top_products": ["product1"], "notes": "pattern info"}],
+  "key_metrics": {"total_revenue": 0, "total_accounts": 0, "average_order_value": 0, "top_county": "", "top_category": "", "growth_rate": ""},
+  "seasonal_trends": [{"season": "Christmas", "impact": "high", "revenue_share": "38%", "notes": ""}],
+  "insights": ["actionable insight 1", "actionable insight 2"]
+}
+
+Only include fields where data is available. If no structured data can be extracted, return an empty JSON object {}.
+Always try to extract stockist names, sales figures, and any patterns from the data.`;
+
     const contextLine = `File: ${file.file_name}\nCategory: ${file.category}\nContext: ${categoryContext[file.category] || categoryContext.other}`;
 
     let messages: any[];
@@ -111,38 +126,25 @@ Deno.serve(async (req) => {
         { role: "user", content: `Analyse this file:\n\n${contextLine}\n\nContent:\n${contentPreview}` },
       ];
     } else if (isPdf || isImage) {
-      // PDFs and images are supported as multimodal by Gemini
       const buffer = await fileData.arrayBuffer();
       const base64Data = arrayBufferToBase64(buffer);
       const mimeType = isPdf ? "application/pdf" : getMimeType(file.file_name, file.file_type);
-
       messages = [
         { role: "system", content: systemPrompt },
         {
           role: "user",
           content: [
-            { type: "text", text: `Analyse this file:\n\n${contextLine}\n\nThe file is attached. Extract and analyse all data, tables, text, and charts you can find.` },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64Data}`,
-              },
-            },
+            { type: "text", text: `Analyse this file:\n\n${contextLine}\n\nThe file is attached. Extract and analyse all data, tables, text, and charts you can find. Extract stockist names, sales figures, and any patterns into the structured JSON format.` },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } },
           ],
         },
       ];
     } else if (isOffice) {
-      // Office files (Excel, Word, PowerPoint) are NOT supported as multimodal by Gemini.
-      // Read as text — for CSV-like Excel files this may extract some content,
-      // otherwise describe the file metadata and ask AI to provide guidance.
       let extractedText = "";
       try {
         const text = await fileData.text();
-        // Check if the text extraction yielded anything readable
         const printable = text.replace(/[^\x20-\x7E\r\n\t]/g, "");
-        if (printable.length > 100) {
-          extractedText = printable.substring(0, 8000);
-        }
+        if (printable.length > 100) extractedText = printable.substring(0, 8000);
       } catch { /* ignore */ }
 
       if (extractedText.length > 100) {
@@ -151,10 +153,9 @@ Deno.serve(async (req) => {
           { role: "user", content: `Analyse this file:\n\n${contextLine}\n\nExtracted text content (may be partial):\n${extractedText}` },
         ];
       } else {
-        // Can't extract meaningful text — provide file metadata analysis
         messages = [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyse this file based on its metadata:\n\n${contextLine}\n\nFile type: ${file.file_type}\nFile size: ${file.file_size} bytes\nFile name: ${file.file_name}\n${file.description ? `Description: ${file.description}` : ""}\n\nThis is an Office document (${lower.split('.').pop()?.toUpperCase()}) that could not be directly read. Based on the file name, category, description, and size, provide:\n1. What this file likely contains\n2. How it could be used for sales strategy\n3. Suggest the user export it as CSV or PDF for full AI analysis` },
+          { role: "user", content: `Analyse this file based on its metadata:\n\n${contextLine}\n\nFile type: ${file.file_type}\nFile size: ${file.file_size} bytes\nFile name: ${file.file_name}\n${file.description ? `Description: ${file.description}` : ""}\n\nThis is an Office document (${lower.split('.').pop()?.toUpperCase()}) that could not be directly read. Based on the file name, category, description, and size, provide:\n1. What this file likely contains\n2. How it could be used for sales strategy\n3. Suggest the user export it as CSV or PDF for full AI analysis\n\nStill provide the structured JSON with any data you can infer from the filename and description.` },
         ];
       }
     } else {
@@ -195,14 +196,26 @@ Deno.serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const summary = aiData.choices?.[0]?.message?.content || "No analysis generated.";
+    const fullResponse = aiData.choices?.[0]?.message?.content || "No analysis generated.";
+
+    // Extract structured JSON from response
+    let parsedData: Record<string, any> = {};
+    const jsonMatch = fullResponse.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      try {
+        parsedData = JSON.parse(jsonMatch[1]);
+      } catch { /* ignore parse errors */ }
+    }
+
+    // Remove the JSON block from the summary
+    const summary = fullResponse.replace(/```json\s*[\s\S]*?\s*```/, "").trim();
 
     await supabase
       .from("uploaded_files")
-      .update({ ai_summary: summary })
+      .update({ ai_summary: summary, parsed_data: parsedData })
       .eq("id", fileId);
 
-    return new Response(JSON.stringify({ success: true, summary }), {
+    return new Response(JSON.stringify({ success: true, summary, parsedData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
