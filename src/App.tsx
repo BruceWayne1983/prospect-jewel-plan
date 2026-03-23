@@ -23,6 +23,7 @@ import DataHub from "@/pages/DataHub";
 import CurrentAccounts from "@/pages/CurrentAccounts";
 import BrandHub from "@/pages/BrandHub";
 import RetailLocations from "@/pages/RetailLocations";
+import ProspectProfile from "@/pages/ProspectProfile";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route path="/accounts" element={<CurrentAccounts />} />
         <Route path="/brand" element={<BrandHub />} />
         <Route path="/locations" element={<RetailLocations />} />
+        <Route path="/prospect/:id" element={<ProspectProfile />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>

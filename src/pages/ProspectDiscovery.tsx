@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ function SourceBadge({ source }: { source: string | null }) {
 }
 
 export default function ProspectDiscovery() {
+  const navigate = useNavigate();
   const [prospects, setProspects] = useState<DiscoveredProspect[]>([]);
   const [filter, setFilter] = useState<'all' | 'new' | 'reviewing' | 'accepted' | 'dismissed'>('all');
   const [loading, setLoading] = useState(true);
@@ -739,11 +741,11 @@ export default function ProspectDiscovery() {
       {/* Prospect Cards */}
       <div className="space-y-4">
         {filtered.map(p => (
-          <div key={p.id} className={`card-premium p-6 ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
+          <div key={p.id} onClick={() => navigate(`/prospect/${p.id}`)} className={`card-premium p-6 cursor-pointer hover:shadow-md transition-shadow ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2.5 mb-2">
-                  <h3 className="text-base font-display font-semibold text-foreground">{p.name}</h3>
+                  <h3 className="text-base font-display font-semibold text-foreground hover:text-gold transition-colors">{p.name}</h3>
                   <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
@@ -817,7 +819,7 @@ export default function ProspectDiscovery() {
                   </div>
                 )}
               </div>
-              <div className="flex flex-col items-end gap-3 flex-shrink-0">
+              <div className="flex flex-col items-end gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
                 <div className="text-center">
                   <span className={`text-2xl font-display font-bold ${(p.predicted_fit_score ?? 0) >= 80 ? 'score-excellent' : (p.predicted_fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predicted_fit_score}</span>
                   <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Predicted Fit</p>
