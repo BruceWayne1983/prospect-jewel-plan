@@ -649,16 +649,28 @@ export default function ProspectDiscovery() {
                     </a>
                   )}
                 </div>
-                <div className="flex items-center gap-4 mb-3">
-                  {(p as any).phone && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" strokeWidth={1.5} />{(p as any).phone}</span>
+                <div className="flex items-center gap-4 mb-3 flex-wrap">
+                  {p.phone && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" strokeWidth={1.5} />{p.phone}</span>
                   )}
-                  {(p as any).email && (
-                    <a href={`mailto:${(p as any).email}`} className="flex items-center gap-1 text-xs text-info hover:underline"><Mail className="w-3 h-3" strokeWidth={1.5} />{(p as any).email}</a>
+                  {p.email && (
+                    <a href={`mailto:${p.email}`} className="flex items-center gap-1 text-xs text-info hover:underline"><Mail className="w-3 h-3" strokeWidth={1.5} />{p.email}</a>
                   )}
                   {p.address && (
                     <span className="text-xs text-muted-foreground truncate max-w-[300px]">{p.address}</span>
                   )}
+                </div>
+                {/* Social Media Links */}
+                {((p as any).instagram || (p as any).facebook || (p as any).tiktok || (p as any).twitter || (p as any).linkedin) && (
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+                    {(p as any).instagram && <a href={`https://instagram.com/${(p as any).instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-[10px] px-2 py-0.5 rounded-full bg-champagne/30 text-gold-dark hover:bg-champagne/50 border border-gold/10">📷 {(p as any).instagram}</a>}
+                    {(p as any).facebook && <a href={(p as any).facebook.startsWith('http') ? (p as any).facebook : `https://facebook.com/${(p as any).facebook}`} target="_blank" rel="noopener noreferrer" className="text-[10px] px-2 py-0.5 rounded-full bg-info-light text-info hover:bg-info-light/70 border border-info/10">Facebook</a>}
+                    {(p as any).tiktok && <a href={`https://tiktok.com/@${(p as any).tiktok.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-foreground hover:bg-muted/70 border border-border/20">🎵 {(p as any).tiktok}</a>}
+                    {(p as any).twitter && <a href={`https://x.com/${(p as any).twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-foreground hover:bg-muted/70 border border-border/20">𝕏 {(p as any).twitter}</a>}
+                    {(p as any).linkedin && <a href={(p as any).linkedin.startsWith('http') ? (p as any).linkedin : `https://linkedin.com/company/${(p as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-[10px] px-2 py-0.5 rounded-full bg-info-light text-info hover:bg-info-light/70 border border-info/10">LinkedIn</a>}
+                    {(p as any).social_verified && <span className="text-[9px] px-2 py-0.5 rounded-full bg-success-light text-success font-medium">✓ Verified</span>}
+                  </div>
+                )}
                 </div>
                 {p.ai_reason && (
                   <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
