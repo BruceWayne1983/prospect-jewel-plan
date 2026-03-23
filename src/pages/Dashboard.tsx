@@ -128,30 +128,53 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Account Status Breakdown */}
+        <div className="card-premium p-6">
+          <h3 className="text-lg font-display font-semibold text-foreground mb-5">Account Status</h3>
+          <div className="space-y-3">
+            {[
+              { label: 'New Leads', count: retailers.filter(r => r.pipeline_stage === 'new_lead').length, color: 'bg-info/60' },
+              { label: 'Research / Qualified', count: retailers.filter(r => ['research_needed', 'qualified'].includes(r.pipeline_stage)).length, color: 'bg-warning/60' },
+              { label: 'Outreach / Contacted', count: retailers.filter(r => ['priority_outreach', 'contacted', 'follow_up_needed'].includes(r.pipeline_stage)).length, color: 'bg-gold/60' },
+              { label: 'Meeting / Review', count: retailers.filter(r => ['meeting_booked', 'under_review'].includes(r.pipeline_stage)).length, color: 'bg-success/60' },
+              { label: 'Approved', count: retailers.filter(r => r.pipeline_stage === 'approved').length, color: 'bg-success' },
+              { label: 'Rejected', count: retailers.filter(r => r.pipeline_stage === 'rejected').length, color: 'bg-destructive/40' },
+            ].map(s => (
+              <div key={s.label} className="flex items-center gap-3">
+                <span className="text-[11px] text-muted-foreground w-32 truncate">{s.label}</span>
+                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                  <div className={`h-full ${s.color} rounded-full transition-all duration-700`} style={{ width: `${retailers.length > 0 ? (s.count / retailers.length) * 100 : 0}%` }} />
+                </div>
+                <span className="text-xs font-display font-semibold text-foreground w-5 text-right">{s.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Territory Summary */}
         <div className="card-premium p-6">
           <h3 className="text-lg font-display font-semibold text-foreground mb-5">Territory Summary</h3>
           {countyData.length > 0 ? (
-            <div className="space-y-4">
-              {countyData.sort((a, b) => b.count - a.count).map((c) => (
-                <div key={c.county} className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 w-32">
-                    <MapPin className="w-3.5 h-3.5 text-gold" strokeWidth={1.5} />
-                    <span className="text-sm text-foreground">{c.county}</span>
+            <div className="space-y-3">
+              {countyData.sort((a, b) => b.count - a.count).slice(0, 10).map((c) => (
+                <div key={c.county} className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 w-28">
+                    <MapPin className="w-3 h-3 text-gold" strokeWidth={1.5} />
+                    <span className="text-[11px] text-foreground truncate">{c.county}</span>
                   </div>
-                  <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-primary/40 rounded-full" style={{ width: `${(c.count / countyData[0].count) * 100}%` }} />
                   </div>
-                  <div className="flex gap-5 text-xs">
-                    <span className="text-muted-foreground w-16">{c.count} prospects</span>
-                    <span className="text-gold-dark font-medium w-14 text-right">{c.avgFit}% fit</span>
+                  <div className="flex gap-3 text-[10px]">
+                    <span className="text-muted-foreground w-10">{c.count}</span>
+                    <span className="text-gold-dark font-medium w-10 text-right">{c.avgFit}%</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground/50 italic">No retailers in the pipeline yet. Accept prospects from the Discovery Engine to get started.</p>
+            <p className="text-sm text-muted-foreground/50 italic">No retailers yet.</p>
           )}
         </div>
 
@@ -173,6 +196,75 @@ export default function Dashboard() {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* Recent Activity / Calendar Events */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card-premium p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-lg font-display font-semibold text-foreground">Recent Pipeline Activity</h3>
+            <button onClick={() => navigate('/pipeline')} className="text-xs text-gold hover:text-gold-dark transition-colors flex items-center gap-1 font-medium">
+              Pipeline <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+          {retailers.length > 0 ? (
+            <div className="space-y-2.5">
+              {[...retailers].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 8).map(r => (
+                <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-champagne/15 cursor-pointer transition-colors border border-border/10">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{r.town}, {r.county}</p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${
+                      r.pipeline_stage === 'approved' ? 'bg-success-light text-success' :
+                      r.pipeline_stage === 'meeting_booked' ? 'bg-info-light text-info' :
+                      r.pipeline_stage === 'priority_outreach' ? 'bg-warning-light text-warning' :
+                      'bg-muted text-muted-foreground'
+                    }`}>{PIPELINE_STAGES.find(s => s.key === r.pipeline_stage)?.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(r.updated_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground/50 italic">No activity yet.</p>
+          )}
+        </div>
+
+        {/* Category Breakdown */}
+        <div className="card-premium p-6">
+          <h3 className="text-lg font-display font-semibold text-foreground mb-5">Accounts by Category</h3>
+          {retailers.length > 0 ? (
+            <div className="space-y-3">
+              {[
+                { key: 'jeweller', label: 'Jewellers' },
+                { key: 'gift_shop', label: 'Gift Shops' },
+                { key: 'fashion_boutique', label: 'Fashion Boutiques' },
+                { key: 'lifestyle_store', label: 'Lifestyle Stores' },
+                { key: 'premium_accessories', label: 'Premium Accessories' },
+                { key: 'concept_store', label: 'Concept Stores' },
+              ].map(cat => {
+                const count = retailers.filter(r => r.category === cat.key).length;
+                const avgFit = count > 0 ? Math.round(retailers.filter(r => r.category === cat.key).reduce((s, r) => s + (r.fit_score ?? 0), 0) / count) : 0;
+                return (
+                  <div key={cat.key} className="flex items-center gap-3">
+                    <span className="text-[11px] text-muted-foreground w-32 truncate">{cat.label}</span>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-gold/50 rounded-full transition-all duration-700" style={{ width: `${retailers.length > 0 ? (count / retailers.length) * 100 : 0}%` }} />
+                    </div>
+                    <div className="flex gap-3 text-[10px]">
+                      <span className="text-muted-foreground w-6">{count}</span>
+                      <span className="text-gold-dark font-medium w-10 text-right">{avgFit}% fit</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground/50 italic">No accounts yet.</p>
+          )}
         </div>
       </div>
 

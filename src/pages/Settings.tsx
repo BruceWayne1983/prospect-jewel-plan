@@ -199,7 +199,7 @@ export default function Settings() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Nomination Italy — Premium Italian charm jewellery and accessories. Targeting independent jewellers, boutiques and premium lifestyle retailers across the South West UK territory.
+          Nomination Italy — Premium Italian charm jewellery and accessories. Targeting independent jewellers, boutiques and premium lifestyle retailers across the South West UK & South Wales territory.
         </p>
       </div>
     </div>

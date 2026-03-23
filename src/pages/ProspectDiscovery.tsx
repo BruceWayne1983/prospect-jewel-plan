@@ -250,7 +250,7 @@ export default function ProspectDiscovery() {
         <div>
           <p className="section-header mb-2">AI Discovery</p>
           <h1 className="page-title">Prospect Discovery Engine</h1>
-          <p className="page-subtitle">AI + Web scanning to find real retailers across the South West</p>
+          <p className="page-subtitle">AI + Web scanning to find real retailers across South West & South Wales</p>
         </div>
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${scanning ? 'bg-warning' : 'bg-success'} animate-pulse`} />
