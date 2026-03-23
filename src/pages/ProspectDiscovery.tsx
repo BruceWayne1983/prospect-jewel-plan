@@ -173,6 +173,46 @@ export default function ProspectDiscovery() {
     toast.success(labels[status] || 'Updated');
   };
 
+  const openDismissDialog = (prospect: DiscoveredProspect) => {
+    setDismissDialog({ open: true, prospect, reason: 'not_fit', detail: '' });
+  };
+
+  const confirmDismiss = async () => {
+    const { prospect, reason, detail } = dismissDialog;
+    if (!prospect) return;
+
+    // Update prospect status
+    await supabase.from("discovered_prospects").update({
+      status: 'dismissed' as any,
+      dismiss_reason: `${reason}${detail ? ': ' + detail : ''}` as any,
+    } as any).eq("id", prospect.id);
+
+    // Log the disqualification pattern for AI learning
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("disqualification_patterns").insert({
+        user_id: user.id,
+        prospect_name: prospect.name,
+        prospect_town: prospect.town,
+        prospect_county: prospect.county,
+        prospect_category: prospect.category,
+        reason,
+        reason_detail: detail || null,
+        patterns: {
+          category: prospect.category,
+          discovery_source: prospect.discovery_source,
+          rating: prospect.rating,
+          predicted_fit_score: prospect.predicted_fit_score,
+          ai_reason: prospect.ai_reason,
+        },
+      } as any);
+    }
+
+    setProspects(prev => prev.map(p => p.id === prospect.id ? { ...p, status: 'dismissed' as any } : p));
+    setDismissDialog({ open: false, prospect: null, reason: 'not_fit', detail: '' });
+    toast.success('Dismissed — pattern logged for AI learning');
+  };
+
   const promoteToRetailer = async (p: DiscoveredProspect) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { toast.error("Please sign in"); return; }
