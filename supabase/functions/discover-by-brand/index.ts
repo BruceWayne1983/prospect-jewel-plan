@@ -66,6 +66,22 @@ Deno.serve(async (req) => {
       ...(existingProspects || []).map((p: any) => p.name),
     ];
 
+    // Fetch disqualification patterns to teach the AI what to avoid
+    const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
+    let notFitContext = "";
+    if (disqualPatterns && disqualPatterns.length > 0) {
+      const reasonCounts: Record<string, number> = {};
+      const examples: string[] = [];
+      disqualPatterns.forEach((dp: any) => {
+        reasonCounts[dp.reason] = (reasonCounts[dp.reason] || 0) + 1;
+        if (examples.length < 10) {
+          examples.push(`"${dp.prospect_name}" (${dp.prospect_town}) — ${dp.reason}${dp.reason_detail ? ': ' + dp.reason_detail : ''}`);
+        }
+      });
+      const topReasons = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => `${r} (${c}x)`).join(", ");
+      notFitContext = `\n\nIMPORTANT — LEARNED "NOT FIT" PATTERNS from previous disqualifications:\nTop reasons for rejection: ${topReasons}\nExamples of rejected stores:\n${examples.join("\n")}\n\nAvoid suggesting stores that match these patterns. The user has repeatedly rejected these types of stores.`;
+    }
+
     const excludeClause = existingNames.length > 0
       ? `\n\nDo NOT include any of these existing stores: ${existingNames.join(", ")}`
       : "";
@@ -134,17 +150,25 @@ Deno.serve(async (req) => {
             role: "system",
             content: `You are a UK retail market analyst specialising in jewellery, gift, and accessories brands in the South West of England and South Wales. You have deep knowledge of which independent retailers stock which brands. Your task is to identify stores that stock "${brand}" or similar/complementary brands that would also be excellent candidates for stocking Nomination Italy charm jewellery.
 
+CRITICAL EXCLUSION RULES:
+- Do NOT include toy stores, toy shops, or children's toy retailers — even if they stock "${brand}". We are looking for jewellery shops, gift shops, fashion boutiques, lifestyle stores, and premium accessories stores ONLY.
+- Do NOT include chain stores or franchises — only independent retailers.
+- Do NOT include online-only stores — they must have a physical retail presence.
+
 Brands similar to or complementary to popular UK jewellery/accessory brands include:
 - Joma Jewellery → ChloBo, Estella Bartlett, Katie Loxton, Olivia Burton
 - Pandora → Thomas Sabo, Chamilia, Links of London
 - Swarovski → Coeur de Lion, Trollbeads
 - Annie Haak → Lola Rose, Daisy London
+- Jellycat → Katie Loxton, Joules (when sold alongside gift/lifestyle products, NOT in toy stores)
 
-Use this knowledge to identify realistic prospects. Every shop name must be unique.`,
+Use this knowledge to identify realistic prospects. Every shop name must be unique.${notFitContext}`,
           },
           {
             role: "user",
             content: `Find ${targetCount} independent retailers in the South West of England that currently stock "${brand}" or brands with similar appeal (same price tier, same customer demographic, complementary product range). These retailers would be ideal prospects for Nomination Italy charm jewellery.
+
+IMPORTANT: Do NOT include toy stores, children's shops, or any store primarily selling toys — even if they stock "${brand}". We only want jewellery shops, gift boutiques, fashion stores, lifestyle stores, and premium accessories shops.
 
 ${countyInstruction}
 

@@ -162,6 +162,7 @@ export type Database = {
           created_at: string
           discovered_date: string
           discovery_source: string | null
+          dismiss_reason: string | null
           email: string | null
           estimated_monthly_traffic: number | null
           estimated_price_positioning:
@@ -202,6 +203,7 @@ export type Database = {
           created_at?: string
           discovered_date?: string
           discovery_source?: string | null
+          dismiss_reason?: string | null
           email?: string | null
           estimated_monthly_traffic?: number | null
           estimated_price_positioning?:
@@ -242,6 +244,7 @@ export type Database = {
           created_at?: string
           discovered_date?: string
           discovery_source?: string | null
+          dismiss_reason?: string | null
           email?: string | null
           estimated_monthly_traffic?: number | null
           estimated_price_positioning?:
@@ -273,6 +276,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      disqualification_patterns: {
+        Row: {
+          created_at: string
+          id: string
+          patterns: Json | null
+          prospect_category: string | null
+          prospect_county: string
+          prospect_name: string
+          prospect_town: string
+          reason: string
+          reason_detail: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          patterns?: Json | null
+          prospect_category?: string | null
+          prospect_county: string
+          prospect_name: string
+          prospect_town: string
+          reason?: string
+          reason_detail?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          patterns?: Json | null
+          prospect_category?: string | null
+          prospect_county?: string
+          prospect_name?: string
+          prospect_town?: string
+          reason?: string
+          reason_detail?: string | null
+          user_id?: string
         }
         Relationships: []
       }

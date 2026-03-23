@@ -22,7 +22,8 @@ async function discoverBatch(
   category: string,
   count: number,
   existingNames: string[],
-  LOVABLE_API_KEY: string
+  LOVABLE_API_KEY: string,
+  notFitContext: string = ""
 ) {
   const excludeClause = existingNames.length > 0
     ? `\n\nDo NOT include any of these existing stores (already in the system): ${existingNames.join(", ")}`
@@ -77,11 +78,15 @@ async function discoverBatch(
       messages: [
         {
             role: "system",
-            content: "You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.",
+            content: `You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.
+
+CRITICAL: Do NOT include toy stores, children's shops, chain stores, or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores.${notFitContext}`,
         },
         {
           role: "user",
-          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name, a plausible full address with postcode, a plausible phone number, and a plausible contact email.${excludeClause}`,
+          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name, a plausible full address with postcode, a plausible phone number, and a plausible contact email.
+
+Do NOT suggest toy stores, children's shops, or chain retailers.${excludeClause}`,
         },
       ],
     }),
@@ -186,10 +191,25 @@ Deno.serve(async (req) => {
       ...(existingProspects || []).map((p: any) => p.name),
     ];
 
+    // Fetch disqualification patterns for AI learning
+    const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
+    let notFitContext = "";
+    if (disqualPatterns && disqualPatterns.length > 0) {
+      const reasonCounts: Record<string, number> = {};
+      const examples: string[] = [];
+      disqualPatterns.forEach((dp: any) => {
+        reasonCounts[dp.reason] = (reasonCounts[dp.reason] || 0) + 1;
+        if (examples.length < 10) {
+          examples.push(`"${dp.prospect_name}" (${dp.prospect_town}) — ${dp.reason}${dp.reason_detail ? ': ' + dp.reason_detail : ''}`);
+        }
+      });
+      const topReasons = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => `${r} (${c}x)`).join(", ");
+      notFitContext = `\n\nLEARNED "NOT FIT" PATTERNS from previous disqualifications:\nTop reasons: ${topReasons}\nExamples:\n${examples.join("\n")}\n\nAvoid suggesting stores matching these patterns.`;
+    }
+
     let allInserted: any[] = [];
 
     if (fullScan) {
-      // Full territory scan: all counties × all categories, 8 prospects each
       const batchSize = 8;
       for (const c of SOUTH_WEST_COUNTIES) {
         for (const cat of CATEGORIES) {
@@ -197,12 +217,11 @@ Deno.serve(async (req) => {
             const inserted = await discoverBatch(supabase, userId, c, cat, batchSize, [
               ...existingNames,
               ...allInserted.map((p: any) => p.name),
-            ], LOVABLE_API_KEY);
+            ], LOVABLE_API_KEY, notFitContext);
             allInserted = allInserted.concat(inserted);
           } catch (err: any) {
             console.error(`Batch error for ${c}/${cat}:`, err.message);
             if (err.message.includes("Rate limit") || err.message.includes("credits")) {
-              // Stop on rate limit or credits exhausted
               return new Response(JSON.stringify({
                 success: true,
                 prospects: allInserted,
@@ -212,17 +231,15 @@ Deno.serve(async (req) => {
               }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
             }
           }
-          // Small delay between batches to avoid rate limits
           await new Promise(r => setTimeout(r, 1500));
         }
       }
     } else {
-      // Single scan
       const targetCounty = county || SOUTH_WEST_COUNTIES[Math.floor(Math.random() * SOUTH_WEST_COUNTIES.length)];
       const targetCategory = category || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
       const targetCount = Math.min(count || 15, 20);
 
-      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, targetCount, existingNames, LOVABLE_API_KEY);
+      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, targetCount, existingNames, LOVABLE_API_KEY, notFitContext);
       allInserted = inserted;
     }
 
