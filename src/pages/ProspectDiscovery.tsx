@@ -62,6 +62,8 @@ export default function ProspectDiscovery() {
   const [filterRatingMin, setFilterRatingMin] = useState<string>("0");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [showFilters, setShowFilters] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState({ done: 0, total: 0 });
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
