@@ -452,15 +452,172 @@ export default function ProspectDiscovery() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2">
+      {/* Status Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
         {(['all', 'new', 'reviewing', 'accepted', 'dismissed'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className={`text-xs px-4 py-2 rounded-lg border transition-all ${filter === f ? 'bg-card border-gold/30 text-foreground shadow-sm' : 'border-border/20 text-muted-foreground hover:bg-card'}`}>
             {f.charAt(0).toUpperCase() + f.slice(1)} {f === 'all' ? `(${prospects.length})` : `(${prospects.filter(p => p.status === f).length})`}
           </button>
         ))}
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
+            className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
+            <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+            Filters {(filterCounty !== 'all' || filterCategory !== 'all' || filterSource !== 'all' || filterBrandStockist !== 'all' || filterHasWebsite !== 'all' || filterHasContact !== 'all' || Number(filterFitMin) > 0 || Number(filterRatingMin) > 0 || filterNearCurrent) ? '●' : ''}
+          </Button>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
+              <ArrowUpDown className="w-3 h-3 mr-1.5" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="fit_high">Fit Score ↓</SelectItem>
+              <SelectItem value="fit_low">Fit Score ↑</SelectItem>
+              <SelectItem value="rating">Rating ↓</SelectItem>
+              <SelectItem value="reviews">Most Reviews</SelectItem>
+              <SelectItem value="quality">Store Quality ↓</SelectItem>
+              <SelectItem value="county">County A–Z</SelectItem>
+              <SelectItem value="name">Name A–Z</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <div className="card-premium p-4 border-gold/15">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">County</label>
+              <Select value={filterCounty} onValueChange={setFilterCounty}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Counties</SelectItem>
+                  {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Category</label>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Discovery Source</label>
+              <Select value={filterSource} onValueChange={setFilterSource}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="ai">AI Scanner</SelectItem>
+                  <SelectItem value="web">Web Scanner</SelectItem>
+                  <SelectItem value="brand">Brand Scan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Brand Stockist</label>
+              <Select value={filterBrandStockist} onValueChange={setFilterBrandStockist}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Brand</SelectItem>
+                  {brandSources.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  {BRAND_OPTIONS.filter(b => !brandSources.includes(b)).slice(0, 15).map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Online Presence</label>
+              <Select value={filterHasWebsite} onValueChange={setFilterHasWebsite}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any</SelectItem>
+                  <SelectItem value="yes">Has Website</SelectItem>
+                  <SelectItem value="no">No Website</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Contact Info</label>
+              <Select value={filterHasContact} onValueChange={setFilterHasContact}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any</SelectItem>
+                  <SelectItem value="yes">Has Phone or Email</SelectItem>
+                  <SelectItem value="email">Has Email</SelectItem>
+                  <SelectItem value="phone">Has Phone</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Min Fit Score</label>
+              <Select value={filterFitMin} onValueChange={setFilterFitMin}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Any</SelectItem>
+                  <SelectItem value="50">50+</SelectItem>
+                  <SelectItem value="60">60+</SelectItem>
+                  <SelectItem value="70">70+</SelectItem>
+                  <SelectItem value="80">80+</SelectItem>
+                  <SelectItem value="90">90+</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 block">Min Rating</label>
+              <Select value={filterRatingMin} onValueChange={setFilterRatingMin}>
+                <SelectTrigger className="h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Any</SelectItem>
+                  <SelectItem value="3">3+ stars</SelectItem>
+                  <SelectItem value="3.5">3.5+ stars</SelectItem>
+                  <SelectItem value="4">4+ stars</SelectItem>
+                  <SelectItem value="4.5">4.5+ stars</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilterNearCurrent(!filterNearCurrent)}
+                className={`h-8 text-xs px-3 rounded-md border transition-all w-full ${filterNearCurrent ? 'bg-champagne/40 border-gold/30 text-gold-dark' : 'border-border/30 text-muted-foreground hover:bg-cream/50'}`}>
+                <MapPin className="w-3 h-3 inline mr-1" />
+                {filterNearCurrent ? 'Near Current ✓' : 'Near Current Stockists'}
+              </button>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => { setFilterCounty('all'); setFilterCategory('all'); setFilterSource('all'); setFilterBrandStockist('all'); setFilterHasWebsite('all'); setFilterHasContact('all'); setFilterFitMin('0'); setFilterRatingMin('0'); setFilterNearCurrent(false); }}
+                className="h-8 text-xs px-3 rounded-md border border-border/30 text-muted-foreground hover:bg-cream/50 w-full">
+                Clear All Filters
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">Showing {filtered.length} of {prospects.length} prospects</p>
+        </div>
+      )}
 
       {/* Empty State */}
       {prospects.length === 0 && (
