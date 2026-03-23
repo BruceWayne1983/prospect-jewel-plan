@@ -45,6 +45,8 @@ export default function RetailerProfile() {
   const [r, setRetailer] = useState<Retailer | null>(null);
   const [loading, setLoading] = useState(true);
   const [analysing, setAnalysing] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', address: '', postcode: '' });
 
   const fetchRetailer = () => {
     if (!id) return;
