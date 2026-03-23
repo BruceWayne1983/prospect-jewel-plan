@@ -80,7 +80,7 @@ async function discoverBatch(
         },
         {
           role: "user",
-          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name and a plausible address.${excludeClause}`,
+          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name, a plausible full address with postcode, a plausible phone number, and a plausible contact email.${excludeClause}`,
         },
       ],
     }),
