@@ -125,9 +125,9 @@ export default function CurrentAccounts() {
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <p className="section-header mb-2">Brioso · Manage</p>
+          <p className="section-header mb-2">Manage</p>
           <h1 className="page-title">Current Accounts</h1>
-          <p className="page-subtitle">Established Nomination stockists managed by Brioso across South West UK & South Wales</p>
+          <p className="page-subtitle">Established Nomination stockists across South West UK & South Wales</p>
         </div>
         <div className="flex items-center gap-2">
           <Button

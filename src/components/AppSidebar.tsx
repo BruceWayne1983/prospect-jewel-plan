@@ -36,8 +36,7 @@ export function AppSidebar() {
           <div className="flex items-center gap-3">
             <img src={nominationLogo} alt="Nomination Italy" className="h-9 w-auto object-contain" />
             <div>
-              <p className="text-xs font-semibold text-sidebar-foreground tracking-wide">Brioso</p>
-              <p className="text-[9px] text-sidebar-foreground/50 tracking-widest uppercase">Nomination · AI Prospecting</p>
+              <p className="text-[10px] text-sidebar-foreground tracking-widest uppercase">Nomination · AI Prospecting</p>
             </div>
           </div>
         ) : (

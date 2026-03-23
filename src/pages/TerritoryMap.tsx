@@ -50,7 +50,7 @@ export default function TerritoryMap() {
           <p className="section-header mb-2">Territory Intelligence</p>
           <h1 className="page-title">South West & South Wales Territory</h1>
           <p className="page-subtitle">
-            Brioso · Retailer density, opportunity clusters and whitespace analysis
+            Retailer density, opportunity clusters and whitespace analysis
           </p>
         </div>
         <div className="flex items-center gap-2">
