@@ -58,6 +58,10 @@ export default function RetailerProfile() {
           email: data.email || '',
           website: data.website || '',
           instagram: data.instagram || '',
+          facebook: (data as any).facebook || '',
+          tiktok: (data as any).tiktok || '',
+          twitter: (data as any).twitter || '',
+          linkedin: (data as any).linkedin || '',
           address: data.address || '',
           postcode: data.postcode || '',
         });
