@@ -635,6 +635,52 @@ export default function JourneyPlanner() {
                 <span className="text-xs font-medium text-foreground">Arrive home</span>
               </div>
 
+              {/* Inline Add to Route */}
+              <div className="mt-4 pt-4 border-t border-border/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Plus className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-display font-semibold text-foreground">Add Account to Route</span>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+                  <input
+                    type="text"
+                    value={addSearch}
+                    onChange={e => { setAddSearch(e.target.value); setShowAddAccount(true); }}
+                    onFocus={() => setShowAddAccount(true)}
+                    placeholder="Search by name or town..."
+                    className="w-full text-xs bg-muted/50 rounded-lg pl-8 pr-3 py-2 border border-border/20 text-foreground placeholder:text-muted-foreground/40"
+                  />
+                </div>
+                {showAddAccount && addSearch.length > 0 && (
+                  <div className="mt-1.5 space-y-0.5 max-h-[160px] overflow-y-auto rounded-lg border border-border/20 bg-card p-1">
+                    {addableAccounts.map(r => (
+                      <button
+                        key={r.id}
+                        onClick={() => addAccountToRoute(r.id)}
+                        className="w-full text-left flex items-center justify-between py-2 px-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div>
+                          <span className="text-xs font-medium text-foreground">{r.name}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1.5">{r.town}, {r.county}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {r.lat && r.lng && (
+                            <span className="text-[9px] text-muted-foreground">
+                              {estimateDriveMinutes(haversine(home.lat, home.lng, r.lat, r.lng))}m
+                            </span>
+                          )}
+                          <Plus className="w-3 h-3 text-primary" />
+                        </div>
+                      </button>
+                    ))}
+                    {addableAccounts.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground/50 text-center py-3">No matching accounts</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Progress bar */}
               <div className="mt-3 pt-4 border-t border-border/30 flex items-center justify-between">
                 <div className="flex items-center gap-4">
