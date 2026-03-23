@@ -219,6 +219,29 @@ export function RouteScheduler({ route, selectedDate, dayPref, homeBase, onSched
         </div>
       </div>
 
+      {(() => {
+        const waypoints = route.clusters.flatMap(c =>
+          c.retailers.map(r => `${r.name}, ${c.town}`)
+        );
+        const origin = encodeURIComponent(homeBase.address);
+        const destination = origin;
+        const waypointsParam = waypoints.map(w => encodeURIComponent(w)).join('|');
+        const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypointsParam}&travelmode=driving`;
+
+        return (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2
+              bg-muted/50 text-foreground hover:bg-muted border border-border/30 mb-2"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Open Route in Google Maps
+          </a>
+        );
+      })()}
+
       <button
         onClick={bookRoute}
         disabled={booking}
