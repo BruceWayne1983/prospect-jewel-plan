@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store, Route
 } from "lucide-react";
 import nominationLogo from "@/assets/nomination-logo.webp";
 import { NavLink } from "@/components/NavLink";
