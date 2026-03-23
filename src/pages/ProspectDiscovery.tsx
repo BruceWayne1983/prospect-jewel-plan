@@ -674,7 +674,6 @@ export default function ProspectDiscovery() {
                     {(p as any).social_verified && <span className="text-[9px] px-2 py-0.5 rounded-full bg-success-light text-success font-medium">✓ Verified</span>}
                   </div>
                 )}
-                </div>
                 {p.ai_reason && (
                   <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
                     <div className="flex items-start gap-2">
