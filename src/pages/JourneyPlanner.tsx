@@ -188,7 +188,7 @@ export default function JourneyPlanner() {
   // Build a custom route from manually-added accounts
   const customRoute: PlannedRoute | null = useMemo(() => {
     if (customRouteAccounts.size === 0) return null;
-    const selected = enrichedRetailers.filter(r => customRouteAccounts.has(r.id) && r.lat && r.lng);
+    const selected = enrichedRetailers.filter(r => customRouteAccounts.has(r.id));
     if (selected.length === 0) return null;
 
     // Group by town
@@ -196,30 +196,40 @@ export default function JourneyPlanner() {
     for (const r of selected) {
       const key = r.town.toLowerCase();
       if (!townMap.has(key)) {
-        townMap.set(key, { town: r.town, county: r.county, retailers: [], lat: r.lat!, lng: r.lng! });
+        townMap.set(key, { town: r.town, county: r.county, retailers: [], lat: r.lat ?? 0, lng: r.lng ?? 0 });
       }
       townMap.get(key)!.retailers.push(r);
     }
     const clusters = Array.from(townMap.values());
 
-    // Sort clusters by distance from home (nearest first)
-    clusters.sort((a, b) => haversine(home.lat, home.lng, a.lat, a.lng) - haversine(home.lat, home.lng, b.lat, b.lng));
+    // Sort clusters by distance from home (nearest first) — only if they have coords
+    const hasCoords = (c: TownCluster) => c.lat !== 0 || c.lng !== 0;
+    clusters.sort((a, b) => {
+      if (!hasCoords(a) && !hasCoords(b)) return 0;
+      if (!hasCoords(a)) return 1;
+      if (!hasCoords(b)) return -1;
+      return haversine(home.lat, home.lng, a.lat, a.lng) - haversine(home.lat, home.lng, b.lat, b.lng);
+    });
 
     let totalDriveKm = 0;
     for (let i = 1; i < clusters.length; i++) {
-      totalDriveKm += haversine(clusters[i - 1].lat, clusters[i - 1].lng, clusters[i].lat, clusters[i].lng);
+      if (hasCoords(clusters[i - 1]) && hasCoords(clusters[i])) {
+        totalDriveKm += haversine(clusters[i - 1].lat, clusters[i - 1].lng, clusters[i].lat, clusters[i].lng);
+      }
     }
 
     const firstCluster = clusters[0];
     const lastCluster = clusters[clusters.length - 1];
+    const driveFromHome = hasCoords(firstCluster) ? estimateDriveMinutes(haversine(home.lat, home.lng, firstCluster.lat, firstCluster.lng)) : 0;
+    const driveHome = hasCoords(lastCluster) ? estimateDriveMinutes(haversine(lastCluster.lat, lastCluster.lng, home.lat, home.lng)) : 0;
 
     return {
       name: '📌 My Custom Route',
       clusters,
       totalStops: selected.length,
       estimatedDriveMinutes: estimateDriveMinutes(totalDriveKm),
-      driveFromHomeMinutes: estimateDriveMinutes(haversine(home.lat, home.lng, firstCluster.lat, firstCluster.lng)),
-      driveHomeMinutes: estimateDriveMinutes(haversine(lastCluster.lat, lastCluster.lng, home.lat, home.lng)),
+      driveFromHomeMinutes: driveFromHome,
+      driveHomeMinutes: driveHome,
       priority: 'high',
     };
   }, [customRouteAccounts, enrichedRetailers, home]);
