@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { AtRiskSection } from "@/components/accounts/AtRiskSection";
+import { AccountHealthSummary } from "@/components/accounts/AccountHealthSummary";
+import { getAccountHealth } from "@/utils/accountHealth";
 
 export default function CurrentAccounts() {
   const { retailers, loading, refetch } = useRetailers();
@@ -86,6 +88,7 @@ export default function CurrentAccounts() {
         case "fit": return (b.fit_score ?? 0) - (a.fit_score ?? 0);
         case "spend": return (b.spend_potential_score ?? 0) - (a.spend_potential_score ?? 0);
         case "recent": return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        case "health": return getAccountHealth(b).score - getAccountHealth(a).score;
         default: return (b.priority_score ?? 0) - (a.priority_score ?? 0);
       }
     });
@@ -182,6 +185,9 @@ export default function CurrentAccounts() {
         ))}
       </div>
 
+      {/* Account Health Summary */}
+      <AccountHealthSummary retailers={allEstablished} />
+
       {/* At-Risk Accounts */}
       <AtRiskSection retailers={allEstablished} />
 
@@ -218,6 +224,7 @@ export default function CurrentAccounts() {
             <SelectItem value="fit">Fit Score</SelectItem>
             <SelectItem value="spend">Spend Potential</SelectItem>
             <SelectItem value="recent">Recently Updated</SelectItem>
+            <SelectItem value="health">Health Score</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-[10px] text-muted-foreground ml-auto">

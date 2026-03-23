@@ -1,7 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { MapPin, Phone, Mail, Globe, ArrowUpRight, AlertTriangle, Sparkles, Clock } from "lucide-react";
+import { MapPin, Phone, Mail, Globe, ArrowUpRight, AlertTriangle, Sparkles, Clock, RefreshCw, Activity } from "lucide-react";
 import { Retailer, getOutreach, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { format } from "date-fns";
+import {
+  getAccountHealth, getHealthColor, getHealthBg, getHealthLabel,
+  getEngagementColor, getReorderLabel, getReorderColor,
+} from "@/utils/accountHealth";
 
 interface AccountCardProps {
   retailer: Retailer;
@@ -15,6 +18,7 @@ export function AccountCard({ retailer: r }: AccountCardProps) {
   const ai = getAIIntelligence(r);
   const risks = r.risk_flags ?? [];
   const hasAI = ai.summary && ai.lastAnalysed !== "Not yet analysed";
+  const health = getAccountHealth(r);
 
   return (
     <div
@@ -44,6 +48,24 @@ export function AccountCard({ retailer: r }: AccountCardProps) {
           </div>
         </div>
         <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-gold transition-colors flex-shrink-0" />
+      </div>
+
+      {/* Health Status Bar */}
+      <div className={`flex items-center justify-between px-3 py-2 rounded-lg mb-3 ${getHealthBg(health.status)}`}>
+        <div className="flex items-center gap-2">
+          <Activity className={`w-3.5 h-3.5 ${getHealthColor(health.status)}`} />
+          <span className={`text-[10px] font-semibold ${getHealthColor(health.status)}`}>
+            {getHealthLabel(health.status)}
+          </span>
+          <span className="text-[10px] text-muted-foreground">({health.score})</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {/* Engagement dots */}
+          <div className="flex items-center gap-1">
+            <div className={`w-2 h-2 rounded-full ${getEngagementColor(health.engagementLevel)}`} />
+            <span className="text-[8px] text-muted-foreground capitalize">{health.engagementLevel}</span>
+          </div>
+        </div>
       </div>
 
       <div className="divider-gold opacity-30 mb-3" />
@@ -78,6 +100,24 @@ export function AccountCard({ retailer: r }: AccountCardProps) {
         </div>
       </div>
 
+      {/* Reorder & Contact Row */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="bg-muted/30 rounded-lg px-2.5 py-2 text-center">
+          <RefreshCw className={`w-3 h-3 mx-auto mb-0.5 ${getReorderColor(health.reorderStatus)}`} />
+          <p className={`text-[10px] font-semibold ${getReorderColor(health.reorderStatus)}`}>
+            {getReorderLabel(health.reorderStatus)}
+          </p>
+          <p className="text-[8px] text-muted-foreground uppercase">Reorder</p>
+        </div>
+        <div className="bg-muted/30 rounded-lg px-2.5 py-2 text-center">
+          <Clock className="w-3 h-3 mx-auto mb-0.5 text-muted-foreground" />
+          <p className="text-[10px] font-semibold text-foreground">
+            {health.daysSinceContact !== null ? `${health.daysSinceContact}d ago` : "No data"}
+          </p>
+          <p className="text-[8px] text-muted-foreground uppercase">Last Contact</p>
+        </div>
+      </div>
+
       {/* Tags */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
         <span className="badge-category text-[9px]">
@@ -93,19 +133,9 @@ export function AccountCard({ retailer: r }: AccountCardProps) {
             Meeting
           </span>
         )}
-      </div>
-
-      {/* Last Contact & Next Action */}
-      <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-2">
-        {activity.lastContactDate && (
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3 flex-shrink-0" />
-            <span>Last: {activity.lastContactDate}</span>
-          </div>
-        )}
-        {activity.nextActionDate && (
-          <span className="text-gold-dark font-medium">
-            Next: {activity.nextActionDate}
+        {health.nextActionDate && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-info-light text-info font-medium">
+            Next: {health.nextActionDate}
           </span>
         )}
       </div>
@@ -127,13 +157,13 @@ export function AccountCard({ retailer: r }: AccountCardProps) {
         </p>
       )}
 
-      {/* Risk flags */}
-      {risks.length > 0 && (
+      {/* Risk / Health flags */}
+      {health.flags.length > 0 && (
         <div className="mt-2 flex items-center gap-1">
           <AlertTriangle className="w-3 h-3 text-warning flex-shrink-0" />
-          <span className="text-[9px] text-warning truncate">{risks[0]}</span>
-          {risks.length > 1 && (
-            <span className="text-[8px] text-warning/70">+{risks.length - 1}</span>
+          <span className="text-[9px] text-warning truncate">{health.flags[0]}</span>
+          {health.flags.length > 1 && (
+            <span className="text-[8px] text-warning/70">+{health.flags.length - 1}</span>
           )}
         </div>
       )}
