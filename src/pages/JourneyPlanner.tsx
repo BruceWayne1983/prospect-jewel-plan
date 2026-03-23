@@ -162,7 +162,12 @@ export default function JourneyPlanner() {
   const [editingHome, setEditingHome] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [addSearch, setAddSearch] = useState('');
-  const [customRouteAccounts, setCustomRouteAccounts] = useState<Set<string>>(new Set());
+  const [customRouteAccounts, setCustomRouteAccounts] = useState<Set<string>>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('custom_route_accounts') || '[]') as string[];
+      return new Set(saved);
+    } catch { return new Set(); }
+  });
 
   const enrichedRetailers: RetailerWithMeta[] = useMemo(() =>
     retailers.map(r => {
