@@ -46,7 +46,8 @@ export default function RetailerProfile() {
   const [loading, setLoading] = useState(true);
   const [analysing, setAnalysing] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
-  const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', address: '', postcode: '' });
+  const [verifyingSocial, setVerifyingSocial] = useState(false);
+  const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', facebook: '', tiktok: '', twitter: '', linkedin: '', address: '', postcode: '' });
 
   const fetchRetailer = () => {
     if (!id) return;
@@ -58,6 +59,10 @@ export default function RetailerProfile() {
           email: data.email || '',
           website: data.website || '',
           instagram: data.instagram || '',
+          facebook: (data as any).facebook || '',
+          tiktok: (data as any).tiktok || '',
+          twitter: (data as any).twitter || '',
+          linkedin: (data as any).linkedin || '',
           address: data.address || '',
           postcode: data.postcode || '',
         });
@@ -75,6 +80,10 @@ export default function RetailerProfile() {
     if (contactForm.email !== (r?.email || '')) updates.email = contactForm.email || null;
     if (contactForm.website !== (r?.website || '')) updates.website = contactForm.website || null;
     if (contactForm.instagram !== (r?.instagram || '')) updates.instagram = contactForm.instagram || null;
+    if (contactForm.facebook !== ((r as any)?.facebook || '')) updates.facebook = contactForm.facebook || null;
+    if (contactForm.tiktok !== ((r as any)?.tiktok || '')) updates.tiktok = contactForm.tiktok || null;
+    if (contactForm.twitter !== ((r as any)?.twitter || '')) updates.twitter = contactForm.twitter || null;
+    if (contactForm.linkedin !== ((r as any)?.linkedin || '')) updates.linkedin = contactForm.linkedin || null;
     if (contactForm.address !== (r?.address || '')) updates.address = contactForm.address || null;
     if (contactForm.postcode !== (r?.postcode || '')) updates.postcode = contactForm.postcode || null;
     if (Object.keys(updates).length === 0) { setEditingContact(false); return; }
@@ -83,6 +92,28 @@ export default function RetailerProfile() {
     toast.success("Contact details updated");
     setEditingContact(false);
     fetchRetailer();
+  };
+
+  const verifySocial = async () => {
+    if (!id || !r) return;
+    setVerifyingSocial(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-social", {
+        body: { retailerId: id, name: r.name, town: r.town, county: r.county, website: r.website },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`Social accounts verified! Confidence: ${data.social.confidence}`);
+        if (data.social.notes) toast.info(data.social.notes);
+        fetchRetailer();
+      } else {
+        toast.error(data?.error || "Verification failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to verify social accounts");
+    } finally {
+      setVerifyingSocial(false);
+    }
   };
 
   const runAnalysis = async () => {
@@ -303,9 +334,15 @@ export default function RetailerProfile() {
             <div className="card-premium p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-display font-semibold text-foreground">Contact & Location</h3>
-                <Button variant="ghost" size="sm" onClick={() => { if (editingContact) saveContact(); else setEditingContact(true); }} className="text-[10px] h-7 px-2 text-gold-dark">
-                  {editingContact ? 'Save' : (!r.phone && !r.email ? '+ Add Details' : 'Edit')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={verifySocial} disabled={verifyingSocial} className="text-[10px] h-7 px-2 border-gold/30 text-gold-dark hover:bg-champagne/30">
+                    {verifyingSocial ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                    {verifyingSocial ? 'Verifying...' : 'AI Verify Social'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { if (editingContact) saveContact(); else setEditingContact(true); }} className="text-[10px] h-7 px-2 text-gold-dark">
+                    {editingContact ? 'Save' : (!r.phone && !r.email ? '+ Add Details' : 'Edit')}
+                  </Button>
+                </div>
               </div>
               {editingContact ? (
                 <div className="space-y-2.5">
@@ -313,6 +350,10 @@ export default function RetailerProfile() {
                   <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="Email address" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
                   <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.website} onChange={e => setContactForm(f => ({ ...f, website: e.target.value }))} placeholder="Website URL" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
                   <div className="flex items-center gap-2"><Instagram className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.instagram} onChange={e => setContactForm(f => ({ ...f, instagram: e.target.value }))} placeholder="Instagram handle" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.facebook} onChange={e => setContactForm(f => ({ ...f, facebook: e.target.value }))} placeholder="Facebook page URL" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.tiktok} onChange={e => setContactForm(f => ({ ...f, tiktok: e.target.value }))} placeholder="TikTok handle" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.twitter} onChange={e => setContactForm(f => ({ ...f, twitter: e.target.value }))} placeholder="Twitter/X handle" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
+                  <div className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.linkedin} onChange={e => setContactForm(f => ({ ...f, linkedin: e.target.value }))} placeholder="LinkedIn URL" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
                   <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.5} /><Input value={contactForm.address} onChange={e => setContactForm(f => ({ ...f, address: e.target.value }))} placeholder="Full address" className="h-8 text-xs bg-cream/30 border-border/30" /></div>
                   <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 opacity-0" /><Input value={contactForm.postcode} onChange={e => setContactForm(f => ({ ...f, postcode: e.target.value }))} placeholder="Postcode" className="h-8 text-xs bg-cream/30 border-border/30 w-32" /></div>
                   <div className="flex gap-2 pt-1">
@@ -325,7 +366,12 @@ export default function RetailerProfile() {
                   {r.phone ? <div className="flex items-center gap-3"><Phone className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.phone}</span></div> : <div className="flex items-center gap-3"><Phone className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No phone — click Edit or run AI Analysis</span></div>}
                   {r.email ? <div className="flex items-center gap-3"><Mail className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.email}</span></div> : <div className="flex items-center gap-3"><Mail className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No email — click Edit or run AI Analysis</span></div>}
                   {r.website ? <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">{r.website.replace('https://', '')}</a></div> : <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No website</span></div>}
-                  {r.instagram && <div className="flex items-center gap-3"><Instagram className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.instagram}</span></div>}
+                  {r.instagram && <div className="flex items-center gap-3"><Instagram className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://instagram.com/${r.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">{r.instagram}</a></div>}
+                  {(r as any).facebook && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={(r as any).facebook.startsWith('http') ? (r as any).facebook : `https://facebook.com/${(r as any).facebook}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">Facebook</a></div>}
+                  {(r as any).tiktok && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://tiktok.com/@${(r as any).tiktok.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">TikTok: {(r as any).tiktok}</a></div>}
+                  {(r as any).twitter && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://x.com/${(r as any).twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">X: {(r as any).twitter}</a></div>}
+                  {(r as any).linkedin && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={(r as any).linkedin.startsWith('http') ? (r as any).linkedin : `https://linkedin.com/company/${(r as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">LinkedIn</a></div>}
+                  {(r as any).social_verified && <div className="flex items-center gap-2 mt-2"><CheckCircle className="w-3.5 h-3.5 text-success" strokeWidth={1.5} /><span className="text-[10px] text-success font-medium">Social accounts verified by AI</span></div>}
                   {r.address && <div className="flex items-center gap-3"><MapPin className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.address}{r.postcode ? `, ${r.postcode}` : ''}</span></div>}
                 </div>
               )}
