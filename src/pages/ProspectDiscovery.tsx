@@ -157,7 +157,7 @@ export default function ProspectDiscovery() {
       default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
     }
     return result;
-  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, sortBy, existingTowns]);
+  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, sortBy, existingTowns, existingRetailerKeys]);
 
   const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
     const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
