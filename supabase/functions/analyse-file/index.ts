@@ -6,6 +6,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function getMimeType(fileName: string, fileType: string | null): string {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  if (lower.endsWith(".xls")) return "application/vnd.ms-excel";
+  if (lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (lower.endsWith(".doc")) return "application/msword";
+  if (lower.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  return fileType || "application/octet-stream";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -30,7 +50,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch file metadata
     const { data: file, error: fileErr } = await supabase
       .from("uploaded_files")
       .select("*")
@@ -43,7 +62,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Download file content
     const { data: fileData, error: downloadErr } = await supabase.storage
       .from("data-hub")
       .download(file.file_path);
@@ -54,26 +72,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    let contentPreview = "";
-    const isText = file.file_type?.startsWith("text/") ||
-      file.file_name.endsWith(".csv") ||
-      file.file_name.endsWith(".json") ||
-      file.file_name.endsWith(".txt") ||
-      file.file_name.endsWith(".md");
-
-    if (isText) {
-      const text = await fileData.text();
-      contentPreview = text.substring(0, 8000);
-    } else {
-      contentPreview = `[Binary file: ${file.file_name}, ${file.file_size} bytes, type: ${file.file_type}]`;
-    }
-
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const lower = file.file_name.toLowerCase();
+    const isText = file.file_type?.startsWith("text/") ||
+      lower.endsWith(".csv") || lower.endsWith(".json") ||
+      lower.endsWith(".txt") || lower.endsWith(".md");
+    const isBinary = lower.endsWith(".pdf") || lower.endsWith(".xlsx") ||
+      lower.endsWith(".xls") || lower.endsWith(".docx") ||
+      lower.endsWith(".doc") || lower.endsWith(".pptx");
 
     const categoryContext: Record<string, string> = {
       sales_data: "This is sales data. Look for trends, top performers, seasonal patterns, and actionable insights.",
@@ -85,6 +97,46 @@ Deno.serve(async (req) => {
       other: "Analyse this file and provide useful insights.",
     };
 
+    const systemPrompt = "You are a sales analyst for Nomination Italy (premium Italian charm jewellery). Analyse uploaded files and provide concise, actionable summaries. Format with bullet points and clear sections. Keep under 500 words.";
+    const contextLine = `File: ${file.file_name}\nCategory: ${file.category}\nContext: ${categoryContext[file.category] || categoryContext.other}`;
+
+    let messages: any[];
+
+    if (isText) {
+      const text = await fileData.text();
+      const contentPreview = text.substring(0, 8000);
+      messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Analyse this file:\n\n${contextLine}\n\nContent:\n${contentPreview}` },
+      ];
+    } else if (isBinary) {
+      // Use Gemini multimodal: send file as base64 inline_data
+      const buffer = await fileData.arrayBuffer();
+      const base64Data = arrayBufferToBase64(buffer);
+      const mimeType = getMimeType(file.file_name, file.file_type);
+
+      messages = [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `Analyse this file:\n\n${contextLine}\n\nThe file is attached. Extract and analyse all data, tables, text, and charts you can find.` },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Data}`,
+              },
+            },
+          ],
+        },
+      ];
+    } else {
+      messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Analyse this file:\n\n${contextLine}\n\n[Binary file: ${file.file_name}, ${file.file_size} bytes, type: ${file.file_type}. Unable to extract content from this file type.]` },
+      ];
+    }
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -92,22 +144,14 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: "You are a sales analyst for Nomination Italy (premium Italian charm jewellery). Analyse uploaded files and provide concise, actionable summaries. Format with bullet points and clear sections. Keep under 500 words.",
-          },
-          {
-            role: "user",
-            content: `Analyse this file:\n\nFile: ${file.file_name}\nCategory: ${file.category}\nContext: ${categoryContext[file.category] || categoryContext.other}\n\nContent:\n${contentPreview}`,
-          },
-        ],
+        model: "google/gemini-2.5-flash",
+        messages,
       }),
     });
 
     if (!aiResponse.ok) {
-      await aiResponse.text();
+      const errText = await aiResponse.text();
+      console.error("AI error:", errText);
       return new Response(JSON.stringify({ error: "AI analysis failed" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -116,7 +160,6 @@ Deno.serve(async (req) => {
     const aiData = await aiResponse.json();
     const summary = aiData.choices?.[0]?.message?.content || "No analysis generated.";
 
-    // Save summary to file record
     await supabase
       .from("uploaded_files")
       .update({ ai_summary: summary })
