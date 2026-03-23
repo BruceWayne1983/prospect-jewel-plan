@@ -29,7 +29,7 @@ export default function Settings() {
           </div>
           <div>
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Role</Label>
-            <Input defaultValue="Sales Agent — South West UK" className="mt-1.5 bg-background border-border/40 h-10" />
+            <Input defaultValue="Sales Agent — South West & South Wales" className="mt-1.5 bg-background border-border/40 h-10" />
           </div>
           <div>
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email</Label>
