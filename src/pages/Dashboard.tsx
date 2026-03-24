@@ -29,6 +29,8 @@ export default function Dashboard() {
         // Fetch upcoming calendar events
         const today = new Date().toISOString().split("T")[0];
         supabase.from("calendar_events").select("*").eq("user_id", data.user.id).gte("date", today).eq("completed", false).order("date", { ascending: true }).limit(6).then(({ data: events }) => setUpcomingEvents(events ?? []));
+        // Fetch all events for alerts
+        supabase.from("calendar_events").select("*").eq("user_id", data.user.id).then(({ data: events }) => setAllEvents(events ?? []));
         // Fetch recent activity
         supabase.from("activity_log").select("*").eq("user_id", data.user.id).order("created_at", { ascending: false }).limit(8).then(({ data: acts }) => setRecentActivity(acts ?? []));
       }
