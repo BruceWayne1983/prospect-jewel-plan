@@ -52,9 +52,12 @@ export default function CurrentAccounts() {
 
   // All established (unfiltered) for stats
   const allEstablished = useMemo(
-    () => retailers.filter((r) => r.pipeline_stage === "approved"),
+    () => retailers.filter((r) => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk"),
     [retailers]
   );
+
+  const retentionRisk = useMemo(() => retailers.filter(r => r.pipeline_stage === "retention_risk"), [retailers]);
+  const alerts = useMemo(() => computeAlerts(allEstablished, calendarEvents), [allEstablished, calendarEvents]);
 
   const runBulkAIAnalysis = async () => {
     const unanalysed = allEstablished.filter((r) => {
