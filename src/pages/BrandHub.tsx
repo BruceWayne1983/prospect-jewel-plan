@@ -11,6 +11,8 @@ import {
   Tag, Eye, Download, Search, FolderOpen, Package, ChevronDown, ChevronUp, Star, ShoppingBag, ScrollText
 } from "lucide-react";
 import BrandGuidelinesReview from "@/components/brand/BrandGuidelinesReview";
+import NewComposableBaseGuide from "@/components/brand/NewComposableBaseGuide";
+import RetailerPoliciesGuide from "@/components/brand/RetailerPoliciesGuide";
 
 const CATEGORIES = [
   { value: "imagery", label: "Imagery & Photography", icon: ImageIcon },
