@@ -322,6 +322,7 @@ export default function ProspectDiscovery() {
     setScanType('full');
     setScanProgress("Running full territory scan across all counties...");
     try {
+      await ensureSession();
       const { data, error } = await supabase.functions.invoke("discover-prospects", {
         body: { fullScan: true },
       });
