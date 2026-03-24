@@ -4,6 +4,8 @@ import { useRetailers } from "@/hooks/useRetailers";
 import { MapPin, Filter, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { TerritoryLeafletMap } from "@/components/map/TerritoryLeafletMap";
 
 const clusters = [
