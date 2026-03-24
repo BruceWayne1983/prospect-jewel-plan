@@ -13,6 +13,7 @@ export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
   { key: 'meeting_booked', label: 'Meeting Booked' },
   { key: 'under_review', label: 'Under Review' },
   { key: 'approved', label: 'Approved Prospect' },
+  { key: 'retention_risk', label: 'Retention Risk' },
   { key: 'rejected', label: 'Rejected' },
 ];
 
