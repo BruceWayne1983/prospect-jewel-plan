@@ -1,6 +1,6 @@
 // Types
 export type RetailerCategory = 'jeweller' | 'gift_shop' | 'fashion_boutique' | 'lifestyle_store' | 'premium_accessories' | 'concept_store';
-export type PipelineStage = 'new_lead' | 'research_needed' | 'qualified' | 'priority_outreach' | 'contacted' | 'follow_up_needed' | 'meeting_booked' | 'under_review' | 'approved' | 'rejected';
+export type PipelineStage = 'new_lead' | 'research_needed' | 'qualified' | 'priority_outreach' | 'contacted' | 'follow_up_needed' | 'meeting_booked' | 'under_review' | 'approved' | 'rejected' | 'retention_risk';
 export type StorePositioning = 'premium' | 'mid_market' | 'budget';
 
 export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
