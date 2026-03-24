@@ -242,11 +242,29 @@ export default function ProspectDiscovery() {
     toast.success(`${p.name} promoted to Pipeline!`);
   };
 
+  const ensureSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Wait for auto-login to complete
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Please wait for login to complete and try again")), 10000);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+          if (sess) {
+            clearTimeout(timeout);
+            subscription.unsubscribe();
+            resolve();
+          }
+        });
+      });
+    }
+  };
+
   const runAIScan = async () => {
     setScanning(true);
     setScanType('ai');
     setScanProgress("Generating prospects...");
     try {
+      await ensureSession();
       const body: any = { count: 15 };
       if (selectedCounty !== "all") body.county = selectedCounty;
       if (selectedCategory !== "all") body.category = selectedCategory;
@@ -277,6 +295,7 @@ export default function ProspectDiscovery() {
     setScanType('web');
     setScanProgress(`Searching the web for real stores in ${selectedCounty}...`);
     try {
+      await ensureSession();
       const body: any = { county: selectedCounty };
       if (selectedCategory !== "all") body.category = selectedCategory;
 
@@ -303,6 +322,7 @@ export default function ProspectDiscovery() {
     setScanType('full');
     setScanProgress("Running full territory scan across all counties...");
     try {
+      await ensureSession();
       const { data, error } = await supabase.functions.invoke("discover-prospects", {
         body: { fullScan: true },
       });
@@ -336,6 +356,7 @@ export default function ProspectDiscovery() {
     setScanType('brand');
     setScanProgress(`Finding retailers that stock ${searchBrand}...`);
     try {
+      await ensureSession();
       const body: any = { brand: searchBrand, count: 12 };
       if (selectedCounty !== "all") body.county = selectedCounty;
 
