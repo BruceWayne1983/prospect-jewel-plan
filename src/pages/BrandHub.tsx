@@ -341,93 +341,113 @@ export default function BrandHub() {
         </div>
       </div>
 
-      {/* Upload Controls */}
-      <div className="card-premium p-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={uploadCategory} onValueChange={setUploadCategory}>
-            <SelectTrigger className="w-[220px] h-8 text-xs bg-cream/30 border-border/30">
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              {CATEGORIES.map(c => (
-                <SelectItem key={c.value} value={c.value}>
-                  <span className="flex items-center gap-2">
-                    <c.icon className="w-3.5 h-3.5" />
-                    {c.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,.pdf,.docx,.xlsx,.pptx,.doc,.xls,.ppt,.csv,.txt"
-            className="hidden"
-            onChange={(e) => handleUpload(e.target.files)}
-          />
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="gold-gradient text-sidebar-background text-xs h-8 px-4"
-          >
-            {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1.5" />}
-            {uploading ? "Uploading..." : "Upload Files"}
-          </Button>
-
-          <div className="h-6 w-px bg-border/30" />
-
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <Input
-              placeholder="Search assets, tags, AI summaries..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Category Tabs + Assets */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-card border border-border/20 p-1 h-auto flex-wrap">
-          <TabsTrigger value="all" className="text-[11px] px-3 py-1.5 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark">
-            All ({assets.length})
+      {/* Main Tabs */}
+      <Tabs value={mainTab} onValueChange={setMainTab}>
+        <TabsList className="bg-card border border-border/20 p-1 h-auto">
+          <TabsTrigger value="assets" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
+            <FolderOpen className="w-3.5 h-3.5" />
+            Brand Assets
           </TabsTrigger>
-          {categoryCounts.filter(c => c.count > 0).map(c => (
-            <TabsTrigger key={c.value} value={c.value} className="text-[11px] px-3 py-1.5 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark">
-              {c.label} ({c.count})
-            </TabsTrigger>
-          ))}
+          <TabsTrigger value="guidelines" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
+            <ScrollText className="w-3.5 h-3.5" />
+            Brand Guidelines & Store Requirements
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeTab} className="mt-4">
-          {filteredAssets.length === 0 ? (
-            <div className="card-premium p-12 text-center">
-              <FolderOpen className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground font-medium">
-                {searchQuery ? "No assets match your search" : "No assets uploaded yet"}
-              </p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
-                Upload catalogues, imagery, price lists and brand guidelines to power the AI engines
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredAssets.map(asset => (
-                <AssetCard
-                  key={asset.id}
-                  asset={asset}
-                  onDelete={handleDelete}
-                  onAnalyse={handleAnalyse}
-                  analysing={analysing}
+        <TabsContent value="assets" className="mt-4 space-y-4">
+          {/* Upload Controls */}
+          <div className="card-premium p-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                <SelectTrigger className="w-[220px] h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => (
+                    <SelectItem key={c.value} value={c.value}>
+                      <span className="flex items-center gap-2">
+                        <c.icon className="w-3.5 h-3.5" />
+                        {c.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.docx,.xlsx,.pptx,.doc,.xls,.ppt,.csv,.txt"
+                className="hidden"
+                onChange={(e) => handleUpload(e.target.files)}
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="gold-gradient text-sidebar-background text-xs h-8 px-4"
+              >
+                {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1.5" />}
+                {uploading ? "Uploading..." : "Upload Files"}
+              </Button>
+
+              <div className="h-6 w-px bg-border/30" />
+
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
+                <Input
+                  placeholder="Search assets, tags, AI summaries..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
                 />
-              ))}
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Category Tabs + Assets */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="bg-card border border-border/20 p-1 h-auto flex-wrap">
+              <TabsTrigger value="all" className="text-[11px] px-3 py-1.5 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark">
+                All ({assets.length})
+              </TabsTrigger>
+              {categoryCounts.filter(c => c.count > 0).map(c => (
+                <TabsTrigger key={c.value} value={c.value} className="text-[11px] px-3 py-1.5 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark">
+                  {c.label} ({c.count})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value={activeTab} className="mt-4">
+              {filteredAssets.length === 0 ? (
+                <div className="card-premium p-12 text-center">
+                  <FolderOpen className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {searchQuery ? "No assets match your search" : "No assets uploaded yet"}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    Upload catalogues, imagery, price lists and brand guidelines to power the AI engines
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredAssets.map(asset => (
+                    <AssetCard
+                      key={asset.id}
+                      asset={asset}
+                      onDelete={handleDelete}
+                      onAnalyse={handleAnalyse}
+                      analysing={analysing}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="guidelines" className="mt-4">
+          <BrandGuidelinesReview />
         </TabsContent>
       </Tabs>
     </div>
