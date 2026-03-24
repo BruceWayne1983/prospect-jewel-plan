@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [prospectCount, setProspectCount] = useState(0);
   const [profile, setProfile] = useState<{ display_name: string | null } | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<Tables<"calendar_events">[]>([]);
+  const [allEvents, setAllEvents] = useState<Tables<"calendar_events">[]>([]);
   const [recentActivity, setRecentActivity] = useState<Tables<"activity_log">[]>([]);
 
   useEffect(() => {
