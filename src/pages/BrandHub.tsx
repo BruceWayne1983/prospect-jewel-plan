@@ -13,6 +13,8 @@ import {
 import BrandGuidelinesReview from "@/components/brand/BrandGuidelinesReview";
 import NewComposableBaseGuide from "@/components/brand/NewComposableBaseGuide";
 import RetailerPoliciesGuide from "@/components/brand/RetailerPoliciesGuide";
+import StaffTrainingGuide from "@/components/brand/StaffTrainingGuide";
+import MarketingPromotionsGuide from "@/components/brand/MarketingPromotionsGuide";
 
 const CATEGORIES = [
   { value: "imagery", label: "Imagery & Photography", icon: ImageIcon },
