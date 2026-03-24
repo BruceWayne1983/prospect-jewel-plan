@@ -149,12 +149,12 @@ export default function Reports() {
         </div>
       )}
 
-      {retailers.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-sm">No data to report yet.</p>
-          <p className="text-xs mt-1">Promote prospects from the Discovery Engine or upload sales data in the Data Hub.</p>
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="earnings" className="space-y-5 mt-0">
+          <EarningsTracker retailers={retailers} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
