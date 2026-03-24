@@ -295,6 +295,7 @@ export default function ProspectDiscovery() {
     setScanType('web');
     setScanProgress(`Searching the web for real stores in ${selectedCounty}...`);
     try {
+      await ensureSession();
       const body: any = { county: selectedCounty };
       if (selectedCategory !== "all") body.category = selectedCategory;
 
