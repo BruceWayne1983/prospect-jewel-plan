@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Upload, Loader2, Trash2, FileText, Image as ImageIcon, BookOpen, Palette, Sparkles,
-  Tag, Eye, Download, Search, FolderOpen, Package, ChevronDown, ChevronUp, Star, ShoppingBag
+  Tag, Eye, Download, Search, FolderOpen, Package, ChevronDown, ChevronUp, Star, ShoppingBag, ScrollText
 } from "lucide-react";
+import BrandGuidelinesReview from "@/components/brand/BrandGuidelinesReview";
 
 const CATEGORIES = [
   { value: "imagery", label: "Imagery & Photography", icon: ImageIcon },
