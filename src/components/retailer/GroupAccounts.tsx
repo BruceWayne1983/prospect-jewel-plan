@@ -24,7 +24,7 @@ export function GroupAccounts({ retailer: r, onUpdate }: GroupAccountsProps) {
 
   useEffect(() => {
     // Fetch children (retailers that reference this one as parent)
-    supabase.from("retailers").select("*").eq("parent_account_id" as any, r.id).then(({ data }) => setChildren((data as Retailer[]) ?? []));
+    supabase.from("retailers").select("*").eq("parent_account_id" as any, r.id).then((res: any) => setChildren((res.data as Retailer[]) ?? []));
 
     // Fetch parent if set
     if ((r as any).parent_account_id) {
