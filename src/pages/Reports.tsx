@@ -38,6 +38,13 @@ export default function Reports() {
       </div>
       <div className="divider-gold" />
 
+      <Tabs defaultValue="territory" className="space-y-5">
+        <TabsList className="bg-cream/50 border border-border/30 p-1 h-auto gap-1">
+          <TabsTrigger value="territory" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">📊 Territory</TabsTrigger>
+          <TabsTrigger value="earnings" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">💰 Earnings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="territory" className="space-y-5 mt-0">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         {[
           { icon: Users, label: "Total Prospects", value: retailers.length.toString() },
