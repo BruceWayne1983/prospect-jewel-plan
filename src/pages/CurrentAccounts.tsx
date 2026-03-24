@@ -289,6 +289,7 @@ export default function CurrentAccounts() {
             <SelectItem value="spend">Spend Potential</SelectItem>
             <SelectItem value="recent">Recently Updated</SelectItem>
             <SelectItem value="health">Health Score</SelectItem>
+            <SelectItem value="yoy">YoY Growth</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-[10px] text-muted-foreground ml-auto">
