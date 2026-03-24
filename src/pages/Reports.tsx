@@ -3,7 +3,9 @@ import { useRetailers } from "@/hooks/useRetailers";
 import { useDataInsights } from "@/hooks/useDataInsights";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
-import { TrendingUp, Target, Users, Loader2, Sparkles, Database, BarChart3 } from "lucide-react";
+import { TrendingUp, Target, Users, Loader2, Sparkles, Database, BarChart3, PoundSterling } from "lucide-react";
+import { EarningsTracker } from "@/components/earnings/EarningsTracker";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Reports() {
   const navigate = useNavigate();
