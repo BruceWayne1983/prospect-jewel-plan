@@ -81,7 +81,7 @@ export default function TerritoryMap() {
 
       {/* Interactive Map */}
       <div className="card-premium p-1 overflow-hidden">
-        <TerritoryLeafletMap retailers={filtered} />
+        <TerritoryLeafletMap retailers={filtered} showGaps={showGaps} />
       </div>
 
       {/* Clusters */}
