@@ -183,13 +183,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch existing names for deduplication
-    const { data: existingRetailers } = await supabase.from("retailers").select("name");
+    // Fetch existing names for deduplication (retailers = current accounts)
+    const { data: existingRetailers } = await supabase.from("retailers").select("name, town");
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name");
-    const existingNames = [
-      ...(existingRetailers || []).map((r: any) => r.name),
-      ...(existingProspects || []).map((p: any) => p.name),
-    ];
+    const retailerNames = (existingRetailers || []).map((r: any) => r.name);
+    const prospectNames = (existingProspects || []).map((p: any) => p.name);
+    const existingNames = [...retailerNames, ...prospectNames];
+
+    // Build a normalized list of current account names for fuzzy matching
+    const normalizedRetailerNames = retailerNames.map((n: string) => ({
+      original: n,
+      normalized: n.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim(),
+      words: n.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").split(/\s+/).filter((w: string) => w.length > 2),
+    }));
 
     // Fetch disqualification patterns for AI learning
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
