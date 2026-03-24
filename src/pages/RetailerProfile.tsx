@@ -8,6 +8,8 @@ import { FollowUpDrafter } from "@/components/retailer/FollowUpDrafter";
 import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
 import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
 import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
+import { BillingPanel } from "@/components/retailer/BillingPanel";
+import { GroupAccounts } from "@/components/retailer/GroupAccounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
@@ -225,6 +227,26 @@ export default function RetailerProfile() {
               <Route className="w-3.5 h-3.5 mr-1.5" />
               Add to Route
             </Button>
+            {(r.pipeline_stage === "approved") && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8 px-4 border-warning/30 text-warning hover:bg-warning/10"
+                onClick={async () => {
+                  const note = prompt("Why is this account at risk?");
+                  if (!note) return;
+                  const { error } = await supabase.from("retailers").update({ 
+                    pipeline_stage: "retention_risk" as any,
+                    risk_flags: [...(r.risk_flags ?? []), note],
+                  }).eq("id", r.id);
+                  if (error) toast.error("Failed to flag");
+                  else { toast.success("Flagged for retention"); fetchRetailer(); }
+                }}
+              >
+                <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
+                Flag for Retention
+              </Button>
+            )}
           </div>
         </div>
 
@@ -329,6 +351,14 @@ export default function RetailerProfile() {
               </div>
             </div>
           )}
+
+          {/* Billing Performance (for approved/retention_risk) */}
+          {(r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk") && (
+            <BillingPanel retailer={r} onUpdate={fetchRetailer} />
+          )}
+
+          {/* Group Accounts */}
+          <GroupAccounts retailer={r} onUpdate={fetchRetailer} />
         </TabsContent>
 
         {/* RESEARCH */}

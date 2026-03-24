@@ -8,6 +8,8 @@ import { ScoreBar } from "@/components/ScoreIndicators";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { EarningsTracker } from "@/components/earnings/EarningsTracker";
+import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlerts";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function Dashboard() {
   const [prospectCount, setProspectCount] = useState(0);
   const [profile, setProfile] = useState<{ display_name: string | null } | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<Tables<"calendar_events">[]>([]);
+  const [allEvents, setAllEvents] = useState<Tables<"calendar_events">[]>([]);
   const [recentActivity, setRecentActivity] = useState<Tables<"activity_log">[]>([]);
 
   useEffect(() => {
@@ -26,6 +29,8 @@ export default function Dashboard() {
         // Fetch upcoming calendar events
         const today = new Date().toISOString().split("T")[0];
         supabase.from("calendar_events").select("*").eq("user_id", data.user.id).gte("date", today).eq("completed", false).order("date", { ascending: true }).limit(6).then(({ data: events }) => setUpcomingEvents(events ?? []));
+        // Fetch all events for alerts
+        supabase.from("calendar_events").select("*").eq("user_id", data.user.id).then(({ data: events }) => setAllEvents(events ?? []));
         // Fetch recent activity
         supabase.from("activity_log").select("*").eq("user_id", data.user.id).order("created_at", { ascending: false }).limit(8).then(({ data: acts }) => setRecentActivity(acts ?? []));
       }
@@ -37,8 +42,8 @@ export default function Dashboard() {
   }
 
   // Core segments
-  const currentAccounts = retailers.filter(r => r.pipeline_stage === "approved");
-  const activeProspects = retailers.filter(r => !["approved", "rejected"].includes(r.pipeline_stage));
+  const currentAccounts = retailers.filter(r => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk");
+  const activeProspects = retailers.filter(r => !["approved", "rejected", "retention_risk"].includes(r.pipeline_stage));
   const highPriority = retailers.filter(r => getOutreach(r).outreachPriority === "high").sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
   const atRisk = currentAccounts.filter(r => (r.risk_flags ?? []).length > 0);
   const withMeetings = retailers.filter(r => getActivity(r).meetingScheduled);
@@ -89,6 +94,12 @@ export default function Dashboard() {
         </div>
       </div>
       <div className="divider-gold" />
+
+      {/* Proactive Alerts */}
+      <AlertsSection alerts={computeAlerts(retailers, allEvents)} maxItems={5} />
+
+      {/* Earnings Summary */}
+      <EarningsTracker retailers={retailers} compact />
 
       {/* Key Sales Metrics - Top Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">

@@ -3,7 +3,9 @@ import { useRetailers } from "@/hooks/useRetailers";
 import { useDataInsights } from "@/hooks/useDataInsights";
 import { useNavigate } from "react-router-dom";
 import { ScoreBar } from "@/components/ScoreIndicators";
-import { TrendingUp, Target, Users, Loader2, Sparkles, Database, BarChart3 } from "lucide-react";
+import { TrendingUp, Target, Users, Loader2, Sparkles, Database, BarChart3, PoundSterling } from "lucide-react";
+import { EarningsTracker } from "@/components/earnings/EarningsTracker";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Reports() {
   const navigate = useNavigate();
@@ -36,6 +38,13 @@ export default function Reports() {
       </div>
       <div className="divider-gold" />
 
+      <Tabs defaultValue="territory" className="space-y-5">
+        <TabsList className="bg-cream/50 border border-border/30 p-1 h-auto gap-1">
+          <TabsTrigger value="territory" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">📊 Territory</TabsTrigger>
+          <TabsTrigger value="earnings" className="text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">💰 Earnings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="territory" className="space-y-5 mt-0">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         {[
           { icon: Users, label: "Total Prospects", value: retailers.length.toString() },
@@ -140,12 +149,12 @@ export default function Reports() {
         </div>
       )}
 
-      {retailers.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-sm">No data to report yet.</p>
-          <p className="text-xs mt-1">Promote prospects from the Discovery Engine or upload sales data in the Data Hub.</p>
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="earnings" className="space-y-5 mt-0">
+          <EarningsTracker retailers={retailers} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

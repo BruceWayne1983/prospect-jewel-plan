@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRetailers, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling } from "lucide-react";
+import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,8 @@ import { AccountCard } from "@/components/accounts/AccountCard";
 import { AtRiskSection } from "@/components/accounts/AtRiskSection";
 import { AccountHealthSummary } from "@/components/accounts/AccountHealthSummary";
 import { getAccountHealth } from "@/utils/accountHealth";
+import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlerts";
+import type { Tables } from "@/integrations/supabase/types";
 
 export default function CurrentAccounts() {
   const { retailers, loading, refetch } = useRetailers();
@@ -19,9 +21,19 @@ export default function CurrentAccounts() {
   const [filterCounty, setFilterCounty] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState("priority");
+  const [viewTab, setViewTab] = useState<"all" | "alerts" | "retention">("all");
   const [syncing, setSyncing] = useState(false);
   const [analysingAll, setAnalysingAll] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
+  const [calendarEvents, setCalendarEvents] = useState<Tables<"calendar_events">[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        supabase.from("calendar_events").select("*").eq("user_id", data.user.id).then(({ data: events }) => setCalendarEvents(events ?? []));
+      }
+    });
+  }, []);
 
   const syncFromDataHub = async () => {
     setSyncing(true);
@@ -40,9 +52,12 @@ export default function CurrentAccounts() {
 
   // All established (unfiltered) for stats
   const allEstablished = useMemo(
-    () => retailers.filter((r) => r.pipeline_stage === "approved"),
+    () => retailers.filter((r) => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk"),
     [retailers]
   );
+
+  const retentionRisk = useMemo(() => retailers.filter(r => r.pipeline_stage === "retention_risk"), [retailers]);
+  const alerts = useMemo(() => computeAlerts(allEstablished, calendarEvents), [allEstablished, calendarEvents]);
 
   const runBulkAIAnalysis = async () => {
     const unanalysed = allEstablished.filter((r) => {
@@ -75,12 +90,30 @@ export default function CurrentAccounts() {
   const established = useMemo(() => {
     let list = [...allEstablished];
 
+    // Tab filter
+    if (viewTab === "alerts") {
+      const alertIds = new Set(alerts.map(a => a.retailerId));
+      list = list.filter(r => alertIds.has(r.id));
+    } else if (viewTab === "retention") {
+      list = list.filter(r => r.pipeline_stage === "retention_risk");
+    }
+
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((r) => r.name.toLowerCase().includes(q) || r.town.toLowerCase().includes(q));
     }
     if (filterCounty !== "all") list = list.filter((r) => r.county === filterCounty);
     if (filterCategory !== "all") list = list.filter((r) => r.category === filterCategory);
+
+    const getYoYGrowth = (r: any) => {
+      const b2025 = parseFloat(r.billing_2025_full_year) || 0;
+      const b2026ytd = parseFloat(r.billing_2026_ytd) || 0;
+      if (b2025 === 0) return 0;
+      const now = new Date();
+      const months = now.getMonth() + (now.getDate() / 30);
+      const projected = months > 0 ? b2026ytd * (12 / months) : 0;
+      return ((projected - b2025) / b2025) * 100;
+    };
 
     list.sort((a, b) => {
       switch (sortBy) {
@@ -89,11 +122,12 @@ export default function CurrentAccounts() {
         case "spend": return (b.spend_potential_score ?? 0) - (a.spend_potential_score ?? 0);
         case "recent": return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
         case "health": return getAccountHealth(b).score - getAccountHealth(a).score;
+        case "yoy": return getYoYGrowth(b) - getYoYGrowth(a);
         default: return (b.priority_score ?? 0) - (a.priority_score ?? 0);
       }
     });
     return list;
-  }, [allEstablished, search, filterCounty, filterCategory, sortBy]);
+  }, [allEstablished, search, filterCounty, filterCategory, sortBy, viewTab, alerts]);
 
   // Stats from unfiltered list
   const totalValue = allEstablished.reduce((s, r) => {
@@ -188,8 +222,38 @@ export default function CurrentAccounts() {
       {/* Account Health Summary */}
       <AccountHealthSummary retailers={allEstablished} />
 
+      {/* Billing Alerts */}
+      <AlertsSection alerts={alerts} />
+
       {/* At-Risk Accounts */}
       <AtRiskSection retailers={allEstablished} />
+
+      {/* Retention Risk Section */}
+      {retentionRisk.length > 0 && (
+        <div className="card-premium p-6 border-warning/20">
+          <div className="flex items-center gap-2.5 mb-4">
+            <ShieldAlert className="w-5 h-5 text-warning" strokeWidth={1.5} />
+            <h3 className="text-lg font-display font-semibold text-foreground">Retention Risk ({retentionRisk.length})</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {retentionRisk.map(r => <AccountCard key={r.id} retailer={r} />)}
+          </div>
+        </div>
+      )}
+
+      {/* View Tabs */}
+      <div className="flex items-center gap-2">
+        {([
+          { key: "all" as const, label: "All Accounts" },
+          { key: "alerts" as const, label: `Alerts (${alerts.length})` },
+          { key: "retention" as const, label: `Retention (${retentionRisk.length})` },
+        ]).map(tab => (
+          <button key={tab.key} onClick={() => setViewTab(tab.key)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${viewTab === tab.key ? 'gold-gradient text-sidebar-background' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -225,6 +289,7 @@ export default function CurrentAccounts() {
             <SelectItem value="spend">Spend Potential</SelectItem>
             <SelectItem value="recent">Recently Updated</SelectItem>
             <SelectItem value="health">Health Score</SelectItem>
+            <SelectItem value="yoy">YoY Growth</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-[10px] text-muted-foreground ml-auto">

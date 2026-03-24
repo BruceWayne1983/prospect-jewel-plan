@@ -4,6 +4,8 @@ import { useRetailers } from "@/hooks/useRetailers";
 import { MapPin, Filter, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { TerritoryLeafletMap } from "@/components/map/TerritoryLeafletMap";
 
 const clusters = [
@@ -21,6 +23,7 @@ export default function TerritoryMap() {
   const navigate = useNavigate();
   const { retailers, loading } = useRetailers();
   const [filter, setFilter] = useState("all");
+  const [showGaps, setShowGaps] = useState(false);
 
   const filtered = useMemo(() => {
     const getActivity = (r: any) => ((r.activity ?? {}) as Record<string, any>);
@@ -54,6 +57,10 @@ export default function TerritoryMap() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-3">
+            <Switch id="gaps" checked={showGaps} onCheckedChange={setShowGaps} />
+            <Label htmlFor="gaps" className="text-xs text-muted-foreground cursor-pointer">Coverage Gaps</Label>
+          </div>
           <Filter className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-48 bg-background border-border/40 h-9 text-xs">
@@ -74,7 +81,7 @@ export default function TerritoryMap() {
 
       {/* Interactive Map */}
       <div className="card-premium p-1 overflow-hidden">
-        <TerritoryLeafletMap retailers={filtered} />
+        <TerritoryLeafletMap retailers={filtered} showGaps={showGaps} />
       </div>
 
       {/* Clusters */}

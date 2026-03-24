@@ -318,6 +318,39 @@ export type Database = {
         }
         Relationships: []
       }
+      journey_plans: {
+        Row: {
+          created_at: string
+          id: string
+          plan_name: string
+          planned_date: string | null
+          status: string
+          stops: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_name: string
+          planned_date?: string | null
+          status?: string
+          stops?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_name?: string
+          planned_date?: string | null
+          status?: string
+          stops?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -438,6 +471,10 @@ export type Database = {
           address: string | null
           ai_intelligence: Json | null
           ai_notes: string | null
+          billing_2024_full_year: number | null
+          billing_2025_full_year: number | null
+          billing_2026_ytd: number | null
+          billing_last_updated: string | null
           category: Database["public"]["Enums"]["retailer_category"]
           commercial_health_score: number | null
           competitor_brands: Json | null
@@ -459,6 +496,7 @@ export type Database = {
           location_context: string | null
           name: string
           outreach: Json | null
+          parent_account_id: string | null
           performance_prediction: Json | null
           phone: string | null
           pipeline_stage: Database["public"]["Enums"]["pipeline_stage"]
@@ -488,6 +526,10 @@ export type Database = {
           address?: string | null
           ai_intelligence?: Json | null
           ai_notes?: string | null
+          billing_2024_full_year?: number | null
+          billing_2025_full_year?: number | null
+          billing_2026_ytd?: number | null
+          billing_last_updated?: string | null
           category?: Database["public"]["Enums"]["retailer_category"]
           commercial_health_score?: number | null
           competitor_brands?: Json | null
@@ -509,6 +551,7 @@ export type Database = {
           location_context?: string | null
           name: string
           outreach?: Json | null
+          parent_account_id?: string | null
           performance_prediction?: Json | null
           phone?: string | null
           pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"]
@@ -538,6 +581,10 @@ export type Database = {
           address?: string | null
           ai_intelligence?: Json | null
           ai_notes?: string | null
+          billing_2024_full_year?: number | null
+          billing_2025_full_year?: number | null
+          billing_2026_ytd?: number | null
+          billing_last_updated?: string | null
           category?: Database["public"]["Enums"]["retailer_category"]
           commercial_health_score?: number | null
           competitor_brands?: Json | null
@@ -559,6 +606,7 @@ export type Database = {
           location_context?: string | null
           name?: string
           outreach?: Json | null
+          parent_account_id?: string | null
           performance_prediction?: Json | null
           phone?: string | null
           pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"]
@@ -584,6 +632,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "retailers_parent_account_id_fkey"
+            columns: ["parent_account_id"]
+            isOneToOne: false
+            referencedRelation: "retailers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "retailers_retail_location_id_fkey"
             columns: ["retail_location_id"]
@@ -682,6 +737,7 @@ export type Database = {
         | "under_review"
         | "approved"
         | "rejected"
+        | "retention_risk"
       prospect_status: "new" | "reviewing" | "accepted" | "dismissed"
       retailer_category:
         | "jeweller"
@@ -830,6 +886,7 @@ export const Constants = {
         "under_review",
         "approved",
         "rejected",
+        "retention_risk",
       ],
       prospect_status: ["new", "reviewing", "accepted", "dismissed"],
       retailer_category: [

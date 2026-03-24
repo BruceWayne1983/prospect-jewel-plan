@@ -73,7 +73,9 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a sales coach for Nomination Italy (premium Italian charm jewellery). Generate a concise, actionable pre-visit briefing that a sales rep can read in 60 seconds before walking into the store. Be specific, practical, and commercially focused.",
+            content: retailer.pipeline_stage === 'retention_risk'
+              ? "You are a sales coach for Nomination Italy (premium Italian charm jewellery). This retailer is flagged as RETENTION RISK — an existing stockist showing decline signals. Generate a pre-visit briefing focused on RECOVERY STRATEGY: relationship repair, range review, understanding why orders have dropped, win-back tactics, and re-engagement. Do NOT pitch as if this is a new account."
+              : "You are a sales coach for Nomination Italy (premium Italian charm jewellery). Generate a concise, actionable pre-visit briefing that a sales rep can read in 60 seconds before walking into the store. Be specific, practical, and commercially focused.",
           },
           {
             role: "user",

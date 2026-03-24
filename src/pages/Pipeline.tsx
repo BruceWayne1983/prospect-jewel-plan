@@ -67,7 +67,7 @@ export default function Pipeline() {
                 <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{stage.label}</h3>
                 <span className="text-[10px] text-muted-foreground bg-champagne/50 px-2 py-0.5 rounded-full font-medium">{stageRetailers.length}</span>
               </div>
-              <div className="space-y-2.5 min-h-[200px] p-2 bg-cream/50 rounded-xl border border-border/20">
+              <div className={`space-y-2.5 min-h-[200px] p-2 rounded-xl border ${stage.key === 'retention_risk' ? 'bg-warning/5 border-warning/20' : 'bg-cream/50 border-border/20'}`}>
                 {stageRetailers.map(r => {
                   const fitScore = r.fit_score ?? 0;
                   const outreach = r.outreach as any ?? {};
