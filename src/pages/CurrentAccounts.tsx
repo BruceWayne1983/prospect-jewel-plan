@@ -21,9 +21,19 @@ export default function CurrentAccounts() {
   const [filterCounty, setFilterCounty] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState("priority");
+  const [viewTab, setViewTab] = useState<"all" | "alerts" | "retention">("all");
   const [syncing, setSyncing] = useState(false);
   const [analysingAll, setAnalysingAll] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
+  const [calendarEvents, setCalendarEvents] = useState<Tables<"calendar_events">[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        supabase.from("calendar_events").select("*").eq("user_id", data.user.id).then(({ data: events }) => setCalendarEvents(events ?? []));
+      }
+    });
+  }, []);
 
   const syncFromDataHub = async () => {
     setSyncing(true);
