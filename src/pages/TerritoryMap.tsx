@@ -23,6 +23,7 @@ export default function TerritoryMap() {
   const navigate = useNavigate();
   const { retailers, loading } = useRetailers();
   const [filter, setFilter] = useState("all");
+  const [showGaps, setShowGaps] = useState(false);
 
   const filtered = useMemo(() => {
     const getActivity = (r: any) => ((r.activity ?? {}) as Record<string, any>);
