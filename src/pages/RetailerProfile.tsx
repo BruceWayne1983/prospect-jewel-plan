@@ -8,6 +8,8 @@ import { FollowUpDrafter } from "@/components/retailer/FollowUpDrafter";
 import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
 import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
 import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
+import { BillingPanel } from "@/components/retailer/BillingPanel";
+import { GroupAccounts } from "@/components/retailer/GroupAccounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
