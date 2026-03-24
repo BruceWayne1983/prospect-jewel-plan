@@ -57,6 +57,10 @@ export default function TerritoryMap() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-3">
+            <Switch id="gaps" checked={showGaps} onCheckedChange={setShowGaps} />
+            <Label htmlFor="gaps" className="text-xs text-muted-foreground cursor-pointer">Coverage Gaps</Label>
+          </div>
           <Filter className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-48 bg-background border-border/40 h-9 text-xs">
