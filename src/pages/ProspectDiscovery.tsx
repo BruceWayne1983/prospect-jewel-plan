@@ -356,6 +356,7 @@ export default function ProspectDiscovery() {
     setScanType('brand');
     setScanProgress(`Finding retailers that stock ${searchBrand}...`);
     try {
+      await ensureSession();
       const body: any = { brand: searchBrand, count: 12 };
       if (selectedCounty !== "all") body.county = selectedCounty;
 
