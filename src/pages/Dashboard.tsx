@@ -8,6 +8,8 @@ import { ScoreBar } from "@/components/ScoreIndicators";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { EarningsTracker } from "@/components/earnings/EarningsTracker";
+import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlerts";
 
 export default function Dashboard() {
   const navigate = useNavigate();
