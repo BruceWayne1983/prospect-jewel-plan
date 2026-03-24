@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarDays, Phone, MapPin, Users, MessageSquare, Briefcase, Clock, Loader2 } from "lucide-react";
+import { CalendarDays, Phone, MapPin, Users, MessageSquare, Briefcase, Clock, Loader2, Megaphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import PromotionsTracker from "@/components/calendar/PromotionsTracker";
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
