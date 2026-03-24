@@ -352,7 +352,15 @@ export default function BrandHub() {
           </TabsTrigger>
           <TabsTrigger value="guidelines" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
             <ScrollText className="w-3.5 h-3.5" />
-            Brand Guidelines & Store Requirements
+            Brand Guidelines & Scoring
+          </TabsTrigger>
+          <TabsTrigger value="composable" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            New Composable™ Base
+          </TabsTrigger>
+          <TabsTrigger value="policies" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
+            <BookOpen className="w-3.5 h-3.5" />
+            Retailer Policies & Sales
           </TabsTrigger>
         </TabsList>
 
