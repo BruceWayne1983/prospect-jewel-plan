@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store, Route, Gem, MapPinned
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store, Route, Gem, MapPinned, ClipboardCheck
 } from "lucide-react";
 import nominationLogo from "@/assets/nomination-logo.webp";
 import { NavLink } from "@/components/NavLink";
@@ -25,6 +25,7 @@ const navItems = [
   { title: "Account Planner", url: "/planner", icon: CalendarDays },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Brand Hub", url: "/brand", icon: Gem },
+  { title: "Weekly Review", url: "/weekly-review", icon: ClipboardCheck },
   { title: "Data Hub", url: "/data-hub", icon: FolderOpen },
 ];
 
