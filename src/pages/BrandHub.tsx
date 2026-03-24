@@ -477,6 +477,14 @@ export default function BrandHub() {
         <TabsContent value="policies" className="mt-4">
           <RetailerPoliciesGuide />
         </TabsContent>
+
+        <TabsContent value="training" className="mt-4">
+          <StaffTrainingGuide />
+        </TabsContent>
+
+        <TabsContent value="marketing" className="mt-4">
+          <MarketingPromotionsGuide />
+        </TabsContent>
       </Tabs>
     </div>
   );
