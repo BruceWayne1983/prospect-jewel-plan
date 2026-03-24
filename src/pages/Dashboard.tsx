@@ -95,6 +95,12 @@ export default function Dashboard() {
       </div>
       <div className="divider-gold" />
 
+      {/* Proactive Alerts */}
+      <AlertsSection alerts={computeAlerts(retailers, allEvents)} maxItems={5} />
+
+      {/* Earnings Summary */}
+      <EarningsTracker retailers={retailers} compact />
+
       {/* Key Sales Metrics - Top Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
