@@ -227,6 +227,26 @@ export default function RetailerProfile() {
               <Route className="w-3.5 h-3.5 mr-1.5" />
               Add to Route
             </Button>
+            {(r.pipeline_stage === "approved") && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8 px-4 border-warning/30 text-warning hover:bg-warning/10"
+                onClick={async () => {
+                  const note = prompt("Why is this account at risk?");
+                  if (!note) return;
+                  const { error } = await supabase.from("retailers").update({ 
+                    pipeline_stage: "retention_risk" as any,
+                    risk_flags: [...(r.risk_flags ?? []), note],
+                  }).eq("id", r.id);
+                  if (error) toast.error("Failed to flag");
+                  else { toast.success("Flagged for retention"); fetchRetailer(); }
+                }}
+              >
+                <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
+                Flag for Retention
+              </Button>
+            )}
           </div>
         </div>
 
