@@ -90,12 +90,30 @@ export default function CurrentAccounts() {
   const established = useMemo(() => {
     let list = [...allEstablished];
 
+    // Tab filter
+    if (viewTab === "alerts") {
+      const alertIds = new Set(alerts.map(a => a.retailerId));
+      list = list.filter(r => alertIds.has(r.id));
+    } else if (viewTab === "retention") {
+      list = list.filter(r => r.pipeline_stage === "retention_risk");
+    }
+
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((r) => r.name.toLowerCase().includes(q) || r.town.toLowerCase().includes(q));
     }
     if (filterCounty !== "all") list = list.filter((r) => r.county === filterCounty);
     if (filterCategory !== "all") list = list.filter((r) => r.category === filterCategory);
+
+    const getYoYGrowth = (r: any) => {
+      const b2025 = parseFloat(r.billing_2025_full_year) || 0;
+      const b2026ytd = parseFloat(r.billing_2026_ytd) || 0;
+      if (b2025 === 0) return 0;
+      const now = new Date();
+      const months = now.getMonth() + (now.getDate() / 30);
+      const projected = months > 0 ? b2026ytd * (12 / months) : 0;
+      return ((projected - b2025) / b2025) * 100;
+    };
 
     list.sort((a, b) => {
       switch (sortBy) {
@@ -104,11 +122,12 @@ export default function CurrentAccounts() {
         case "spend": return (b.spend_potential_score ?? 0) - (a.spend_potential_score ?? 0);
         case "recent": return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
         case "health": return getAccountHealth(b).score - getAccountHealth(a).score;
+        case "yoy": return getYoYGrowth(b) - getYoYGrowth(a);
         default: return (b.priority_score ?? 0) - (a.priority_score ?? 0);
       }
     });
     return list;
-  }, [allEstablished, search, filterCounty, filterCategory, sortBy]);
+  }, [allEstablished, search, filterCounty, filterCategory, sortBy, viewTab, alerts]);
 
   // Stats from unfiltered list
   const totalValue = allEstablished.reduce((s, r) => {
