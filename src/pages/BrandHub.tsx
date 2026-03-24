@@ -201,6 +201,7 @@ export default function BrandHub() {
   const [uploadCategory, setUploadCategory] = useState("general");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [mainTab, setMainTab] = useState("assets");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAssets = async () => {
