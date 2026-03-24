@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRetailers, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling } from "lucide-react";
+import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,8 @@ import { AccountCard } from "@/components/accounts/AccountCard";
 import { AtRiskSection } from "@/components/accounts/AtRiskSection";
 import { AccountHealthSummary } from "@/components/accounts/AccountHealthSummary";
 import { getAccountHealth } from "@/utils/accountHealth";
+import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlerts";
+import type { Tables } from "@/integrations/supabase/types";
 
 export default function CurrentAccounts() {
   const { retailers, loading, refetch } = useRetailers();
