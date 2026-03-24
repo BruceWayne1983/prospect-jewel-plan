@@ -222,8 +222,38 @@ export default function CurrentAccounts() {
       {/* Account Health Summary */}
       <AccountHealthSummary retailers={allEstablished} />
 
+      {/* Billing Alerts */}
+      <AlertsSection alerts={alerts} />
+
       {/* At-Risk Accounts */}
       <AtRiskSection retailers={allEstablished} />
+
+      {/* Retention Risk Section */}
+      {retentionRisk.length > 0 && (
+        <div className="card-premium p-6 border-warning/20">
+          <div className="flex items-center gap-2.5 mb-4">
+            <ShieldAlert className="w-5 h-5 text-warning" strokeWidth={1.5} />
+            <h3 className="text-lg font-display font-semibold text-foreground">Retention Risk ({retentionRisk.length})</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {retentionRisk.map(r => <AccountCard key={r.id} retailer={r} />)}
+          </div>
+        </div>
+      )}
+
+      {/* View Tabs */}
+      <div className="flex items-center gap-2">
+        {([
+          { key: "all" as const, label: "All Accounts" },
+          { key: "alerts" as const, label: `Alerts (${alerts.length})` },
+          { key: "retention" as const, label: `Retention (${retentionRisk.length})` },
+        ]).map(tab => (
+          <button key={tab.key} onClick={() => setViewTab(tab.key)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${viewTab === tab.key ? 'gold-gradient text-sidebar-background' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
