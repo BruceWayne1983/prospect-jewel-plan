@@ -107,9 +107,21 @@ Do NOT suggest toy stores, children's shops, or chain retailers.${excludeClause}
   const generated = JSON.parse(toolCall.function.arguments);
   const prospects = generated.prospects || [];
 
-  // Filter out any that snuck through with duplicate names
+  // Filter out any that match existing names (exact or fuzzy)
   const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
-  const unique = prospects.filter((p: any) => !lowerExisting.has(p.name.toLowerCase()));
+  const unique = prospects.filter((p: any) => {
+    const pLower = p.name.toLowerCase();
+    // Exact match
+    if (lowerExisting.has(pLower)) return false;
+    // Fuzzy: strip parenthetical suffixes and compare
+    const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+    for (const existing of existingNames) {
+      const eNorm = existing.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+      // If one name contains the other (handles "Shop" vs "Shop (Town)")
+      if (pNorm.length > 3 && eNorm.length > 3 && (pNorm.includes(eNorm) || eNorm.includes(pNorm))) return false;
+    }
+    return true;
+  });
 
   const toInsert = unique.map((p: any) => ({
     user_id: userId,
@@ -183,13 +195,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch existing names for deduplication
-    const { data: existingRetailers } = await supabase.from("retailers").select("name");
+    // Fetch existing names for deduplication (retailers = current accounts)
+    const { data: existingRetailers } = await supabase.from("retailers").select("name, town");
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name");
-    const existingNames = [
-      ...(existingRetailers || []).map((r: any) => r.name),
-      ...(existingProspects || []).map((p: any) => p.name),
-    ];
+    const retailerNames = (existingRetailers || []).map((r: any) => r.name);
+    const prospectNames = (existingProspects || []).map((p: any) => p.name);
+    const existingNames = [...retailerNames, ...prospectNames];
+
+    // Build a normalized list of current account names for fuzzy matching
+    const normalizedRetailerNames = retailerNames.map((n: string) => ({
+      original: n,
+      normalized: n.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim(),
+      words: n.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").split(/\s+/).filter((w: string) => w.length > 2),
+    }));
 
     // Fetch disqualification patterns for AI learning
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);

@@ -202,9 +202,17 @@ Deno.serve(async (req) => {
     }
 
     const extracted = JSON.parse(toolCall.function.arguments);
-    const prospects = (extracted.prospects || []).filter(
-      (p: any) => !existingNames.has(p.name.toLowerCase())
-    );
+    // Deduplicate — exact and fuzzy matching against current accounts
+    const prospects = (extracted.prospects || []).filter((p: any) => {
+      const pLower = p.name.toLowerCase();
+      if (existingNames.has(pLower)) return false;
+      const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+      for (const existing of Array.from(existingNames)) {
+        const eNorm = (existing as string).replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+        if (pNorm.length > 3 && eNorm.length > 3 && (pNorm.includes(eNorm) || eNorm.includes(pNorm))) return false;
+      }
+      return true;
+    });
 
     if (prospects.length === 0) {
       return new Response(JSON.stringify({ success: true, prospects: [], message: "All found stores already exist" }), {
