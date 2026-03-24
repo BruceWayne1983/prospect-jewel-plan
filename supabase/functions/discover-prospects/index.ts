@@ -107,9 +107,21 @@ Do NOT suggest toy stores, children's shops, or chain retailers.${excludeClause}
   const generated = JSON.parse(toolCall.function.arguments);
   const prospects = generated.prospects || [];
 
-  // Filter out any that snuck through with duplicate names
+  // Filter out any that match existing names (exact or fuzzy)
   const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
-  const unique = prospects.filter((p: any) => !lowerExisting.has(p.name.toLowerCase()));
+  const unique = prospects.filter((p: any) => {
+    const pLower = p.name.toLowerCase();
+    // Exact match
+    if (lowerExisting.has(pLower)) return false;
+    // Fuzzy: strip parenthetical suffixes and compare
+    const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+    for (const existing of existingNames) {
+      const eNorm = existing.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+      // If one name contains the other (handles "Shop" vs "Shop (Town)")
+      if (pNorm.length > 3 && eNorm.length > 3 && (pNorm.includes(eNorm) || eNorm.includes(pNorm))) return false;
+    }
+    return true;
+  });
 
   const toInsert = unique.map((p: any) => ({
     user_id: userId,

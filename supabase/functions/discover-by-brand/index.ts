@@ -202,9 +202,18 @@ For each prospect, explain the brand connection — why stocking "${brand}" (or 
     const prospects = generated.prospects || [];
     const similarBrands = generated.similar_brands || [];
 
-    // Deduplicate
+    // Deduplicate — exact and fuzzy matching against current accounts
     const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
-    const unique = prospects.filter((p: any) => !lowerExisting.has(p.name.toLowerCase()));
+    const unique = prospects.filter((p: any) => {
+      const pLower = p.name.toLowerCase();
+      if (lowerExisting.has(pLower)) return false;
+      const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+      for (const existing of existingNames) {
+        const eNorm = existing.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+        if (pNorm.length > 3 && eNorm.length > 3 && (pNorm.includes(eNorm) || eNorm.includes(pNorm))) return false;
+      }
+      return true;
+    });
 
     const toInsert = unique.map((p: any) => ({
       user_id: userId,
