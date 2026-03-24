@@ -351,6 +351,14 @@ export default function RetailerProfile() {
               </div>
             </div>
           )}
+
+          {/* Billing Performance (for approved/retention_risk) */}
+          {(r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk") && (
+            <BillingPanel retailer={r} onUpdate={fetchRetailer} />
+          )}
+
+          {/* Group Accounts */}
+          <GroupAccounts retailer={r} onUpdate={fetchRetailer} />
         </TabsContent>
 
         {/* RESEARCH */}
