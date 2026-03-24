@@ -25,6 +25,7 @@ const navItems = [
   { title: "Account Planner", url: "/planner", icon: CalendarDays },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Brand Hub", url: "/brand", icon: Gem },
+  { title: "Weekly Review", url: "/weekly-review", icon: ClipboardCheck },
   { title: "Data Hub", url: "/data-hub", icon: FolderOpen },
 ];
 

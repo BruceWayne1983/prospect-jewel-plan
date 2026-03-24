@@ -52,6 +52,7 @@ function AppRoutes() {
         <Route path="/brand" element={<BrandHub />} />
         <Route path="/locations" element={<RetailLocations />} />
         <Route path="/prospect/:id" element={<ProspectProfile />} />
+        <Route path="/weekly-review" element={<WeeklyReview />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
