@@ -23,18 +23,23 @@ export function GroupAccounts({ retailer: r, onUpdate }: GroupAccountsProps) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Fetch children (retailers that reference this one as parent)
-    supabase.from("retailers").select("*").eq("parent_account_id" as any, r.id).then((res: any) => setChildren((res.data as Retailer[]) ?? []));
+    const fetchGroup = async () => {
+      // Fetch children (retailers that reference this one as parent)
+      const { data: childData } = await (supabase.from("retailers").select("*") as any).eq("parent_account_id", r.id);
+      setChildren((childData as Retailer[]) ?? []);
 
-    // Fetch parent if set
-    if ((r as any).parent_account_id) {
-      supabase.from("retailers").select("*").eq("id", (r as any).parent_account_id).single().then((res: any) => {
-        if (res.data) {
-          setParent(res.data as Retailer);
-          supabase.from("retailers").select("*").eq("parent_account_id" as any, (r as any).parent_account_id).neq("id", r.id).then((sibRes: any) => setSiblings((sibRes.data as Retailer[]) ?? []));
+      // Fetch parent if set
+      const parentId = (r as any).parent_account_id;
+      if (parentId) {
+        const { data: parentData } = await supabase.from("retailers").select("*").eq("id", parentId).single();
+        if (parentData) {
+          setParent(parentData as Retailer);
+          const { data: sibData } = await (supabase.from("retailers").select("*") as any).eq("parent_account_id", parentId).neq("id", r.id);
+          setSiblings((sibData as Retailer[]) ?? []);
         }
-      });
-    }
+      }
+    };
+    fetchGroup();
   }, [r.id, (r as any).parent_account_id]);
 
   const doSearch = async (q: string) => {
