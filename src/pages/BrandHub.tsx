@@ -13,6 +13,8 @@ import {
 import BrandGuidelinesReview from "@/components/brand/BrandGuidelinesReview";
 import NewComposableBaseGuide from "@/components/brand/NewComposableBaseGuide";
 import RetailerPoliciesGuide from "@/components/brand/RetailerPoliciesGuide";
+import StaffTrainingGuide from "@/components/brand/StaffTrainingGuide";
+import MarketingPromotionsGuide from "@/components/brand/MarketingPromotionsGuide";
 
 const CATEGORIES = [
   { value: "imagery", label: "Imagery & Photography", icon: ImageIcon },
@@ -360,7 +362,15 @@ export default function BrandHub() {
           </TabsTrigger>
           <TabsTrigger value="policies" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
             <BookOpen className="w-3.5 h-3.5" />
-            Retailer Policies & Sales
+            Retailer Policies
+          </TabsTrigger>
+          <TabsTrigger value="training" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
+            <Star className="w-3.5 h-3.5" />
+            Staff Training
+          </TabsTrigger>
+          <TabsTrigger value="marketing" className="text-xs px-4 py-2 data-[state=active]:bg-champagne/40 data-[state=active]:text-gold-dark gap-1.5">
+            <Tag className="w-3.5 h-3.5" />
+            Marketing & POS
           </TabsTrigger>
         </TabsList>
 
@@ -466,6 +476,14 @@ export default function BrandHub() {
 
         <TabsContent value="policies" className="mt-4">
           <RetailerPoliciesGuide />
+        </TabsContent>
+
+        <TabsContent value="training" className="mt-4">
+          <StaffTrainingGuide />
+        </TabsContent>
+
+        <TabsContent value="marketing" className="mt-4">
+          <MarketingPromotionsGuide />
         </TabsContent>
       </Tabs>
     </div>
