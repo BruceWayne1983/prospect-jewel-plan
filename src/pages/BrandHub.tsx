@@ -459,6 +459,14 @@ export default function BrandHub() {
         <TabsContent value="guidelines" className="mt-4">
           <BrandGuidelinesReview />
         </TabsContent>
+
+        <TabsContent value="composable" className="mt-4">
+          <NewComposableBaseGuide />
+        </TabsContent>
+
+        <TabsContent value="policies" className="mt-4">
+          <RetailerPoliciesGuide />
+        </TabsContent>
       </Tabs>
     </div>
   );
