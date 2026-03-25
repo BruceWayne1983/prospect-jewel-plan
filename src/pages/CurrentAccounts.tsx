@@ -48,6 +48,7 @@ export default function CurrentAccounts() {
   const syncFromDataHub = async () => {
     setSyncing(true);
     try {
+      await ensureSession();
       const { data, error } = await supabase.functions.invoke("sync-current-accounts");
       if (error) throw error;
       if (data?.error) { toast.error(data.error); return; }
