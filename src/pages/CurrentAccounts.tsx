@@ -7,6 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { COUNTIES } from "@/data/constants";
 import { supabase } from "@/integrations/supabase/client";
+
+const ensureSession = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) return;
+  await new Promise<void>((resolve) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+      if (sess) { subscription.unsubscribe(); resolve(); }
+    });
+  });
+};
 import { toast } from "sonner";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { AtRiskSection } from "@/components/accounts/AtRiskSection";
@@ -38,6 +48,7 @@ export default function CurrentAccounts() {
   const syncFromDataHub = async () => {
     setSyncing(true);
     try {
+      await ensureSession();
       const { data, error } = await supabase.functions.invoke("sync-current-accounts");
       if (error) throw error;
       if (data?.error) { toast.error(data.error); return; }
