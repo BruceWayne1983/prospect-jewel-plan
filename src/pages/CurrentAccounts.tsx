@@ -35,6 +35,7 @@ export default function CurrentAccounts() {
   const [syncing, setSyncing] = useState(false);
   const [analysingAll, setAnalysingAll] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
+  const [geocoding, setGeocoding] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<Tables<"calendar_events">[]>([]);
 
   useEffect(() => {
