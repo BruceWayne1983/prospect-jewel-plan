@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Target, Loader2, Copy, Package, Sparkles, Shield, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
+const CURRENT_ACCOUNT_STAGES = ["approved", "retention_risk"];
+
 type Pitch = {
   pitchOpening: string;
   valueProposition: string;
@@ -18,11 +20,16 @@ export function PitchPersonaliser({ retailer }: { retailer: Retailer }) {
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const isCurrentAccount = CURRENT_ACCOUNT_STAGES.includes(retailer.pipeline_stage);
+
   const generate = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-pitch", {
-        body: { retailerId: retailer.id },
+        body: {
+          retailerId: retailer.id,
+          accountType: isCurrentAccount ? "current_account" : "prospect",
+        },
       });
       if (error) throw error;
       if (data?.success) {
@@ -65,11 +72,17 @@ export function PitchPersonaliser({ retailer }: { retailer: Retailer }) {
     return (
       <div className="card-premium p-8 text-center">
         <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-        <h3 className="text-base font-display font-semibold text-foreground mb-2">Personalised Pitch</h3>
-        <p className="text-sm text-muted-foreground mb-4">Generate a tailored pitch based on this store's profile and competitor brands.</p>
+        <h3 className="text-base font-display font-semibold text-foreground mb-2">
+          {isCurrentAccount ? "Account Growth Pitch" : "Personalised Pitch"}
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          {isCurrentAccount
+            ? "Generate a pitch to expand this account — new ranges, upsells, and growth opportunities."
+            : "Generate a tailored pitch based on this store's profile and competitor brands."}
+        </p>
         <Button onClick={generate} disabled={loading} className="gold-gradient text-sidebar-background text-xs">
           {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Target className="w-3.5 h-3.5 mr-1.5" />}
-          {loading ? "Personalising..." : "Generate Pitch"}
+          {loading ? "Personalising..." : isCurrentAccount ? "Generate Growth Pitch" : "Generate Pitch"}
         </Button>
       </div>
     );
@@ -82,7 +95,9 @@ export function PitchPersonaliser({ retailer }: { retailer: Retailer }) {
           <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
             <Target className="w-4 h-4" style={{ color: "hsl(var(--sidebar-background))" }} />
           </div>
-          <h3 className="text-lg font-display font-semibold text-foreground">Personalised Pitch</h3>
+          <h3 className="text-lg font-display font-semibold text-foreground">
+            {isCurrentAccount ? "Account Growth Pitch" : "Personalised Pitch"}
+          </h3>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={copyAll} className="text-xs border-border/40">
@@ -103,21 +118,27 @@ export function PitchPersonaliser({ retailer }: { retailer: Retailer }) {
         <div className="bg-cream/50 rounded-lg p-4 border border-border/15">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-3.5 h-3.5 text-gold" strokeWidth={1.5} />
-            <h4 className="text-xs font-semibold text-foreground">Value Proposition</h4>
+            <h4 className="text-xs font-semibold text-foreground">
+              {isCurrentAccount ? "Growth Opportunity" : "Value Proposition"}
+            </h4>
           </div>
           <p className="text-[11px] text-muted-foreground leading-relaxed">{pitch.valueProposition}</p>
         </div>
         <div className="bg-cream/50 rounded-lg p-4 border border-border/15">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="w-3.5 h-3.5 text-gold" strokeWidth={1.5} />
-            <h4 className="text-xs font-semibold text-foreground">Competitor Positioning</h4>
+            <h4 className="text-xs font-semibold text-foreground">
+              {isCurrentAccount ? "Range Positioning" : "Competitor Positioning"}
+            </h4>
           </div>
           <p className="text-[11px] text-muted-foreground leading-relaxed">{pitch.competitorPositioning}</p>
         </div>
       </div>
 
       <div className="mb-4">
-        <p className="section-header text-[9px] mb-2">Recommended Products</p>
+        <p className="section-header text-[9px] mb-2">
+          {isCurrentAccount ? "Recommended Expansions" : "Recommended Products"}
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {pitch.recommendedProducts.map((p, i) => (
             <div key={i} className="bg-cream/50 rounded-lg p-3 border border-border/15">

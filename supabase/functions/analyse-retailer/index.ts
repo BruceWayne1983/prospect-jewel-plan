@@ -34,7 +34,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch the retailer
     const { data: retailer, error: fetchErr } = await supabase
       .from("retailers")
       .select("*")
@@ -56,6 +55,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    const isCurrentAccount = retailer.pipeline_stage === "approved" || retailer.pipeline_stage === "retention_risk";
+
+    // Build billing context for current accounts
+    let billingContext = "";
+    if (isCurrentAccount) {
+      const parts = [];
+      if (retailer.billing_2024_full_year) parts.push(`2024 Full Year: £${Number(retailer.billing_2024_full_year).toLocaleString()}`);
+      if (retailer.billing_2025_full_year) parts.push(`2025 Full Year: £${Number(retailer.billing_2025_full_year).toLocaleString()}`);
+      if (retailer.billing_2026_ytd) parts.push(`2026 YTD: £${Number(retailer.billing_2026_ytd).toLocaleString()}`);
+      if (parts.length) billingContext = `\nBilling History: ${parts.join(" | ")}`;
+    }
+
+    const systemPrompt = isCurrentAccount
+      ? `You are a senior UK retail sales strategist for Nomination Italy, a premium Italian charm jewellery brand. You are analysing an EXISTING STOCKIST — they already carry and sell Nomination products. Your analysis should focus on: account health, growth opportunities, relationship strength, reorder patterns, risk of churn, competitive threats, and strategies to deepen the partnership. Do NOT treat them as a prospect. Be specific about what's working, what could improve, and actionable next steps for the account manager.`
+      : `You are a senior UK retail sales strategist for Nomination Italy, a premium Italian charm jewellery brand. You analyse independent retailers to determine their suitability as Nomination stockists. You produce detailed intelligence reports, outreach strategies, performance predictions and qualification assessments. Be specific, commercially focused, and realistic. Base your analysis on the retailer data provided.`;
+
+    const userPrompt = isCurrentAccount
+      ? `Analyse this EXISTING Nomination stockist and generate a comprehensive account intelligence report. Focus on account health, growth potential, and relationship management rather than prospecting. IMPORTANT: Also try to find or infer any missing contact details.
+
+Name: ${retailer.name}
+Town: ${retailer.town}, ${retailer.county}
+Category: ${retailer.category}
+Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
+Store Positioning: ${retailer.store_positioning || 'unknown'}
+Independent: ${retailer.is_independent ? 'Yes' : 'No'}
+Pipeline Stage: ${retailer.pipeline_stage}
+${billingContext}
+${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: NOT YET KNOWN — please try to find or infer'}
+${retailer.email ? `Email: ${retailer.email}` : 'Email: NOT YET KNOWN — please try to infer from website domain'}
+${retailer.ai_notes ? `AI Notes: ${retailer.ai_notes}` : ''}
+${retailer.website ? `Website: ${retailer.website}` : 'Website: NOT YET KNOWN'}
+${retailer.address ? `Address: ${retailer.address}` : 'Address: NOT YET KNOWN — please try to infer'}
+${retailer.postcode ? `Postcode: ${retailer.postcode}` : ''}
+${retailer.instagram ? `Instagram: ${retailer.instagram}` : ''}
+${retailer.risk_flags?.length ? `Current Risk Flags: ${retailer.risk_flags.join(", ")}` : ''}
+
+Generate a thorough analysis covering: strategic summary (as an existing account), account health assessment, growth predictions, account management strategy with contact details, qualification of their continued suitability, updated scores, and any risk flags.`
+      : `Analyse this retailer as a potential Nomination Italy stockist and generate a comprehensive intelligence report. IMPORTANT: Also try to find or infer their contact details (phone, email, address, postcode, Instagram) based on the business name, town, website domain, and retail category.
+
+Name: ${retailer.name}
+Town: ${retailer.town}, ${retailer.county}
+Category: ${retailer.category}
+Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
+Store Positioning: ${retailer.store_positioning || 'unknown'}
+Independent: ${retailer.is_independent ? 'Yes' : 'No'}
+${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: NOT YET KNOWN — please try to find or infer'}
+${retailer.email ? `Email: ${retailer.email}` : 'Email: NOT YET KNOWN — please try to infer from website domain'}
+${retailer.ai_notes ? `AI Notes from discovery: ${retailer.ai_notes}` : ''}
+${retailer.website ? `Website: ${retailer.website}` : 'Website: NOT YET KNOWN'}
+${retailer.address ? `Address: ${retailer.address}` : 'Address: NOT YET KNOWN — please try to infer'}
+${retailer.postcode ? `Postcode: ${retailer.postcode}` : ''}
+${retailer.instagram ? `Instagram: ${retailer.instagram}` : ''}
+
+Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with contact details, qualification assessment, scores, and any risk flags. For contact_enrichment, try to provide plausible contact details even if you need to infer them.`;
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -68,18 +122,20 @@ Deno.serve(async (req) => {
           type: "function",
           function: {
             name: "analyse_retailer",
-            description: "Generate comprehensive AI intelligence for a retailer prospect for Nomination Italy charm jewellery.",
+            description: isCurrentAccount
+              ? "Generate comprehensive AI intelligence for an existing Nomination stockist."
+              : "Generate comprehensive AI intelligence for a retailer prospect for Nomination Italy charm jewellery.",
             parameters: {
               type: "object",
               properties: {
                 ai_intelligence: {
                   type: "object",
                   properties: {
-                    summary: { type: "string", description: "3-4 sentence strategic summary of this retailer as a Nomination stockist" },
-                    whyAttractive: { type: "string", description: "Why this retailer is commercially attractive" },
-                    whyGoodStockist: { type: "string", description: "Why they'd be a good Nomination stockist" },
-                    risksOrConcerns: { type: "string", description: "Any risks or concerns" },
-                    likelyBuyingMotivation: { type: "string", description: "What would motivate them to buy" },
+                    summary: { type: "string", description: isCurrentAccount ? "3-4 sentence strategic summary of this account's health and potential" : "3-4 sentence strategic summary of this retailer as a Nomination stockist" },
+                    whyAttractive: { type: "string", description: isCurrentAccount ? "Why this account is commercially valuable to retain and grow" : "Why this retailer is commercially attractive" },
+                    whyGoodStockist: { type: "string", description: isCurrentAccount ? "What makes them a strong Nomination partner" : "Why they'd be a good Nomination stockist" },
+                    risksOrConcerns: { type: "string", description: isCurrentAccount ? "Account risks — churn signals, competitive threats, declining orders" : "Any risks or concerns" },
+                    likelyBuyingMotivation: { type: "string", description: isCurrentAccount ? "What drives their reorders and how to increase order frequency" : "What would motivate them to buy" },
                     storePositioningAnalysis: { type: "string", description: "Analysis of their market positioning" },
                     customerDemographic: { type: "string", description: "Their typical customer profile" },
                     townProfile: { type: "string", description: "Brief profile of the town/area" },
@@ -92,8 +148,8 @@ Deno.serve(async (req) => {
                 performance_prediction: {
                   type: "object",
                   properties: {
-                    predictedOpeningOrder: { type: "string", description: "e.g. £1,200–£2,500" },
-                    predictedAnnualValue: { type: "string", description: "e.g. £8,000–£15,000" },
+                    predictedOpeningOrder: { type: "string", description: isCurrentAccount ? "Predicted next order value" : "e.g. £1,200–£2,500" },
+                    predictedAnnualValue: { type: "string", description: isCurrentAccount ? "Predicted annual value based on trajectory" : "e.g. £8,000–£15,000" },
                     reorderPotential: { type: "string", enum: ["high", "medium", "low"] },
                     productMixSuitability: { type: "integer", description: "0-100 score" },
                     predictionConfidence: { type: "string", enum: ["high", "medium", "low"] },
@@ -105,17 +161,17 @@ Deno.serve(async (req) => {
                   type: "object",
                   properties: {
                     outreachPriority: { type: "string", enum: ["high", "medium", "low"] },
-                    bestOutreachAngle: { type: "string", description: "Best approach angle for first contact" },
+                    bestOutreachAngle: { type: "string", description: isCurrentAccount ? "Best approach for the next account management touchpoint" : "Best approach angle for first contact" },
                     whyAttractive: { type: "string" },
-                    productAngle: { type: "string", description: "Which Nomination products to lead with" },
-                    suggestedFirstMessage: { type: "string", description: "A professional 3-4 sentence intro email" },
+                    productAngle: { type: "string", description: isCurrentAccount ? "Which Nomination products to push next" : "Which Nomination products to lead with" },
+                    suggestedFirstMessage: { type: "string", description: isCurrentAccount ? "A professional 3-4 sentence check-in email" : "A professional 3-4 sentence intro email" },
                     callPrepNotes: { type: "string", description: "Talking points for a phone call" },
-                    visitPrepNotes: { type: "string", description: "What to look for during a store visit" },
-                    contactName: { type: "string", description: "Owner or manager name if identifiable from the business name, website or local knowledge" },
+                    visitPrepNotes: { type: "string", description: isCurrentAccount ? "What to review during an account visit" : "What to look for during a store visit" },
+                    contactName: { type: "string", description: "Owner or manager name if identifiable" },
                     contactRole: { type: "string", description: "e.g. Owner, Manager, Buyer" },
-                    contactEmail: { type: "string", description: "Likely email address based on website domain and common patterns (e.g. info@domain.com, sales@domain.com)" },
-                    contactPhone: { type: "string", description: "UK phone number if inferable from the business" },
-                    bestContactMethod: { type: "string", enum: ["email", "phone", "visit", "instagram"], description: "Recommended first contact method" },
+                    contactEmail: { type: "string", description: "Likely email address" },
+                    contactPhone: { type: "string", description: "UK phone number if inferable" },
+                    bestContactMethod: { type: "string", enum: ["email", "phone", "visit", "instagram"] },
                     objections: {
                       type: "array",
                       items: {
@@ -134,13 +190,13 @@ Deno.serve(async (req) => {
                 },
                 contact_enrichment: {
                   type: "object",
-                  description: "Attempt to find or infer contact details for this retailer based on the business name, town, website domain, and category",
+                  description: "Attempt to find or infer contact details",
                   properties: {
-                    phone: { type: "string", description: "UK phone number for the business. Try to infer from the area (e.g. 01onal codes for the town). Leave empty string if unsure." },
-                    email: { type: "string", description: "Business email. Infer from website domain if available (e.g. info@website.com). Leave empty string if unsure." },
-                    address: { type: "string", description: "Full address including postcode if inferable from the town/high street. Leave empty string if unsure." },
-                    postcode: { type: "string", description: "UK postcode if inferable. Leave empty string if unsure." },
-                    instagram: { type: "string", description: "Instagram handle if inferable from business name. Leave empty string if unsure." },
+                    phone: { type: "string" },
+                    email: { type: "string" },
+                    address: { type: "string" },
+                    postcode: { type: "string" },
+                    instagram: { type: "string" },
                   },
                   required: ["phone", "email", "address", "postcode", "instagram"],
                   additionalProperties: false,
@@ -191,30 +247,8 @@ Deno.serve(async (req) => {
         }],
         tool_choice: { type: "function", function: { name: "analyse_retailer" } },
         messages: [
-          {
-            role: "system",
-            content: `You are a senior UK retail sales strategist for Nomination Italy, a premium Italian charm jewellery brand. You analyse independent retailers to determine their suitability as Nomination stockists. You produce detailed intelligence reports, outreach strategies, performance predictions and qualification assessments. Be specific, commercially focused, and realistic. Base your analysis on the retailer data provided.`,
-          },
-          {
-            role: "user",
-            content: `Analyse this retailer as a potential Nomination Italy stockist and generate a comprehensive intelligence report. IMPORTANT: Also try to find or infer their contact details (phone, email, address, postcode, Instagram) based on the business name, town, website domain, and retail category.
-
-Name: ${retailer.name}
-Town: ${retailer.town}, ${retailer.county}
-Category: ${retailer.category}
-Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
-Store Positioning: ${retailer.store_positioning || 'unknown'}
-Independent: ${retailer.is_independent ? 'Yes' : 'No'}
-${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: NOT YET KNOWN — please try to find or infer'}
-${retailer.email ? `Email: ${retailer.email}` : 'Email: NOT YET KNOWN — please try to infer from website domain'}
-${retailer.ai_notes ? `AI Notes from discovery: ${retailer.ai_notes}` : ''}
-${retailer.website ? `Website: ${retailer.website}` : 'Website: NOT YET KNOWN'}
-${retailer.address ? `Address: ${retailer.address}` : 'Address: NOT YET KNOWN — please try to infer'}
-${retailer.postcode ? `Postcode: ${retailer.postcode}` : ''}
-${retailer.instagram ? `Instagram: ${retailer.instagram}` : ''}
-
-Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with contact details, qualification assessment, scores, and any risk flags. For contact_enrichment, try to provide plausible contact details even if you need to infer them (e.g. info@ + website domain for email, local area code for phone).`,
-          },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
       }),
     });
@@ -247,11 +281,8 @@ Generate a thorough analysis covering intelligence summary, performance predicti
     }
 
     const analysis = JSON.parse(toolCall.function.arguments);
-
-    // Add timestamp to intelligence
     analysis.ai_intelligence.lastAnalysed = new Date().toISOString().split('T')[0];
 
-    // Build contact enrichment updates — only fill in missing fields
     const contactUpdates: Record<string, string> = {};
     const ce = analysis.contact_enrichment || {};
     if (!retailer.phone && ce.phone) contactUpdates.phone = ce.phone;
@@ -260,7 +291,6 @@ Generate a thorough analysis covering intelligence summary, performance predicti
     if (!retailer.postcode && ce.postcode) contactUpdates.postcode = ce.postcode;
     if (!retailer.instagram && ce.instagram) contactUpdates.instagram = ce.instagram;
 
-    // Update the retailer record
     const { error: updateErr } = await supabase
       .from("retailers")
       .update({
