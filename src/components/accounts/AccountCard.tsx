@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { MapPin, Phone, Mail, Globe, ArrowUpRight, AlertTriangle, Sparkles, Clock, RefreshCw, Activity } from "lucide-react";
+import { MapPin, Phone, Mail, Globe, ArrowUpRight, AlertTriangle, Sparkles, Clock, RefreshCw, Activity, Calendar } from "lucide-react";
+import { QuickBookButton } from "@/components/calendar/EventBooker";
 import { Retailer, getOutreach, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
 import {
   getAccountHealth, getHealthColor, getHealthBg, getHealthLabel,
