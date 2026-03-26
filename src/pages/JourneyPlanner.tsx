@@ -76,7 +76,9 @@ export function haversine(lat1: number, lng1: number, lat2: number, lng2: number
 }
 
 export function estimateDriveMinutes(km: number): number {
-  return Math.round(km * 2);
+  // ~50 km/h average for UK mixed roads (rural + town driving)
+  // = 1.2 minutes per km
+  return Math.round(km * 1.2);
 }
 
 function clusterTowns(retailers: RetailerWithMeta[], home: HomeBase, maxClusterRadiusKm = 40): PlannedRoute[] {
