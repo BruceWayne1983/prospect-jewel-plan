@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, Sparkles, CheckCircle, XCircle, Eye, ArrowUpRight, Loader2, Tag, Users, Instagram } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, Sparkles, CheckCircle, XCircle, Eye, ArrowUpRight, Loader2, Tag, Users, Instagram, Calendar } from "lucide-react";
+import { QuickBookButton } from "@/components/calendar/EventBooker";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -169,6 +170,8 @@ export default function ProspectProfile() {
       <div className="card-premium p-6">
         <h3 className="text-sm font-display font-semibold text-foreground mb-4">Actions</h3>
         <div className="flex items-center gap-3 flex-wrap">
+          <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="call" />
+          <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="visit" />
           {(p.status === 'new' || p.status === 'reviewing') && (
             <>
               <Button onClick={() => updateStatus('reviewing')} variant="outline" className="text-xs h-9 px-4 border-border/40">

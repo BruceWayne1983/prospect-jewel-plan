@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, E
 import { PreVisitBriefing } from "@/components/retailer/PreVisitBriefing";
 import { FollowUpDrafter } from "@/components/retailer/FollowUpDrafter";
 import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
+import { QuickBookButton } from "@/components/calendar/EventBooker";
 import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
 import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
 import { BillingPanel } from "@/components/retailer/BillingPanel";
@@ -205,6 +206,11 @@ export default function RetailerProfile() {
               {analysing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Brain className="w-3.5 h-3.5 mr-1.5" />}
               {analysing ? "Analysing..." : ai.summary ? "Re-analyse" : "Run AI Analysis"}
             </Button>
+            <div className="flex gap-2 flex-wrap justify-end">
+              <QuickBookButton retailerId={r.id} retailerName={r.name} town={r.town} defaultType="visit" />
+              <QuickBookButton retailerId={r.id} retailerName={r.name} town={r.town} defaultType="call" />
+              <QuickBookButton retailerId={r.id} retailerName={r.name} town={r.town} defaultType="email" />
+            </div>
             <Button
               variant="outline"
               size="sm"
