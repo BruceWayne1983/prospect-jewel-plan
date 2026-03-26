@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRetailers, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert } from "lucide-react";
+import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,6 +35,7 @@ export default function CurrentAccounts() {
   const [syncing, setSyncing] = useState(false);
   const [analysingAll, setAnalysingAll] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
+  const [geocoding, setGeocoding] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<Tables<"calendar_events">[]>([]);
 
   useEffect(() => {
@@ -95,6 +96,25 @@ export default function CurrentAccounts() {
     toast.success(`AI analysis complete: ${success}/${unanalysed.length} accounts analysed`);
     setAnalysingAll(false);
     await refetch();
+  };
+
+  const missingCoords = useMemo(() => allEstablished.filter(r => !r.lat || !r.lng).length, [allEstablished]);
+
+  const runGeocoding = async () => {
+    setGeocoding(true);
+    try {
+      await ensureSession();
+      const { data, error } = await supabase.functions.invoke("geocode-retailers");
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      const notFoundMsg = data.notFound?.length > 0 ? ` (${data.notFound.length} towns not found)` : '';
+      toast.success(`Geocoded ${data.updated}/${data.total} accounts${notFoundMsg}`);
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Geocoding failed");
+    } finally {
+      setGeocoding(false);
+    }
   };
 
   // Filtered & sorted list
@@ -187,6 +207,17 @@ export default function CurrentAccounts() {
             {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <DatabaseZap className="w-3.5 h-3.5 mr-1.5" />}
             {syncing ? "Syncing..." : "Sync from Data Hub"}
           </Button>
+          {missingCoords > 0 && (
+            <Button
+              onClick={runGeocoding}
+              disabled={geocoding || syncing || analysingAll}
+              variant="outline"
+              className="text-xs h-9 border-gold/30 text-gold-dark hover:bg-champagne/30"
+            >
+              {geocoding ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5 mr-1.5" />}
+              {geocoding ? "Geocoding..." : `Geocode ${missingCoords} Accounts`}
+            </Button>
+          )}
           <Button
             onClick={runBulkAIAnalysis}
             disabled={analysingAll || syncing || allEstablished.length === 0}
