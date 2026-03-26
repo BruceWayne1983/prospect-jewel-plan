@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { PIPELINE_STAGES } from "@/data/constants";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Calendar } from "lucide-react";
+import { QuickBookButton } from "@/components/calendar/EventBooker";
 
 interface PipelineRetailer {
   id: string;
