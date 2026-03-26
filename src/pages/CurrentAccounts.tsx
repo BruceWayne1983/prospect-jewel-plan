@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRetailers, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert } from "lucide-react";
+import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
