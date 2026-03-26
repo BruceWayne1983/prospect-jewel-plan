@@ -207,6 +207,17 @@ export default function CurrentAccounts() {
             {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <DatabaseZap className="w-3.5 h-3.5 mr-1.5" />}
             {syncing ? "Syncing..." : "Sync from Data Hub"}
           </Button>
+          {missingCoords > 0 && (
+            <Button
+              onClick={runGeocoding}
+              disabled={geocoding || syncing || analysingAll}
+              variant="outline"
+              className="text-xs h-9 border-gold/30 text-gold-dark hover:bg-champagne/30"
+            >
+              {geocoding ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5 mr-1.5" />}
+              {geocoding ? "Geocoding..." : `Geocode ${missingCoords} Accounts`}
+            </Button>
+          )}
           <Button
             onClick={runBulkAIAnalysis}
             disabled={analysingAll || syncing || allEstablished.length === 0}
