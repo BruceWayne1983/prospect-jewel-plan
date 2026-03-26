@@ -170,6 +170,8 @@ export default function ProspectProfile() {
       <div className="card-premium p-6">
         <h3 className="text-sm font-display font-semibold text-foreground mb-4">Actions</h3>
         <div className="flex items-center gap-3 flex-wrap">
+          <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="call" />
+          <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="visit" />
           {(p.status === 'new' || p.status === 'reviewing') && (
             <>
               <Button onClick={() => updateStatus('reviewing')} variant="outline" className="text-xs h-9 px-4 border-border/40">
