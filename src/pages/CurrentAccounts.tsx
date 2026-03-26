@@ -98,6 +98,25 @@ export default function CurrentAccounts() {
     await refetch();
   };
 
+  const missingCoords = useMemo(() => allEstablished.filter(r => !r.lat || !r.lng).length, [allEstablished]);
+
+  const runGeocoding = async () => {
+    setGeocoding(true);
+    try {
+      await ensureSession();
+      const { data, error } = await supabase.functions.invoke("geocode-retailers");
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      const notFoundMsg = data.notFound?.length > 0 ? ` (${data.notFound.length} towns not found)` : '';
+      toast.success(`Geocoded ${data.updated}/${data.total} accounts${notFoundMsg}`);
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Geocoding failed");
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   // Filtered & sorted list
   const established = useMemo(() => {
     let list = [...allEstablished];
