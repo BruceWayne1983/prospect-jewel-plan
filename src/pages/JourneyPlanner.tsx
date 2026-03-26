@@ -698,6 +698,14 @@ export default function JourneyPlanner() {
                 <span className="text-xs font-medium text-foreground">Arrive home</span>
               </div>
 
+              {/* Nearby Accounts Suggestions */}
+              <NearbyAccounts
+                routeClusters={activeRoute.clusters}
+                allRetailers={enrichedRetailers}
+                routeRetailerIds={new Set(activeRoute.clusters.flatMap(c => c.retailers.map(r => r.id)))}
+                onAddToRoute={addAccountToRoute}
+              />
+
               {/* Inline Add to Route */}
               <div className="mt-4 pt-4 border-t border-border/30">
                 <div className="flex items-center gap-2 mb-2">
