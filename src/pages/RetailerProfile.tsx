@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, AlertTriangle, Sparkles, E
 import { PreVisitBriefing } from "@/components/retailer/PreVisitBriefing";
 import { FollowUpDrafter } from "@/components/retailer/FollowUpDrafter";
 import { PitchPersonaliser } from "@/components/retailer/PitchPersonaliser";
+import { QuickBookButton } from "@/components/calendar/EventBooker";
 import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
 import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
 import { BillingPanel } from "@/components/retailer/BillingPanel";
