@@ -92,6 +92,9 @@ export default function Pipeline() {
                         {activity.meetingScheduled && <span className="text-[9px] px-1.5 py-0.5 rounded bg-champagne text-gold-dark font-medium">Meeting</span>}
                       </div>
                       {riskFlags.length > 0 && <div className="mt-1.5"><span className="badge-risk text-[8px]">⚠ Risk</span></div>}
+                      <div className="mt-1.5 flex gap-1" onClick={e => e.stopPropagation()}>
+                        <QuickBookButton retailerId={r.id} retailerName={r.name} town={r.town} defaultType="meeting" variant="small" />
+                      </div>
                     </div>
                   );
                 })}

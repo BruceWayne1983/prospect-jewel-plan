@@ -141,14 +141,20 @@ export function AccountCard({ retailer: r }: AccountCardProps) {
         )}
       </div>
 
-      {/* Contact quick-view */}
-      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-        {outreach.contactName && (
-          <span className="truncate">{outreach.contactName}</span>
-        )}
-        {r.phone && <Phone className="w-3 h-3 flex-shrink-0" />}
-        {r.email && <Mail className="w-3 h-3 flex-shrink-0" />}
-        {r.website && <Globe className="w-3 h-3 flex-shrink-0" />}
+      {/* Contact & Quick Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          {outreach.contactName && (
+            <span className="truncate">{outreach.contactName}</span>
+          )}
+          {r.phone && <Phone className="w-3 h-3 flex-shrink-0" />}
+          {r.email && <Mail className="w-3 h-3 flex-shrink-0" />}
+          {r.website && <Globe className="w-3 h-3 flex-shrink-0" />}
+        </div>
+        <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+          <QuickBookButton retailerId={r.id} retailerName={r.name} town={r.town} defaultType="visit" variant="icon" />
+          <QuickBookButton retailerId={r.id} retailerName={r.name} town={r.town} defaultType="call" variant="icon" />
+        </div>
       </div>
 
       {/* AI Summary snippet */}
