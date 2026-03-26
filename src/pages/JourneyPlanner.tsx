@@ -83,6 +83,11 @@ export function estimateDriveMinutes(km: number): number {
   return Math.round(km * 1.2);
 }
 
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
 function clusterTowns(retailers: RetailerWithMeta[], home: HomeBase, maxClusterRadiusKm = 40): PlannedRoute[] {
   const townMap = new Map<string, TownCluster>();
   for (const r of retailers) {
