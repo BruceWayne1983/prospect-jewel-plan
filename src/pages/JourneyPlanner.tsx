@@ -5,6 +5,8 @@ import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, 
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/components/journey/DiaryWeekView";
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
+import { NearbyAccounts } from "@/components/journey/NearbyAccounts";
+import { MeetingBooker } from "@/components/journey/MeetingBooker";
 
 export interface HomeBase {
   address: string;
