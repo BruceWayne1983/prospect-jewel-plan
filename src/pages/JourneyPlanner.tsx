@@ -5,6 +5,8 @@ import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, 
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/components/journey/DiaryWeekView";
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
+import { NearbyAccounts } from "@/components/journey/NearbyAccounts";
+import { MeetingBooker } from "@/components/journey/MeetingBooker";
 
 export interface HomeBase {
   address: string;
@@ -79,6 +81,11 @@ export function estimateDriveMinutes(km: number): number {
   // ~50 km/h average for UK mixed roads (rural + town driving)
   // = 1.2 minutes per km
   return Math.round(km * 1.2);
+}
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
 }
 
 function clusterTowns(retailers: RetailerWithMeta[], home: HomeBase, maxClusterRadiusKm = 40): PlannedRoute[] {
@@ -606,8 +613,24 @@ export default function JourneyPlanner() {
                     </div>
 
                     <div className="ml-3 border-l-2 border-border/30 pl-6 space-y-1 pb-3">
-                      {cluster.retailers.sort((a, b) => b.priority_score - a.priority_score).map(r => (
-                        <div key={r.id} className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-champagne/15 transition-colors group">
+                      {cluster.retailers.sort((a, b) => b.priority_score - a.priority_score).map((r, ri) => {
+                        // Estimate arrival time for this stop
+                        const visitIndex = activeRoute.clusters.slice(0, ci).reduce((s, c) => s + c.retailers.length, 0) + ri;
+                        const baseMinutes = activeRoute.driveFromHomeMinutes + visitIndex * 30;
+                        let driveSoFar = activeRoute.driveFromHomeMinutes;
+                        for (let pi = 1; pi <= ci; pi++) {
+                          driveSoFar += estimateDriveMinutes(haversine(
+                            activeRoute.clusters[pi - 1].lat, activeRoute.clusters[pi - 1].lng,
+                            activeRoute.clusters[pi].lat, activeRoute.clusters[pi].lng
+                          ));
+                        }
+                        const startMins = selectedDayPref ? timeToMinutes(selectedDayPref.startTime) : 510; // 08:30 default
+                        const arrivalMins = startMins + driveSoFar + ri * 30;
+                        const suggestedArrival = `${String(Math.floor(arrivalMins / 60)).padStart(2, '0')}:${String(arrivalMins % 60).padStart(2, '0')}`;
+
+                        return (
+                        <div key={r.id}>
+                        <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-champagne/15 transition-colors group">
                           <button onClick={() => toggleStop(r.id)} className="flex-shrink-0">
                             {checkedStops.has(r.id)
                               ? <CheckCircle2 className="w-4 h-4 text-success" />
@@ -623,6 +646,7 @@ export default function JourneyPlanner() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-[10px] text-muted-foreground font-mono">{suggestedArrival}</span>
                             <div className="w-14"><ScoreBar score={r.fit_score} label="" /></div>
                             <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium
                               ${r.outreachPriority === 'high' ? 'bg-success-light text-success' : r.outreachPriority === 'medium' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground'}`}>
@@ -631,9 +655,22 @@ export default function JourneyPlanner() {
                             {r.meetingScheduled && (
                               <span className="text-[9px] px-2 py-0.5 rounded-full bg-champagne text-primary font-medium">Meeting</span>
                             )}
+                            {selectedDate && (
+                              <MeetingBooker
+                                retailerId={r.id}
+                                retailerName={r.name}
+                                town={cluster.town}
+                                suggestedArrival={suggestedArrival}
+                                selectedDate={selectedDate}
+                                routeName={activeRoute.name}
+                                onBooked={() => {}}
+                              />
+                            )}
                           </div>
                         </div>
-                      ))}
+                        </div>
+                        );
+                      })}
                     </div>
 
                     {ci < activeRoute.clusters.length - 1 && (
@@ -660,6 +697,14 @@ export default function JourneyPlanner() {
                 <Home className="w-4 h-4 text-primary" />
                 <span className="text-xs font-medium text-foreground">Arrive home</span>
               </div>
+
+              {/* Nearby Accounts Suggestions */}
+              <NearbyAccounts
+                routeClusters={activeRoute.clusters}
+                allRetailers={enrichedRetailers}
+                routeRetailerIds={new Set(activeRoute.clusters.flatMap(c => c.retailers.map(r => r.id)))}
+                onAddToRoute={addAccountToRoute}
+              />
 
               {/* Inline Add to Route */}
               <div className="mt-4 pt-4 border-t border-border/30">
