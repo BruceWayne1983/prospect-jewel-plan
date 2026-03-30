@@ -141,6 +141,7 @@ export default function ProspectDiscovery() {
   // Manual store search
   const [manualSearchName, setManualSearchName] = useState("");
   const [manualSearchTown, setManualSearchTown] = useState("");
+  const [manualSearchCategory, setManualSearchCategory] = useState<string>("all");
   const [manualSearching, setManualSearching] = useState(false);
   const [manualResult, setManualResult] = useState<any>(null);
 
@@ -493,7 +494,7 @@ export default function ProspectDiscovery() {
     try {
       await ensureSession();
       const { data, error } = await supabase.functions.invoke("search-store", {
-        body: { storeName: manualSearchName.trim(), town: manualSearchTown.trim() || undefined },
+        body: { storeName: manualSearchName.trim(), town: manualSearchTown.trim() || undefined, category: manualSearchCategory !== 'all' ? manualSearchCategory : undefined },
       });
       if (error) throw error;
       if (data?.found) {
@@ -679,6 +680,15 @@ export default function ProspectDiscovery() {
               className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
             />
           </div>
+          <Select value={manualSearchCategory} onValueChange={setManualSearchCategory}>
+            <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
+              <SelectValue placeholder="Store type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any Type</SelectItem>
+              {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Button onClick={runManualSearch} disabled={manualSearching || manualSearchName.trim().length < 2} className="gold-gradient text-sidebar-background text-xs h-8 px-5">
             {manualSearching ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Search className="w-3.5 h-3.5 mr-1.5" />}
             {manualSearching ? 'Searching...' : 'Search'}
