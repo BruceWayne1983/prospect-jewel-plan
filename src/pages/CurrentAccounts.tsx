@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { COUNTIES } from "@/data/constants";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const ensureSession = async () => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -37,6 +38,8 @@ export default function CurrentAccounts() {
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
   const [geocoding, setGeocoding] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<Tables<"calendar_events">[]>([]);
+  const [removeDialog, setRemoveDialog] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: "", name: "" });
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -114,6 +117,22 @@ export default function CurrentAccounts() {
       toast.error(err.message || "Geocoding failed");
     } finally {
       setGeocoding(false);
+    }
+  };
+
+  const handleRemoveAccount = async () => {
+    if (!removeDialog.id) return;
+    setRemoving(true);
+    try {
+      const { error } = await supabase.from("retailers").delete().eq("id", removeDialog.id);
+      if (error) throw error;
+      toast.success(`${removeDialog.name} removed from accounts`);
+      setRemoveDialog({ open: false, id: "", name: "" });
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove account");
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -350,10 +369,35 @@ export default function CurrentAccounts() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {established.map((r) => (
-            <AccountCard key={r.id} retailer={r} />
+            <AccountCard
+              key={r.id}
+              retailer={r}
+              onRemove={(id, name) => setRemoveDialog({ open: true, id, name })}
+            />
           ))}
         </div>
       )}
+
+      {/* Remove Confirmation Dialog */}
+      <Dialog open={removeDialog.open} onOpenChange={(open) => !removing && setRemoveDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Remove Account</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove <strong>{removeDialog.name}</strong> from your current accounts? This will permanently delete all associated data including AI analysis, billing history, and activity logs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setRemoveDialog({ open: false, id: "", name: "" })} disabled={removing}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveAccount} disabled={removing}>
+              {removing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
+              {removing ? "Removing..." : "Remove Account"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
