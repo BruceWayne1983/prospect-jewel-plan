@@ -215,18 +215,28 @@ export default function ProspectProfile() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Contact Info */}
         <div className="card-premium p-6">
-          <h3 className="text-sm font-display font-semibold text-foreground mb-4">Contact Information</h3>
+          <h3 className="text-sm font-display font-semibold text-foreground mb-4">Contact & Web</h3>
           <div className="space-y-3">
             {p.phone && (
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                <a href={`tel:${p.phone}`} className="text-sm text-foreground hover:text-info">{p.phone}</a>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                  <a href={`tel:${p.phone}`} className="text-sm text-foreground hover:text-info">{p.phone}</a>
+                </div>
+                {p.discovery_source !== 'Web Scanner' && (
+                  <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ AI-estimated — verify before calling</p>
+                )}
               </div>
             )}
             {p.email && (
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                <a href={`mailto:${p.email}`} className="text-sm text-info hover:underline">{p.email}</a>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                  <a href={`mailto:${p.email}`} className="text-sm text-info hover:underline">{p.email}</a>
+                </div>
+                {p.discovery_source !== 'Web Scanner' && (
+                  <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ AI-estimated — verify before emailing</p>
+                )}
               </div>
             )}
             {p.website && (
@@ -235,10 +245,9 @@ export default function ProspectProfile() {
                   <Globe className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
                   <a href={p.website} target="_blank" rel="noopener noreferrer" className="text-sm text-info hover:underline truncate">{p.website}</a>
                 </div>
-                <div className="ml-6.5 mt-1 flex items-center gap-1.5">
-                  <AlertTriangle className="w-3 h-3 text-warning" />
-                  <span className="text-[10px] text-warning">AI-generated URL — verify this website exists before contacting</span>
-                </div>
+                {p.discovery_source !== 'Web Scanner' && (
+                  <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ AI-estimated URL — may not exist</p>
+                )}
               </div>
             )}
             {p.address && (
@@ -248,7 +257,7 @@ export default function ProspectProfile() {
               </div>
             )}
             {!p.phone && !p.email && !p.website && (
-              <p className="text-xs text-muted-foreground italic">No contact information available</p>
+              <p className="text-xs text-muted-foreground italic">No contact information available — run AI Analysis to enrich</p>
             )}
           </div>
         </div>
