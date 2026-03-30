@@ -127,10 +127,10 @@ Deno.serve(async (req) => {
                       brands_stocked: { type: "array", items: { type: "string" }, description: `Brands this store likely stocks, including "${brand}" or similar` },
                       ai_reason: { type: "string", description: "2-sentence explanation focusing on the brand connection and why this is a good Nomination prospect" },
                       estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                      website: { type: "string", description: "ONLY include the real, verified website URL if you are confident it exists. Leave as empty string if unsure — do NOT make up URLs." },
-                      address: { type: "string", description: "Realistic full UK street address including postcode" },
-                      phone: { type: "string", description: "ONLY include the real phone number if known. Leave as empty string if unsure — do NOT make up numbers." },
-                      email: { type: "string", description: "ONLY include the real email if known. Leave as empty string if unsure — do NOT make up emails." },
+                      website: { type: "string", description: "Leave EMPTY. Do NOT generate or guess URLs." },
+                      address: { type: "string", description: "Leave EMPTY. Do NOT generate or guess addresses." },
+                      phone: { type: "string", description: "Leave EMPTY. Do NOT generate or guess phone numbers." },
+                      email: { type: "string", description: "Leave EMPTY. Do NOT generate or guess email addresses." },
                     },
                     required: ["name", "town", "county", "category", "rating", "review_count", "estimated_store_quality", "predicted_fit_score", "brands_stocked", "ai_reason", "estimated_price_positioning"],
                     additionalProperties: false,
@@ -165,7 +165,9 @@ Brands similar to or complementary to popular UK jewellery/accessory brands incl
 - Annie Haak → Lola Rose, Daisy London
 - Jellycat → Katie Loxton, Joules (when sold alongside gift/lifestyle products, NOT in toy stores)
 
-Use this knowledge to identify realistic prospects. Every shop name must be unique.${notFitContext}`,
+Use this knowledge to identify realistic prospects. Every shop name must be unique.
+
+CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings. Contact data will be sourced separately through verified channels only.${notFitContext}`,
           },
           {
             role: "user",

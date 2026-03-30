@@ -59,10 +59,10 @@ async function discoverBatch(
                       predicted_fit_score: { type: "integer", description: "How well this retailer fits Nomination 50-95" },
                       ai_reason: { type: "string", description: "2-sentence explanation of why this is a good prospect" },
                       estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                      website: { type: "string", description: "ONLY include the real, verified website URL if you are confident it exists. Leave as empty string if unsure — do NOT make up URLs." },
-                      address: { type: "string", description: "Realistic full UK street address including postcode" },
-                      phone: { type: "string", description: "ONLY include the real phone number if known. Leave as empty string if unsure — do NOT make up numbers." },
-                      email: { type: "string", description: "ONLY include the real email if known. Leave as empty string if unsure — do NOT make up emails." },
+                      website: { type: "string", description: "Leave EMPTY. Do NOT generate or guess URLs." },
+                      address: { type: "string", description: "Leave EMPTY. Do NOT generate or guess addresses." },
+                      phone: { type: "string", description: "Leave EMPTY. Do NOT generate or guess phone numbers." },
+                      email: { type: "string", description: "Leave EMPTY. Do NOT generate or guess email addresses." },
                     },
                     required: ["name", "town", "category", "rating", "review_count", "estimated_store_quality", "predicted_fit_score", "ai_reason", "estimated_price_positioning"],
                   additionalProperties: false,
@@ -81,6 +81,8 @@ async function discoverBatch(
             content: `You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.
 
 CRITICAL: Do NOT include toy stores, children's shops, chain stores, or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores.
+
+CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings. Contact data will be sourced separately through verified channels only.
 
 SOCIAL MEDIA RULE (VERY IMPORTANT):
 - Stores WITHOUT any social media presence (no Instagram, Facebook, TikTok, etc.) are HIGHLY NEGATIVE prospects and should be scored significantly lower (predicted_fit_score reduced by 15-25 points).
