@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MapPin, Phone, Mail, Globe, ArrowUpRight, AlertTriangle, Sparkles, Clock, RefreshCw, Activity, Calendar } from "lucide-react";
+import { MapPin, Phone, Mail, Globe, ArrowUpRight, AlertTriangle, Sparkles, Clock, RefreshCw, Activity, Calendar, Trash2 } from "lucide-react";
 import { QuickBookButton } from "@/components/calendar/EventBooker";
 import { Retailer, getOutreach, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
 import {
@@ -9,6 +9,7 @@ import {
 
 interface AccountCardProps {
   retailer: Retailer;
+  onRemove?: (id: string, name: string) => void;
 }
 
 export function AccountCard({ retailer: r }: AccountCardProps) {
