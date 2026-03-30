@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a UK retail intelligence researcher. You have been given REAL web search results about a specific store. Your job is to extract ONLY verified, real data that actually appears in the scraped content.
+            content: `You are a UK retail intelligence researcher for Nomination Italy, a premium Italian charm jewellery brand. You have been given REAL web search results about a specific store. Your job is to extract ONLY verified, real data that actually appears in the scraped content.
 
 CRITICAL RULES:
 1. ONLY include contact details (phone, email, website, address, social handles) that you can see in the scraped content. Do NOT guess or fabricate ANY data.
@@ -163,11 +163,16 @@ CRITICAL RULES:
 4. If the store is NOT found in the results, set found=false and explain in ai_reason.
 5. Set confidence based on how much real data you found: high = multiple sources confirm, medium = some data found, low = sparse or uncertain.
 6. In ai_reason, cite which sources confirmed the data.
-7. For predicted_fit_score: Apply a -15 to -25 penalty if no social media is found. A modern retailer needs social media to be a strong Nomination prospect.`,
+7. For predicted_fit_score: Apply a -15 to -25 penalty if no social media is found. A modern retailer needs social media to be a strong Nomination prospect.
+
+STORE TYPE FILTERING (CRITICAL):
+- ONLY accept stores that are: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories shops, or concept stores.
+- REJECT and set found=false for: toy stores, children's shops, supermarkets, chain stores, online-only retailers, pet shops, hardware stores, garden centres, charity shops, phone shops, vape shops, tattoo shops, hairdressers, restaurants, cafes, or any non-retail business.
+- If the store exists but is NOT a suitable type for Nomination jewellery, set found=false and explain why in ai_reason.${category ? `\n- The user expects this to be a "${category.replace("_", " ")}" — verify this matches.` : ""}`,
           },
           {
             role: "user",
-            content: `I'm searching for a specific store called "${searchName}"${town ? ` in or near ${town}` : ' in the UK'}. Extract all VERIFIED data about this store from the search results below. Only include data you can actually see in the content — do not guess or fabricate anything.\n\n${scrapedContent || "No search results found."}`,
+            content: `I'm searching for a specific store called "${searchName}"${town ? ` in or near ${town}` : ' in the UK'}.${category ? ` Expected type: ${category.replace("_", " ")}.` : ''} Extract all VERIFIED data about this store from the search results below. Only include data you can actually see in the content — do not guess or fabricate anything. If this store is not a suitable type for Nomination Italy jewellery (e.g. it's a toy shop, supermarket, chain, etc.), reject it.\n\n${scrapedContent || "No search results found."}`,
           },
         ],
       }),
