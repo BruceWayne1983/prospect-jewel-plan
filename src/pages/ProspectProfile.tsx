@@ -143,6 +143,9 @@ export default function ProspectProfile() {
               }`}>{p.status}</span>
               <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
               {p.discovery_source && <span className="text-[10px] text-muted-foreground">{p.discovery_source}</span>}
+              {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
+                <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-destructive/10 text-destructive">⚠ No Socials</span>
+              )}
             </div>
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">{p.name}</h1>
             <div className="flex items-center gap-4 mt-2 flex-wrap">
