@@ -494,7 +494,7 @@ export default function ProspectDiscovery() {
     try {
       await ensureSession();
       const { data, error } = await supabase.functions.invoke("search-store", {
-        body: { storeName: manualSearchName.trim(), town: manualSearchTown.trim() || undefined },
+        body: { storeName: manualSearchName.trim(), town: manualSearchTown.trim() || undefined, category: manualSearchCategory !== 'all' ? manualSearchCategory : undefined },
       });
       if (error) throw error;
       if (data?.found) {
