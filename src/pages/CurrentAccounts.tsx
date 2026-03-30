@@ -120,6 +120,22 @@ export default function CurrentAccounts() {
     }
   };
 
+  const handleRemoveAccount = async () => {
+    if (!removeDialog.id) return;
+    setRemoving(true);
+    try {
+      const { error } = await supabase.from("retailers").delete().eq("id", removeDialog.id);
+      if (error) throw error;
+      toast.success(`${removeDialog.name} removed from accounts`);
+      setRemoveDialog({ open: false, id: "", name: "" });
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove account");
+    } finally {
+      setRemoving(false);
+    }
+  };
+
   // Filtered & sorted list
   const established = useMemo(() => {
     let list = [...allEstablished];
