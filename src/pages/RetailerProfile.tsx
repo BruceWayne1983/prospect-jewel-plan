@@ -123,6 +123,33 @@ export default function RetailerProfile() {
     }
   };
 
+  const searchLinkedIn = async () => {
+    if (!id || !r) return;
+    setSearchingLinkedIn(true);
+    setLinkedInResults(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("search-linkedin", {
+        body: { retailerId: id, storeName: r.name, town: r.town, county: r.county },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        setLinkedInResults(data.contacts || []);
+        if (data.contacts?.length > 0) {
+          toast.success(`Found ${data.contacts.length} contact(s)!`);
+          fetchRetailer();
+        } else {
+          toast.info(data.summary || "No contacts found on LinkedIn");
+        }
+      } else {
+        toast.error(data?.error || "Search failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "LinkedIn search failed");
+    } finally {
+      setSearchingLinkedIn(false);
+    }
+  };
+
   const runAnalysis = async () => {
     if (!id) return;
     setAnalysing(true);
