@@ -165,7 +165,9 @@ Brands similar to or complementary to popular UK jewellery/accessory brands incl
 - Annie Haak → Lola Rose, Daisy London
 - Jellycat → Katie Loxton, Joules (when sold alongside gift/lifestyle products, NOT in toy stores)
 
-Use this knowledge to identify realistic prospects. Every shop name must be unique.${notFitContext}`,
+Use this knowledge to identify realistic prospects. Every shop name must be unique.
+
+CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings. Contact data will be sourced separately through verified channels only.${notFitContext}`,
           },
           {
             role: "user",
