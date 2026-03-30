@@ -51,6 +51,8 @@ export default function RetailerProfile() {
   const [editingContact, setEditingContact] = useState(false);
   const [verifyingSocial, setVerifyingSocial] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [searchingLinkedIn, setSearchingLinkedIn] = useState(false);
+  const [linkedInResults, setLinkedInResults] = useState<any[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', facebook: '', tiktok: '', twitter: '', linkedin: '', address: '', postcode: '' });
 
