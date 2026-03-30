@@ -146,16 +146,26 @@ IMPORTANT: Only return social media handles you are CERTAIN exist from your trai
 
     const result = JSON.parse(toolCall.function.arguments);
 
-    // Update the record with found data
-    const updates: Record<string, any> = { social_verified: true };
-    if (result.instagram) updates.instagram = result.instagram;
-    if (result.facebook) updates.facebook = result.facebook;
-    if (result.tiktok) updates.tiktok = result.tiktok;
-    if (result.twitter) updates.twitter = result.twitter;
-    if (result.linkedin) updates.linkedin = result.linkedin;
-    if (result.follower_counts) updates.follower_counts = result.follower_counts;
-    if (result.estimated_monthly_traffic) updates.estimated_monthly_traffic = result.estimated_monthly_traffic;
-    if (result.store_images?.length) updates.store_images = result.store_images;
+    // Only store data the AI is genuinely confident about — never store guesses
+    const confidence = result.confidence || 'low';
+    const updates: Record<string, any> = { 
+      social_verified: true,
+    };
+    
+    // Only store social handles if confidence is not low
+    if (confidence !== 'low') {
+      if (result.instagram) updates.instagram = result.instagram;
+      if (result.facebook) updates.facebook = result.facebook;
+      if (result.tiktok) updates.tiktok = result.tiktok;
+      if (result.twitter) updates.twitter = result.twitter;
+      if (result.linkedin) updates.linkedin = result.linkedin;
+      if (result.follower_counts) updates.follower_counts = result.follower_counts;
+    }
+    
+    if (result.estimated_monthly_traffic && result.estimated_monthly_traffic > 0) {
+      updates.estimated_monthly_traffic = result.estimated_monthly_traffic;
+    }
+    // Never store AI-guessed image URLs
     if (result.google_review_summary) updates.google_review_summary = result.google_review_summary;
     if (result.google_review_highlights?.length) updates.google_review_highlights = result.google_review_highlights;
 
