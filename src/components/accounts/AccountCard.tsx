@@ -49,7 +49,18 @@ export function AccountCard({ retailer: r, onRemove }: AccountCardProps) {
             </p>
           </div>
         </div>
-        <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-gold transition-colors flex-shrink-0" />
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {onRemove && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRemove(r.id, r.name); }}
+              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+              title="Remove account"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-gold transition-colors" />
+        </div>
       </div>
 
       {/* Health Status Bar */}
