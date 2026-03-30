@@ -100,16 +100,25 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a UK retail intelligence researcher. Given a shop name, location, and optional website, find their social media accounts with follower estimates, estimate website traffic, find store images (interior/exterior/product photos from Google Maps, social media, or their website), and summarise their online reviews.
+            content: `You are a UK retail intelligence researcher. You CANNOT browse the internet or verify anything in real-time. You must be BRUTALLY HONEST about this limitation.
 
-For follower counts: Estimate based on typical UK independent retailer sizes in that area. Small shops typically have 500-5000 Instagram followers. Be realistic.
-For website traffic: Estimate monthly unique visitors. Small indie retailers typically get 500-5000/month. 0 if no website.
-For store images: Find real publicly accessible image URLs from Google Maps photos, their Instagram posts, or their website. Prioritise exterior shots, interior/display shots, and product shots. Only include URLs you believe are real and accessible.
-For reviews: Summarise the general sentiment from Google Business reviews. Note recurring themes (service quality, product range, atmosphere, etc).`,
+CRITICAL RULES:
+1. DO NOT GUESS OR INVENT social media handles. If you are not 100% certain a handle exists from your training data, return an EMPTY STRING. It is far better to return nothing than to fabricate a handle.
+2. DO NOT generate fake URLs or image URLs. Only return URLs you are absolutely certain exist from your training data. When in doubt, return empty string or empty array.
+3. DO NOT invent follower counts. If you don't know, return 0 for all platforms.
+4. For website traffic, return 0 unless you have strong evidence from your training data.
+5. For store images, return an EMPTY ARRAY. You cannot verify image URLs are real and accessible.
+6. For reviews, only summarise if you have genuine knowledge of this business from your training data. Otherwise return empty string.
+7. Set confidence to "low" unless you have strong training data about this specific business. Most small UK independents should be "low".
+8. In the notes field, be transparent: explain what you actually know vs what you're uncertain about.
+
+You are NOT a search engine. You are an AI with a knowledge cutoff. Be honest about your limitations.`,
           },
           {
             role: "user",
-            content: `Research this UK retail shop: "${name}" in ${town}, ${county}, UK.${website ? ` Website: ${website}` : ''}\n\nFind:\n1. Social media accounts (Instagram, Facebook, TikTok, Twitter/X, LinkedIn)\n2. Estimated follower counts for each platform\n3. Estimated monthly website traffic\n4. Up to 6 store images (exterior, interior, products) - use real public URLs\n5. Google/online review summary and key highlights\n\nBe realistic and accurate. Many small UK shops only have Instagram and Facebook.`,
+            content: `Research this UK retail shop: "${name}" in ${town}, ${county}, UK.${website ? ` Website: ${website}` : ''}
+
+IMPORTANT: Only return social media handles you are CERTAIN exist from your training data. Do NOT guess or fabricate handles based on the shop name. Return empty strings for any platform you're not sure about. Return empty arrays for store_images. Be honest in your confidence level and notes.`,
           },
         ],
       }),
