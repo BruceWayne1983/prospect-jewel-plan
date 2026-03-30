@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a retail analyst. Extract REAL independent retail businesses from the scraped web data below. Only include actual named businesses — skip directories, aggregator sites, and chains. For Nomination Italy charm jewellery, assess fit based on the store type, positioning, and whether they sell comparable brands. Extract phone numbers, email addresses, full addresses with postcodes, and website URLs whenever they appear in the scraped content.",
+            content: "You are a retail analyst. Extract REAL independent retail businesses from the scraped web data below. Only include actual named businesses — skip directories, aggregator sites, and chains. For Nomination Italy charm jewellery, assess fit based on the store type, positioning, and whether they sell comparable brands. Extract phone numbers, email addresses, full addresses with postcodes, and website URLs whenever they appear in the scraped content.\n\nSOCIAL MEDIA RULE (VERY IMPORTANT): Stores WITHOUT any social media presence are HIGHLY NEGATIVE prospects. If no social media is found in the scraped content, reduce the predicted_fit_score by 15-25 points and flag it in the ai_reason. A modern retailer must have social media to be a strong Nomination prospect.",
           },
           {
             role: "user",

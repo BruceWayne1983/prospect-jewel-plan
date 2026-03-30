@@ -143,6 +143,9 @@ export default function ProspectProfile() {
               }`}>{p.status}</span>
               <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
               {p.discovery_source && <span className="text-[10px] text-muted-foreground">{p.discovery_source}</span>}
+              {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
+                <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-destructive/10 text-destructive">⚠ No Socials</span>
+              )}
             </div>
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">{p.name}</h1>
             <div className="flex items-center gap-4 mt-2 flex-wrap">
@@ -277,7 +280,10 @@ export default function ProspectProfile() {
             {totalFollowers > 0 && <p className="text-xs text-muted-foreground">👥 {totalFollowers.toLocaleString()} total followers</p>}
             {p.estimated_monthly_traffic && p.estimated_monthly_traffic > 0 && <p className="text-xs text-muted-foreground">🌐 ~{p.estimated_monthly_traffic.toLocaleString()}/mo website visitors</p>}
             {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
-              <p className="text-xs text-muted-foreground italic">No social accounts found</p>
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">⚠️ No Social Media Presence</p>
+                <p className="text-[11px] text-destructive/80 mt-1">This is a significant red flag — modern retailers should have active social media accounts. Consider this carefully before pursuing.</p>
+              </div>
             )}
           </div>
         </div>

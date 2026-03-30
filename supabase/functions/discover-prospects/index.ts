@@ -80,7 +80,12 @@ async function discoverBatch(
             role: "system",
             content: `You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.
 
-CRITICAL: Do NOT include toy stores, children's shops, chain stores, or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores.${notFitContext}`,
+CRITICAL: Do NOT include toy stores, children's shops, chain stores, or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores.
+
+SOCIAL MEDIA RULE (VERY IMPORTANT):
+- Stores WITHOUT any social media presence (no Instagram, Facebook, TikTok, etc.) are HIGHLY NEGATIVE prospects and should be scored significantly lower (predicted_fit_score reduced by 15-25 points).
+- A modern independent retailer MUST have social media to be considered a strong prospect for Nomination Italy.
+- If you cannot confirm a store has social media, flag this in the ai_reason as a concern and lower the fit score accordingly.${notFitContext}`,
         },
         {
           role: "user",

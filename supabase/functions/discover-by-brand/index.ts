@@ -153,6 +153,11 @@ CRITICAL EXCLUSION RULES:
 - Do NOT include chain stores or franchises — only independent retailers.
 - Do NOT include online-only stores — they must have a physical retail presence.
 
+SOCIAL MEDIA RULE (VERY IMPORTANT):
+- Stores WITHOUT any social media presence (no Instagram, Facebook, TikTok, etc.) are HIGHLY NEGATIVE prospects and should be scored significantly lower (predicted_fit_score reduced by 15-25 points).
+- A modern independent retailer MUST have social media to be considered a strong prospect for Nomination Italy.
+- If you cannot confirm a store has social media, flag this in the ai_reason as a concern and lower the fit score accordingly.
+
 Brands similar to or complementary to popular UK jewellery/accessory brands include:
 - Joma Jewellery → ChloBo, Estella Bartlett, Katie Loxton, Olivia Burton
 - Pandora → Thomas Sabo, Chamilia, Links of London
