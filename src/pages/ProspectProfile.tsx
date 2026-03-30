@@ -230,9 +230,15 @@ export default function ProspectProfile() {
               </div>
             )}
             {p.website && (
-              <div className="flex items-center gap-2.5">
-                <Globe className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                <a href={p.website} target="_blank" rel="noopener noreferrer" className="text-sm text-info hover:underline truncate">{p.website}</a>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <Globe className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                  <a href={p.website} target="_blank" rel="noopener noreferrer" className="text-sm text-info hover:underline truncate">{p.website}</a>
+                </div>
+                <div className="ml-6.5 mt-1 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3 h-3 text-warning" />
+                  <span className="text-[10px] text-warning">AI-generated URL — verify this website exists before contacting</span>
+                </div>
               </div>
             )}
             {p.address && (
