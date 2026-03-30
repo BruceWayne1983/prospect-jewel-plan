@@ -38,6 +38,8 @@ export default function CurrentAccounts() {
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
   const [geocoding, setGeocoding] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<Tables<"calendar_events">[]>([]);
+  const [removeDialog, setRemoveDialog] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: "", name: "" });
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
