@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -138,6 +138,11 @@ export default function ProspectDiscovery() {
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState({ done: 0, total: 0 });
   const [dismissDialog, setDismissDialog] = useState<{ open: boolean; prospect: DiscoveredProspect | null; reason: string; detail: string }>({ open: false, prospect: null, reason: 'not_fit', detail: '' });
+  // Manual store search
+  const [manualSearchName, setManualSearchName] = useState("");
+  const [manualSearchTown, setManualSearchTown] = useState("");
+  const [manualSearching, setManualSearching] = useState(false);
+  const [manualResult, setManualResult] = useState<any>(null);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -478,6 +483,38 @@ export default function ProspectDiscovery() {
     setEnrichProgress({ done: 0, total: 0 });
   };
 
+  const runManualSearch = async () => {
+    if (!manualSearchName.trim() || manualSearchName.trim().length < 2) {
+      toast.error("Please enter a store name (at least 2 characters)");
+      return;
+    }
+    setManualSearching(true);
+    setManualResult(null);
+    try {
+      await ensureSession();
+      const { data, error } = await supabase.functions.invoke("search-store", {
+        body: { storeName: manualSearchName.trim(), town: manualSearchTown.trim() || undefined },
+      });
+      if (error) throw error;
+      if (data?.found) {
+        if (data.alreadyExists) {
+          toast.info(data.message);
+        } else {
+          toast.success(`Found and saved "${data.store?.name}"!`);
+          await fetchProspects();
+        }
+        setManualResult(data);
+      } else {
+        toast.info(data?.message || `No results found for "${manualSearchName}"`);
+        setManualResult(data);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Search failed");
+    } finally {
+      setManualSearching(false);
+    }
+  };
+
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
@@ -609,6 +646,94 @@ export default function ProspectDiscovery() {
             ))}
             {suggestedBrands.length > 12 && (
               <span className="text-[10px] text-muted-foreground">+{suggestedBrands.length - 12} more</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Manual Store Search */}
+      <div className="card-premium p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <UserSearch className="w-3.5 h-3.5 text-gold" />
+          <span className="text-xs font-semibold text-foreground">Search by Store Name</span>
+          <span className="text-[10px] text-muted-foreground">— Type a specific store name to get web-verified results</span>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <Input
+              placeholder="Store name (e.g. The Silver Shop of Bath)..."
+              value={manualSearchName}
+              onChange={e => { setManualSearchName(e.target.value); setManualResult(null); }}
+              onKeyDown={e => e.key === 'Enter' && !manualSearching && runManualSearch()}
+              className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
+            />
+          </div>
+          <div className="relative min-w-[140px]">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <Input
+              placeholder="Town (optional)..."
+              value={manualSearchTown}
+              onChange={e => setManualSearchTown(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !manualSearching && runManualSearch()}
+              className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
+            />
+          </div>
+          <Button onClick={runManualSearch} disabled={manualSearching || manualSearchName.trim().length < 2} className="gold-gradient text-sidebar-background text-xs h-8 px-5">
+            {manualSearching ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Search className="w-3.5 h-3.5 mr-1.5" />}
+            {manualSearching ? 'Searching...' : 'Search'}
+          </Button>
+        </div>
+
+        {/* Manual search result */}
+        {manualResult && (
+          <div className={`mt-3 p-3 rounded-lg border ${manualResult.found ? 'border-success/30 bg-success-light/30' : 'border-warning/30 bg-warning-light/30'}`}>
+            {manualResult.found ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">{manualResult.store?.name}</span>
+                    <span className="text-[10px] text-muted-foreground ml-2">{manualResult.store?.town}, {manualResult.store?.county}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium ${manualResult.store?.confidence === 'high' ? 'bg-success-light text-success' : manualResult.store?.confidence === 'medium' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground'}`}>
+                      {manualResult.store?.confidence} confidence
+                    </span>
+                    {manualResult.alreadyExists && (
+                      <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info">
+                        Already in {manualResult.existsAs === 'retailer' ? 'accounts' : 'prospects'}
+                      </span>
+                    )}
+                    {!manualResult.alreadyExists && (
+                      <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success">
+                        ✓ Saved to prospects
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{manualResult.store?.ai_reason}</p>
+                <div className="flex items-center gap-4 flex-wrap text-[10px] text-muted-foreground">
+                  {manualResult.store?.website && <span className="flex items-center gap-1"><Globe className="w-3 h-3" />{manualResult.store.website}</span>}
+                  {manualResult.store?.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{manualResult.store.phone}</span>}
+                  {manualResult.store?.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{manualResult.store.email}</span>}
+                  {manualResult.store?.instagram && <span>IG: {manualResult.store.instagram}</span>}
+                  {manualResult.store?.facebook && <span>FB: {manualResult.store.facebook}</span>}
+                </div>
+                <div className="flex items-center gap-3 text-[10px]">
+                  <span>Fit: <strong>{manualResult.store?.predicted_fit_score}</strong>/100</span>
+                  <span>Quality: <strong>{manualResult.store?.estimated_store_quality}</strong>/100</span>
+                  {manualResult.store?.rating > 0 && <span>★ {manualResult.store?.rating} ({manualResult.store?.review_count} reviews)</span>}
+                </div>
+                {manualResult.store?.data_sources?.length > 0 && (
+                  <div className="text-[9px] text-muted-foreground">
+                    Sources: {manualResult.store.data_sources.slice(0, 3).map((s: string, i: number) => (
+                      <span key={i}>{i > 0 ? ', ' : ''}<a href={s} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">{new URL(s).hostname}</a></span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-warning">{manualResult.message || `Store not found`}</p>
             )}
           </div>
         )}
