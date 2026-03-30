@@ -12,14 +12,18 @@ Deno.serve(async (req) => {
 
   const { user_id, new_email } = await req.json();
 
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
+  console.log("Updating user", user_id, "to email", new_email);
+
+  const { data, error } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
     email: new_email,
     email_confirm: true,
   });
 
+  console.log("Result:", JSON.stringify({ data, error }));
+
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+    return new Response(JSON.stringify({ error: error.message, details: JSON.stringify(error) }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
   }
 
-  return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+  return new Response(JSON.stringify({ success: true, email: data?.user?.email }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
 });
