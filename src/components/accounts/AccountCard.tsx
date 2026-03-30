@@ -12,7 +12,7 @@ interface AccountCardProps {
   onRemove?: (id: string, name: string) => void;
 }
 
-export function AccountCard({ retailer: r }: AccountCardProps) {
+export function AccountCard({ retailer: r, onRemove }: AccountCardProps) {
   const navigate = useNavigate();
   const outreach = getOutreach(r);
   const activity = getActivity(r);
