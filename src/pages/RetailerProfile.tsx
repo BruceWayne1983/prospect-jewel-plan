@@ -506,15 +506,73 @@ export default function RetailerProfile() {
         <TabsContent value="outreach" className="space-y-5 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card-premium p-6">
-              <h3 className="text-base font-display font-semibold text-foreground mb-4">Contact Details</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-display font-semibold text-foreground">Contact Details</h3>
+                <Button onClick={searchLinkedIn} disabled={searchingLinkedIn} variant="outline" size="sm" className="text-xs border-info/30 text-info hover:bg-info-light gap-1.5">
+                  {searchingLinkedIn ? <Loader2 className="w-3 h-3 animate-spin" /> : <Linkedin className="w-3 h-3" />}
+                  {searchingLinkedIn ? 'Searching...' : 'Find on LinkedIn'}
+                </Button>
+              </div>
               <div className="space-y-1">
-                <InfoRow label="Contact Name" value={outreach.contactName || 'Not yet identified'} />
-                <InfoRow label="Role" value={outreach.contactRole} />
-                <InfoRow label="Email" value={outreach.contactEmail} />
-                <InfoRow label="Phone" value={outreach.contactPhone} />
+                {outreach.contactName ? (
+                  <>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/10">
+                      <span className="text-xs text-muted-foreground">Contact Name</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-foreground">{outreach.contactName}</span>
+                        {(outreach as any).contactVerified ? (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-success-light text-success font-medium">Verified</span>
+                        ) : (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-warning-light text-warning font-medium">Unverified</span>
+                        )}
+                      </div>
+                    </div>
+                    <InfoRow label="Role" value={outreach.contactRole} />
+                    {(outreach as any).contactLinkedIn && (
+                      <div className="flex items-center justify-between py-1.5 border-b border-border/10">
+                        <span className="text-xs text-muted-foreground">LinkedIn</span>
+                        <a href={(outreach as any).contactLinkedIn} target="_blank" rel="noopener noreferrer" className="text-xs text-info hover:underline flex items-center gap-1">
+                          <Linkedin className="w-3 h-3" /> View Profile
+                        </a>
+                      </div>
+                    )}
+                    {(outreach as any).contactSource && (
+                      <InfoRow label="Source" value={(outreach as any).contactSource} />
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">No verified contact yet</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">Use "Find on LinkedIn" to search for the owner/buyer</p>
+                  </div>
+                )}
                 <InfoRow label="Best Method" value={outreach.bestContactMethod} />
                 <InfoRow label="Priority" value={outreach.outreachPriority} />
               </div>
+
+              {/* LinkedIn search results */}
+              {linkedInResults && linkedInResults.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border/20">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">LinkedIn Results</p>
+                  <div className="space-y-2">
+                    {linkedInResults.map((c: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-cream/40 border border-border/10">
+                        <div>
+                          <span className="text-xs font-medium text-foreground">{c.name}</span>
+                          <span className="text-[10px] text-muted-foreground ml-2">{c.role}</span>
+                          <span className={`text-[8px] ml-2 px-1.5 py-0.5 rounded-full font-medium ${c.confidence === 'high' ? 'bg-success-light text-success' : c.confidence === 'medium' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground'}`}>{c.confidence}</span>
+                        </div>
+                        {c.linkedin_url && (
+                          <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-info hover:underline flex items-center gap-1">
+                            <Linkedin className="w-3 h-3" /> Profile
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="card-premium p-6">
               <h3 className="text-base font-display font-semibold text-foreground mb-4">Outreach Strategy</h3>
