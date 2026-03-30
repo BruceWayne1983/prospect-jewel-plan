@@ -138,6 +138,11 @@ export default function ProspectDiscovery() {
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState({ done: 0, total: 0 });
   const [dismissDialog, setDismissDialog] = useState<{ open: boolean; prospect: DiscoveredProspect | null; reason: string; detail: string }>({ open: false, prospect: null, reason: 'not_fit', detail: '' });
+  // Manual store search
+  const [manualSearchName, setManualSearchName] = useState("");
+  const [manualSearchTown, setManualSearchTown] = useState("");
+  const [manualSearching, setManualSearching] = useState(false);
+  const [manualResult, setManualResult] = useState<any>(null);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
