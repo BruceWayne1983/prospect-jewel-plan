@@ -295,18 +295,69 @@ export default function ProspectProfile() {
         </div>
       </div>
 
-      {/* AI Reason */}
-      {p.ai_reason && (
-        <div className="card-premium p-6 border-gold/20">
-          <div className="flex items-center gap-2.5 mb-3">
-            <Sparkles className="w-4 h-4 text-gold" strokeWidth={1.5} />
-            <h3 className="text-sm font-display font-semibold text-foreground">AI Analysis</h3>
+      {/* AI Analysis & Discovery Details */}
+      <div className="card-premium p-6 border-gold/20">
+        <div className="flex items-center gap-2.5 mb-4">
+          <Sparkles className="w-4 h-4 text-gold" strokeWidth={1.5} />
+          <h3 className="text-sm font-display font-semibold text-foreground">AI Analysis & Discovery Details</h3>
+        </div>
+
+        {/* How it was discovered */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+          <div className="bg-muted/30 rounded-lg p-3.5 border border-border/15">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1"><Search className="w-3 h-3" /> Discovery Method</p>
+            <p className="text-sm font-medium text-foreground">{p.discovery_source || 'AI Scanner'}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {p.discovery_source?.startsWith('Brand:')
+                ? `Found by searching for retailers that stock ${p.discovery_source.replace('Brand: ', '')} or similar brands in the South West.`
+                : p.discovery_source === 'Web Scanner'
+                ? 'Found by searching real business directories and websites using Firecrawl web scraping.'
+                : 'Found by AI analysis of the independent retail landscape in the target territory.'}
+            </p>
           </div>
-          <div className="bg-champagne/15 rounded-lg p-4 border border-gold/10">
-            <p className="text-sm text-foreground leading-relaxed italic font-display">{p.ai_reason}</p>
+          <div className="bg-muted/30 rounded-lg p-3.5 border border-border/15">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1"><Calendar className="w-3 h-3" /> Discovered</p>
+            <p className="text-sm font-medium text-foreground">{new Date(p.discovered_date || p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Added to your prospect pipeline on this date.</p>
+          </div>
+          <div className="bg-muted/30 rounded-lg p-3.5 border border-border/15">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1"><Info className="w-3 h-3" /> Data Confidence</p>
+            <p className="text-sm font-medium text-foreground">
+              {p.discovery_source === 'Web Scanner' ? 'Higher' : 'Moderate'} Confidence
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {p.discovery_source === 'Web Scanner'
+                ? 'Based on real web data scraped from business directories. Contact details likely accurate.'
+                : 'AI-generated based on market knowledge. Store name, address, phone, email & website should all be verified before outreach.'}
+            </p>
           </div>
         </div>
-      )}
+
+        {/* AI Reasoning */}
+        {p.ai_reason && (
+          <div className="mb-5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">AI Reasoning — Why This Prospect?</p>
+            <div className="bg-champagne/15 rounded-lg p-4 border border-gold/10">
+              <p className="text-sm text-foreground leading-relaxed italic font-display">{p.ai_reason}</p>
+            </div>
+          </div>
+        )}
+
+        {/* What to verify */}
+        <div className="bg-warning/5 rounded-lg p-4 border border-warning/20">
+          <p className="text-xs font-semibold text-warning flex items-center gap-1.5 mb-2"><AlertTriangle className="w-3.5 h-3.5" /> Before You Reach Out — Verify These</p>
+          <ul className="text-[11px] text-foreground/80 space-y-1.5 ml-5 list-disc">
+            <li><strong>Store exists:</strong> Check the website URL actually works and belongs to this business</li>
+            <li><strong>Contact details:</strong> Phone number, email, and address may be AI-estimated — confirm via Google or their website</li>
+            <li><strong>Still trading:</strong> Confirm the store is currently open and operating</li>
+            <li><strong>Correct category:</strong> Verify they actually sell jewellery/gifts/accessories (not just toys or unrelated products)</li>
+            <li><strong>Social media:</strong> Run a social verification scan to find their real Instagram, Facebook, etc.</li>
+            {p.discovery_source?.startsWith('Brand:') && (
+              <li><strong>Brand connection:</strong> Confirm they actually stock {p.discovery_source.replace('Brand: ', '')} — the AI inferred this from market knowledge</li>
+            )}
+          </ul>
+        </div>
+      </div>
 
       {/* Google Reviews */}
       {p.google_review_summary && (
