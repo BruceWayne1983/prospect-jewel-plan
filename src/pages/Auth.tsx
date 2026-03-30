@@ -8,6 +8,7 @@ import nominationLogo from "@/assets/nomination-logo.webp";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgot, setIsForgot] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,7 +18,14 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgot) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        toast.success("Password reset link sent! Check your inbox.");
+        setIsForgot(false);
+      } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back!");
@@ -44,7 +52,7 @@ export default function Auth() {
           <img src={nominationLogo} alt="Nomination" className="h-10 mx-auto mb-4 opacity-90" />
           <h1 className="text-xl font-display font-semibold text-foreground">Territory Planner</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isLogin ? "Sign in to your account" : "Create your account"}
+            {isForgot ? "Reset your password" : isLogin ? "Sign in to your account" : "Create your account"}
           </p>
         </div>
 
@@ -55,33 +63,52 @@ export default function Auth() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="emma@emmalouiselux.co.uk"
+              placeholder="emmalouisegregory@yahoo.com"
               className="mt-1.5 bg-background border-border/40 h-10"
               required
             />
           </div>
-          <div>
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Password</Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="mt-1.5 bg-background border-border/40 h-10"
-              required
-              minLength={6}
-            />
-          </div>
+          {!isForgot && (
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Password</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="mt-1.5 bg-background border-border/40 h-10"
+                required
+                minLength={6}
+              />
+            </div>
+          )}
           <Button type="submit" disabled={loading} className="w-full h-10 gold-gradient text-sidebar-background font-medium">
-            {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+            {loading ? "Please wait..." : isForgot ? "Send Reset Link" : isLogin ? "Sign In" : "Create Account"}
           </Button>
         </form>
 
+        {isLogin && !isForgot && (
+          <p className="text-center text-sm text-muted-foreground">
+            <button onClick={() => setIsForgot(true)} className="text-gold hover:underline font-medium">
+              Forgot your password?
+            </button>
+          </p>
+        )}
+
         <p className="text-center text-sm text-muted-foreground">
-          {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-          <button onClick={() => setIsLogin(!isLogin)} className="text-gold hover:underline font-medium">
-            {isLogin ? "Sign up" : "Sign in"}
-          </button>
+          {isForgot ? (
+            <button onClick={() => setIsForgot(false)} className="text-gold hover:underline font-medium">
+              Back to sign in
+            </button>
+          ) : isLogin ? (
+            <>Don't have an account?{" "}
+              <button onClick={() => setIsLogin(false)} className="text-gold hover:underline font-medium">Sign up</button>
+            </>
+          ) : (
+            <>Already have an account?{" "}
+              <button onClick={() => setIsLogin(true)} className="text-gold hover:underline font-medium">Sign in</button>
+            </>
+          )}
         </p>
       </div>
     </div>

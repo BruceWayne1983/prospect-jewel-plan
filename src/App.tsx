@@ -26,6 +26,7 @@ import BrandHub from "@/pages/BrandHub";
 import RetailLocations from "@/pages/RetailLocations";
 import ProspectProfile from "@/pages/ProspectProfile";
 import WeeklyReview from "@/pages/WeeklyReview";
+import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,8 +42,21 @@ function AppRoutes() {
     );
   }
 
+  // Allow reset-password route without session
+  if (window.location.pathname === "/reset-password") {
+    return (
+      <Routes>
+        <Route path="/reset-password" element={<ResetPassword />} />
+      </Routes>
+    );
+  }
+
   if (!session) {
-    return <Auth />;
+    return (
+      <Routes>
+        <Route path="*" element={<Auth />} />
+      </Routes>
+    );
   }
 
   return (
