@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { EarningsTracker } from "@/components/earnings/EarningsTracker";
 import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlerts";
+import { EmmaAssistant } from "@/components/dashboard/EmmaAssistant";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -565,6 +566,18 @@ export default function Dashboard() {
           <button onClick={() => navigate("/discovery")} className="text-xs text-gold hover:text-gold-dark font-medium">Go to Discovery Engine →</button>
         </div>
       )}
+      <EmmaAssistant
+        displayName={displayName}
+        context={{
+          currentAccounts: currentAccounts.length,
+          activeProspects: activeProspects.length,
+          followUps: needsFollowUp.length,
+          atRisk: atRisk.length,
+          meetingsBooked: withMeetings.length,
+          prospectCount,
+          upcomingEvents: upcomingEvents.length,
+        }}
+      />
     </div>
   );
 }
