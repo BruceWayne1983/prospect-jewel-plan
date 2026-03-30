@@ -59,7 +59,8 @@ Deno.serve(async (req) => {
 
     const searchName = storeName.trim();
     const locationHint = town ? ` ${town}` : "";
-    const searchQuery = `"${searchName}"${locationHint} UK shop store`;
+    const categoryHint = category ? ` ${category.replace("_", " ")}` : "";
+    const searchQuery = `"${searchName}"${locationHint} UK${categoryHint} shop store`;
 
     console.log("Manual search:", searchQuery);
 
