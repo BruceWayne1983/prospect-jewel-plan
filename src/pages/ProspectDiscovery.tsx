@@ -483,6 +483,38 @@ export default function ProspectDiscovery() {
     setEnrichProgress({ done: 0, total: 0 });
   };
 
+  const runManualSearch = async () => {
+    if (!manualSearchName.trim() || manualSearchName.trim().length < 2) {
+      toast.error("Please enter a store name (at least 2 characters)");
+      return;
+    }
+    setManualSearching(true);
+    setManualResult(null);
+    try {
+      await ensureSession();
+      const { data, error } = await supabase.functions.invoke("search-store", {
+        body: { storeName: manualSearchName.trim(), town: manualSearchTown.trim() || undefined },
+      });
+      if (error) throw error;
+      if (data?.found) {
+        if (data.alreadyExists) {
+          toast.info(data.message);
+        } else {
+          toast.success(`Found and saved "${data.store?.name}"!`);
+          await fetchProspects();
+        }
+        setManualResult(data);
+      } else {
+        toast.info(data?.message || `No results found for "${manualSearchName}"`);
+        setManualResult(data);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Search failed");
+    } finally {
+      setManualSearching(false);
+    }
+  };
+
   const newCount = prospects.filter(p => p.status === 'new').length;
   const reviewingCount = prospects.filter(p => p.status === 'reviewing').length;
   const acceptedCount = prospects.filter(p => p.status === 'accepted').length;
