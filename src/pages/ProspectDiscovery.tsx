@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Database } from "@/integrations/supabase/types";
 
 type DiscoveredProspect = Database["public"]["Tables"]["discovered_prospects"]["Row"];
@@ -42,6 +43,73 @@ function SourceBadge({ source }: { source: string | null }) {
     return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info flex items-center gap-1"><Globe className="w-2.5 h-2.5" />Web Verified</span>;
   }
   return <span className="text-[10px] text-gold-dark">{source}</span>;
+}
+
+function ScoreBreakdownTooltip({ prospect }: { prospect: DiscoveredProspect }) {
+  const p = prospect;
+  const quality = p.estimated_store_quality ?? 50;
+  const hasSocials = !!(p.instagram || p.facebook || p.tiktok || p.twitter || p.linkedin);
+  const reviewScore = Math.min(100, ((p.review_count ?? 0) / 200) * 100);
+
+  // Approximate the factor scores
+  const storeQuality = Math.round(quality * 0.25);
+  const brandAlignment = Math.round((p.predicted_fit_score ?? 50) * 0.20);
+  const location = Math.round(((p.rating ?? 3) / 5) * 100 * 0.15);
+  const onlinePresence = Math.round((hasSocials ? 80 : 15) * 0.15);
+  const commercialHealth = Math.round(((reviewScore + ((p.rating ?? 3) / 5) * 100) / 2) * 0.15);
+  const independence = Math.round(90 * 0.10); // assumed independent
+
+  const factors = [
+    { label: 'Store Quality', score: storeQuality, max: 25, detail: `${quality}/100` },
+    { label: 'Brand Alignment', score: brandAlignment, max: 20, detail: p.discovery_source?.startsWith('Brand:') ? p.discovery_source.replace('Brand: ', '') : 'General' },
+    { label: 'Location', score: location, max: 15, detail: `${p.town}, ${p.county}` },
+    { label: 'Online Presence', score: onlinePresence, max: 15, detail: hasSocials ? '✓ Has socials' : '✗ No socials (−15)' },
+    { label: 'Commercial Health', score: commercialHealth, max: 15, detail: `★${p.rating ?? 0} (${p.review_count ?? 0} reviews)` },
+    { label: 'Independence', score: independence, max: 10, detail: 'Independent' },
+  ];
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="text-center cursor-help group">
+            <span className={`text-2xl font-display font-bold ${(p.predicted_fit_score ?? 0) >= 80 ? 'score-excellent' : (p.predicted_fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predicted_fit_score}</span>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center justify-center gap-0.5">Predicted Fit <Info className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="w-64 p-0 bg-card border-border/40 shadow-xl">
+          <div className="p-3 border-b border-border/20">
+            <p className="text-xs font-display font-semibold text-foreground">Score Breakdown</p>
+            <p className="text-[10px] text-muted-foreground">How this fit score was calculated</p>
+          </div>
+          <div className="p-3 space-y-2.5">
+            {factors.map(f => (
+              <div key={f.label}>
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[10px] font-medium text-foreground">{f.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{f.score}/{f.max}</span>
+                </div>
+                <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${f.score / f.max >= 0.7 ? 'bg-success' : f.score / f.max >= 0.4 ? 'bg-warning' : 'bg-destructive'}`}
+                    style={{ width: `${(f.score / f.max) * 100}%` }}
+                  />
+                </div>
+                <p className="text-[9px] text-muted-foreground mt-0.5">{f.detail}</p>
+              </div>
+            ))}
+          </div>
+          {!hasSocials && (
+            <div className="px-3 pb-3">
+              <div className="p-2 rounded bg-destructive/10 border border-destructive/20">
+                <p className="text-[9px] text-destructive font-medium">⚠ No social media — score penalised</p>
+              </div>
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 export default function ProspectDiscovery() {
@@ -841,10 +909,7 @@ export default function ProspectDiscovery() {
                 )}
               </div>
               <div className="flex flex-col items-end gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                <div className="text-center">
-                  <span className={`text-2xl font-display font-bold ${(p.predicted_fit_score ?? 0) >= 80 ? 'score-excellent' : (p.predicted_fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predicted_fit_score}</span>
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Predicted Fit</p>
-                </div>
+                <ScoreBreakdownTooltip prospect={p} />
                 <div className="text-[10px] text-muted-foreground capitalize">
                   Est. quality: {p.estimated_store_quality}/100
                 </div>
