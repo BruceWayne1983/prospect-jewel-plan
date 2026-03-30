@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { storeName, town } = await req.json();
+    const { storeName, town, category } = await req.json();
     if (!storeName || storeName.trim().length < 2) {
       return new Response(JSON.stringify({ error: "Store name is required (at least 2 characters)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
