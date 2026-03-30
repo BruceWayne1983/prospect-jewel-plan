@@ -141,6 +141,7 @@ export default function ProspectDiscovery() {
   // Manual store search
   const [manualSearchName, setManualSearchName] = useState("");
   const [manualSearchTown, setManualSearchTown] = useState("");
+  const [manualSearchCategory, setManualSearchCategory] = useState<string>("all");
   const [manualSearching, setManualSearching] = useState(false);
   const [manualResult, setManualResult] = useState<any>(null);
 
