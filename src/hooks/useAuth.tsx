@@ -2,9 +2,6 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
-const EMMA_EMAIL = "emma@nomination.co.uk";
-const EMMA_PASSWORD = "emma2025!";
-
 interface AuthContext {
   user: User | null;
   session: Session | null;
@@ -33,18 +30,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session: existing } }) => {
+    supabase.auth.getSession().then(({ data: { session: existing } }) => {
       if (existing) {
         setSession(existing);
         setUser(existing.user);
-        setLoading(false);
-      } else {
-        // Auto sign-in: try login first, then sign up if no account
-        const { error } = await supabase.auth.signInWithPassword({ email: EMMA_EMAIL, password: EMMA_PASSWORD });
-        if (error) {
-          await supabase.auth.signUp({ email: EMMA_EMAIL, password: EMMA_PASSWORD, options: { data: { full_name: "Emma" } } });
-        }
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
