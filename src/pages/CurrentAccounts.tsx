@@ -360,6 +360,73 @@ export default function CurrentAccounts() {
         ))}
       </div>
 
+      {/* Group Accounts View */}
+      {viewTab === "groups" && (
+        <div className="space-y-4">
+          {accountGroups.length === 0 ? (
+            <div className="card-premium p-8 text-center">
+              <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No multi-site groups detected.</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Groups are auto-detected when accounts share the same trading name or are linked via parent accounts.</p>
+            </div>
+          ) : (
+            accountGroups.map(([groupName, members]) => {
+              const formatCurr = (v: number) => v > 0 ? `£${v.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—";
+              const total2025 = members.reduce((s, m) => s + (parseFloat(String(m.billing_2025_full_year)) || 0), 0);
+              const total2026 = members.reduce((s, m) => s + (parseFloat(String(m.billing_2026_ytd)) || 0), 0);
+
+              return (
+                <div key={groupName} className="card-premium p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <Users className="w-5 h-5 text-gold" strokeWidth={1.5} />
+                      <h3 className="text-base font-display font-semibold text-foreground">{groupName}</h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-champagne/40 text-gold-dark font-medium">{members.length} sites</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm font-display font-bold text-foreground">{formatCurr(total2025)}</p>
+                        <p className="text-[9px] text-muted-foreground">2025 Total</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-display font-bold shimmer-gold">{formatCurr(total2026)}</p>
+                        <p className="text-[9px] text-muted-foreground">2026 YTD</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {members.map(m => (
+                      <div key={m.id} onClick={() => navigate(`/retailer/${m.id}`)} className="flex items-center justify-between p-3 rounded-lg hover:bg-champagne/10 cursor-pointer border border-border/10 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{m.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{m.town}, {m.county}</p>
+                          </div>
+                          {m.pipeline_stage === "retention_risk" && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-warning-light text-warning font-medium">At Risk</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-xs font-display font-bold text-foreground">{formatCurr(parseFloat(String(m.billing_2025_full_year)) || 0)}</p>
+                            <p className="text-[9px] text-muted-foreground">2025</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-display font-bold text-foreground">{formatCurr(parseFloat(String(m.billing_2026_ytd)) || 0)}</p>
+                            <p className="text-[9px] text-muted-foreground">2026 YTD</p>
+                          </div>
+                          <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
