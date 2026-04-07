@@ -194,6 +194,11 @@ export default function ProspectProfile() {
                 if (vs === 'verified_fake') return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-destructive/15 text-destructive flex items-center gap-1"><ShieldAlert className="w-2.5 h-2.5" />NOT FOUND ONLINE</span>;
                 return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />AI GENERATED — NOT VERIFIED</span>;
               })()}
+              {((p.raw_data as any)?.is_potential_branch) && (
+                <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-accent/20 text-accent-foreground flex items-center gap-1">
+                  <Users className="w-2.5 h-2.5" />Branch of {(p.raw_data as any)?.related_account_name} ({(p.raw_data as any)?.related_account_town})
+                </span>
+              )}
               {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
                 <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-info-light text-info">💡 Social Opportunity</span>
               )}
