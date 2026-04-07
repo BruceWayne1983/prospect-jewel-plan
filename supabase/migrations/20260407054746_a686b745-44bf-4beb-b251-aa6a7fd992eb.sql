@@ -1,0 +1,1 @@
+ALTER TABLE public.retailers ADD COLUMN IF NOT EXISTS billing_history jsonb DEFAULT '{}'::jsonb;

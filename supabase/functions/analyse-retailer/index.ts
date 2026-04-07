@@ -65,11 +65,82 @@ Deno.serve(async (req) => {
       if (retailer.billing_2025_full_year) parts.push(`2025 Full Year: £${Number(retailer.billing_2025_full_year).toLocaleString()}`);
       if (retailer.billing_2026_ytd) parts.push(`2026 YTD: £${Number(retailer.billing_2026_ytd).toLocaleString()}`);
       if (parts.length) billingContext = `\nBilling History: ${parts.join(" | ")}`;
+
+      // Add monthly breakdown if available
+      const bh = retailer.billing_history as Record<string, unknown> | null;
+      if (bh?.monthly && Array.isArray(bh.monthly)) {
+        const monthlyStr = (bh.monthly as Array<{month: string; amount: number}>)
+          .slice(-6)
+          .map(m => `${m.month}: £${m.amount.toLocaleString()}`)
+          .join(", ");
+        billingContext += `\nRecent Monthly: ${monthlyStr}`;
+      }
+      if (bh?.ytd_change_pct !== undefined) {
+        billingContext += `\nYTD Change vs Prior Year: ${bh.ytd_change_pct}%`;
+      }
+    }
+
+    // Calculate territory baselines from all approved accounts
+    let territoryBaseline = "";
+    try {
+      const { data: allAccounts } = await supabase
+        .from("retailers")
+        .select("category, county, town, billing_2025_full_year, billing_2024_full_year, billing_2026_ytd")
+        .eq("user_id", (await supabase.auth.getUser()).data.user!.id)
+        .in("pipeline_stage", ["approved", "retention_risk"]);
+
+      if (allAccounts && allAccounts.length > 0) {
+        // Average by category
+        const catAvgs: Record<string, { total: number; count: number }> = {};
+        const countyAvgs: Record<string, { total: number; count: number }> = {};
+
+        for (const a of allAccounts) {
+          const annualVal = Number(a.billing_2025_full_year || a.billing_2024_full_year || 0);
+          if (annualVal > 0) {
+            const cat = a.category || "jeweller";
+            if (!catAvgs[cat]) catAvgs[cat] = { total: 0, count: 0 };
+            catAvgs[cat].total += annualVal;
+            catAvgs[cat].count++;
+
+            const county = a.county || "Unknown";
+            if (!countyAvgs[county]) countyAvgs[county] = { total: 0, count: 0 };
+            countyAvgs[county].total += annualVal;
+            countyAvgs[county].count++;
+          }
+        }
+
+        const catLines = Object.entries(catAvgs).map(([cat, v]) =>
+          `${cat.replace(/_/g, " ")}: £${Math.round(v.total / v.count).toLocaleString()} avg annual (${v.count} accounts)`
+        ).join("; ");
+
+        const countyLines = Object.entries(countyAvgs).map(([county, v]) =>
+          `${county}: £${Math.round(v.total / v.count).toLocaleString()} avg (${v.count} accounts)`
+        ).join("; ");
+
+        // Median opening year
+        const allAnnuals = allAccounts
+          .map(a => Number(a.billing_2024_full_year || 0))
+          .filter(v => v > 0)
+          .sort((a, b) => a - b);
+        const medianOpening = allAnnuals.length > 0
+          ? allAnnuals[Math.floor(allAnnuals.length / 2)]
+          : 0;
+
+        territoryBaseline = `\n\nTERRITORY PERFORMANCE BASELINES (from actual billing data):
+Category averages: ${catLines}
+County averages: ${countyLines}
+Median first-year performance: £${medianOpening.toLocaleString()}
+Total active accounts with billing data: ${allAccounts.filter(a => Number(a.billing_2025_full_year || a.billing_2024_full_year || 0) > 0).length}
+
+Use these baselines to calibrate your revenue predictions. Do NOT guess — anchor predictions to actual territory performance data.`;
+      }
+    } catch (e) {
+      console.error("Failed to calculate territory baseline:", e);
     }
 
     const systemPrompt = isCurrentAccount
-      ? `You are a senior UK retail sales strategist for Nomination Italy, a premium Italian charm jewellery brand. You are analysing an EXISTING STOCKIST — they already carry and sell Nomination products. Your analysis should focus on: account health, growth opportunities, relationship strength, reorder patterns, risk of churn, competitive threats, and strategies to deepen the partnership. Do NOT treat them as a prospect. Be specific about what's working, what could improve, and actionable next steps for the account manager.`
-      : `You are a senior UK retail sales strategist for Nomination Italy, a premium Italian charm jewellery brand. You analyse independent retailers to determine their suitability as Nomination stockists. You produce detailed intelligence reports, outreach strategies, performance predictions and qualification assessments. Be specific, commercially focused, and realistic. Base your analysis on the retailer data provided.`;
+      ? `You are a senior UK retail sales strategist for Nomination Italy, a premium Italian charm jewellery brand. You are analysing an EXISTING STOCKIST — they already carry and sell Nomination products. Your analysis should focus on: account health, growth opportunities, relationship strength, reorder patterns, risk of churn, competitive threats, and strategies to deepen the partnership. Do NOT treat them as a prospect. Be specific about what's working, what could improve, and actionable next steps for the account manager.${territoryBaseline}`
+      : `You are a senior UK retail sales strategist for Nomination Italy, a premium Italian charm jewellery brand. You analyse independent retailers to determine their suitability as Nomination stockists. You produce detailed intelligence reports, outreach strategies, performance predictions and qualification assessments. Be specific, commercially focused, and realistic. Base your analysis on the retailer data provided.${territoryBaseline}`;
 
     const userPrompt = isCurrentAccount
       ? `Analyse this EXISTING Nomination stockist and generate a comprehensive account intelligence report. Focus on account health, growth potential, and relationship management rather than prospecting. IMPORTANT: Also try to find or infer any missing contact details.
