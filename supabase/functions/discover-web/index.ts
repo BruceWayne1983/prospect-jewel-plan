@@ -18,6 +18,11 @@ const SEARCH_QUERIES: Record<string, string[]> = {
   lifestyle_store: ["lifestyle store", "lifestyle boutique", "home and lifestyle"],
   premium_accessories: ["accessories shop", "luxury accessories", "handbags and accessories"],
   concept_store: ["concept store", "curated shop", "designer store"],
+  department_store: ["independent department store", "small department store"],
+  garden_centre_gift_hall: ["garden centre gift hall", "garden centre jewellery", "garden centre gifts"],
+  wedding_bridal: ["bridal shop", "wedding boutique", "bridal wear"],
+  heritage_tourist_gift: ["heritage gift shop", "tourist gift shop", "museum shop"],
+  multi_brand_retailer: ["multi brand retailer", "multi brand boutique", "brand stockist"],
 };
 
 Deno.serve(async (req) => {
