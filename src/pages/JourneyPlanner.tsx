@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRetailers, getOutreach, getActivity } from "@/hooks/useRetailers";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight, Home, Plus, X, Search } from "lucide-react";
+import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight, Home, Plus, X, Search, Radar, ExternalLink } from "lucide-react";
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/components/journey/DiaryWeekView";
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
