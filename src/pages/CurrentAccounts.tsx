@@ -75,6 +75,48 @@ export default function CurrentAccounts() {
   const retentionRisk = useMemo(() => retailers.filter(r => r.pipeline_stage === "retention_risk"), [retailers]);
   const alerts = useMemo(() => computeAlerts(allEstablished, calendarEvents), [allEstablished, calendarEvents]);
 
+  // Group detection: group by business_group or by shared trading name
+  const accountGroups = useMemo(() => {
+    const groups: Record<string, typeof allEstablished> = {};
+    for (const r of allEstablished) {
+      const groupKey = (r as any).business_group || null;
+      if (groupKey) {
+        if (!groups[groupKey]) groups[groupKey] = [];
+        groups[groupKey].push(r);
+      }
+    }
+    // Also detect by shared name (normalised)
+    const nameMap: Record<string, typeof allEstablished> = {};
+    for (const r of allEstablished) {
+      const norm = r.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9\s]/g, "").trim();
+      if (!nameMap[norm]) nameMap[norm] = [];
+      nameMap[norm].push(r);
+    }
+    for (const [name, members] of Object.entries(nameMap)) {
+      if (members.length > 1) {
+        const existingGroup = members.find(m => (m as any).business_group);
+        const key = existingGroup ? (existingGroup as any).business_group : members[0].name;
+        if (!groups[key]) groups[key] = [];
+        for (const m of members) {
+          if (!groups[key].find(g => g.id === m.id)) groups[key].push(m);
+        }
+      }
+    }
+    // Also detect parent_account_id groups
+    for (const r of allEstablished) {
+      if (r.parent_account_id) {
+        const parent = allEstablished.find(p => p.id === r.parent_account_id);
+        if (parent) {
+          const key = (parent as any).business_group || parent.name;
+          if (!groups[key]) groups[key] = [];
+          if (!groups[key].find(g => g.id === parent.id)) groups[key].push(parent);
+          if (!groups[key].find(g => g.id === r.id)) groups[key].push(r);
+        }
+      }
+    }
+    return Object.entries(groups).filter(([, members]) => members.length > 1).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [allEstablished]);
+
   const runBulkAIAnalysis = async () => {
     const unanalysed = allEstablished.filter((r) => {
       const ai = getAIIntelligence(r);
