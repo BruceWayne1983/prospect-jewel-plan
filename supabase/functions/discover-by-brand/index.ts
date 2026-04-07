@@ -153,9 +153,11 @@ Deno.serve(async (req) => {
             content: `You are a UK retail market analyst specialising in jewellery, gift, and accessories brands in the South West of England and South Wales. You have deep knowledge of which independent retailers stock which brands. Your task is to identify stores that stock "${brand}" or similar/complementary brands that would also be excellent candidates for stocking Nomination Italy charm jewellery.
 
 CRITICAL EXCLUSION RULES:
-- Do NOT include toy stores, toy shops, or children's toy retailers — even if they stock "${brand}". We are looking for jewellery shops, gift shops, fashion boutiques, lifestyle stores, and premium accessories stores ONLY.
+- Do NOT include toy stores, toy shops, or children's toy retailers — even if they stock "${brand}". We are looking for jewellery shops, gift shops, fashion boutiques, lifestyle stores, premium accessories stores, small independent department stores, wedding & bridal shops, heritage/tourist gift shops, and multi-brand retailers ONLY.
 - Do NOT include chain stores or franchises — only independent retailers.
 - Do NOT include online-only stores — they must have a physical retail presence.
+
+GARDEN CENTRE RULE: When evaluating garden centres, check if they have a substantial gift hall or jewellery department. Many garden centres in South West England have gift retail sections turning over £1m+. Include these as "garden_centre_gift_hall" category with a note in ai_reason about "Requires manual verification of gift hall suitability". Exclude garden centres that are purely plants/outdoor/hardware.
 
 SOCIAL MEDIA RULE (VERY IMPORTANT):
 - Stores WITHOUT any social media presence (no Instagram, Facebook, TikTok, etc.) are HIGHLY NEGATIVE prospects and should be scored significantly lower (predicted_fit_score reduced by 15-25 points).
@@ -175,9 +177,9 @@ CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contac
           },
           {
             role: "user",
-            content: `Find ${targetCount} independent retailers in the South West of England that currently stock "${brand}" or brands with similar appeal (same price tier, same customer demographic, complementary product range). These retailers would be ideal prospects for Nomination Italy charm jewellery.
+            content: `Find ${targetCount} independent retailers in the South West of England and South Wales that currently stock "${brand}" or brands with similar appeal (same price tier, same customer demographic, complementary product range). These retailers would be ideal prospects for Nomination Italy charm jewellery.
 
-IMPORTANT: Do NOT include toy stores, children's shops, or any store primarily selling toys — even if they stock "${brand}". We only want jewellery shops, gift boutiques, fashion stores, lifestyle stores, and premium accessories shops.
+IMPORTANT: Do NOT include toy stores, children's shops, or any store primarily selling toys — even if they stock "${brand}". DO include garden centres with substantial gift halls/jewellery sections — categorise them as "garden_centre_gift_hall".
 
 ${countyInstruction}
 
