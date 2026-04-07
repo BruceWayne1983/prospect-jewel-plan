@@ -102,6 +102,115 @@ export default function Dashboard() {
       {/* Earnings Summary */}
       <EarningsTracker retailers={retailers} compact />
 
+      {/* Territory Revenue Dashboard */}
+      {(() => {
+        const billingAccounts = currentAccounts.filter(r => r.billing_2026_ytd || r.billing_2025_full_year);
+        if (billingAccounts.length === 0) return null;
+
+        const totalYtd = billingAccounts.reduce((s, r) => s + Number(r.billing_2026_ytd || 0), 0);
+        const totalPriorYear = billingAccounts.reduce((s, r) => s + Number(r.billing_2025_full_year || 0), 0);
+        const currentMonth = new Date().getMonth() + 1;
+        const priorYearProrated = totalPriorYear > 0 ? (totalPriorYear / 12) * currentMonth : 0;
+        const ytdChangePct = priorYearProrated > 0 ? Math.round(((totalYtd - priorYearProrated) / priorYearProrated) * 1000) / 10 : null;
+
+        const sortedByBilling = [...billingAccounts]
+          .sort((a, b) => Number(b.billing_2026_ytd || 0) - Number(a.billing_2026_ytd || 0));
+        const top5 = sortedByBilling.slice(0, 5);
+        const bottom5 = sortedByBilling.filter(r => Number(r.billing_2026_ytd || 0) > 0).slice(-5).reverse();
+
+        return (
+          <div className="card-premium p-5 border-gold/20 bg-champagne/5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center">
+                  <PoundSterling className="w-4 h-4" style={{ color: "hsl(var(--sidebar-background))" }} />
+                </div>
+                <div>
+                  <h3 className="text-base font-display font-semibold text-foreground">Territory Revenue</h3>
+                  <p className="text-[10px] text-muted-foreground">From {billingAccounts.length} accounts with billing data</p>
+                </div>
+              </div>
+              <button onClick={() => navigate("/accounts")} className="text-xs text-gold hover:text-gold-dark transition-colors flex items-center gap-1 font-medium">
+                Accounts <ArrowUpRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-background/60 rounded-lg p-3 text-center border border-border/20">
+                <p className="text-xl font-display font-bold text-foreground">£{(totalYtd / 1000).toFixed(1)}k</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">2026 YTD</p>
+              </div>
+              {totalPriorYear > 0 && (
+                <div className="bg-background/60 rounded-lg p-3 text-center border border-border/20">
+                  <p className="text-xl font-display font-bold text-foreground">£{(totalPriorYear / 1000).toFixed(0)}k</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">2025 Full Year</p>
+                </div>
+              )}
+              {ytdChangePct !== null && (
+                <div className="bg-background/60 rounded-lg p-3 text-center border border-border/20">
+                  <p className={`text-xl font-display font-bold ${ytdChangePct >= 0 ? "text-success" : "text-destructive"}`}>
+                    {ytdChangePct >= 0 ? "+" : ""}{ytdChangePct}%
+                  </p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">YTD vs Prior Year</p>
+                </div>
+              )}
+              <div className="bg-background/60 rounded-lg p-3 text-center border border-border/20">
+                <p className="text-xl font-display font-bold text-foreground">{billingAccounts.length}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Billing Accounts</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Top 5 */}
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3 text-success" /> Top 5 by YTD Billing
+                </p>
+                <div className="space-y-1">
+                  {top5.map((r, i) => (
+                    <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-champagne/15 cursor-pointer transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] text-gold font-display font-bold w-4">{i + 1}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{r.name}</p>
+                          <p className="text-[9px] text-muted-foreground">{r.town}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-display font-bold text-foreground flex-shrink-0">
+                        £{Number(r.billing_2026_ytd || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bottom 5 (at-risk) */}
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-warning" /> Bottom 5 — Attention Needed
+                </p>
+                <div className="space-y-1">
+                  {bottom5.map((r, i) => (
+                    <div key={r.id} onClick={() => navigate(`/retailer/${r.id}`)} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-champagne/15 cursor-pointer transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] text-warning font-display font-bold w-4">{i + 1}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{r.name}</p>
+                          <p className="text-[9px] text-muted-foreground">{r.town}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-display font-bold text-warning flex-shrink-0">
+                        £{Number(r.billing_2026_ytd || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Key Sales Metrics - Top Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
