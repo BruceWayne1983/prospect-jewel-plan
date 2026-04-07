@@ -186,6 +186,14 @@ export default function ProspectProfile() {
               }`}>{p.status}</span>
               <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
               {p.discovery_source && <span className="text-[10px] text-muted-foreground">{p.discovery_source}</span>}
+              {/* Verification Badge */}
+              {(() => {
+                const vs = (p as any).verification_status;
+                if (vs === 'web_verified') return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" />WEB VERIFIED</span>;
+                if (vs === 'manually_verified') return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info flex items-center gap-1"><Shield className="w-2.5 h-2.5" />MANUALLY VERIFIED</span>;
+                if (vs === 'verified_fake') return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-destructive/15 text-destructive flex items-center gap-1"><ShieldAlert className="w-2.5 h-2.5" />NOT FOUND ONLINE</span>;
+                return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />AI GENERATED — NOT VERIFIED</span>;
+              })()}
               {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
                 <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-destructive/10 text-destructive">⚠ No Socials</span>
               )}
