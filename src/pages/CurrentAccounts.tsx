@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useRetailers, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert, MapPin } from "lucide-react";
+import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert, MapPin, Users, ArrowUpRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,12 +28,13 @@ import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlert
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function CurrentAccounts() {
+  const navigate = useNavigate();
   const { retailers, loading, refetch } = useRetailers();
   const [search, setSearch] = useState("");
   const [filterCounty, setFilterCounty] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState("priority");
-  const [viewTab, setViewTab] = useState<"all" | "alerts" | "retention">("all");
+  const [viewTab, setViewTab] = useState<"all" | "alerts" | "retention" | "groups">("all");
   const [syncing, setSyncing] = useState(false);
   const [analysingAll, setAnalysingAll] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
@@ -73,6 +75,48 @@ export default function CurrentAccounts() {
 
   const retentionRisk = useMemo(() => retailers.filter(r => r.pipeline_stage === "retention_risk"), [retailers]);
   const alerts = useMemo(() => computeAlerts(allEstablished, calendarEvents), [allEstablished, calendarEvents]);
+
+  // Group detection: group by business_group or by shared trading name
+  const accountGroups = useMemo(() => {
+    const groups: Record<string, typeof allEstablished> = {};
+    for (const r of allEstablished) {
+      const groupKey = (r as any).business_group || null;
+      if (groupKey) {
+        if (!groups[groupKey]) groups[groupKey] = [];
+        groups[groupKey].push(r);
+      }
+    }
+    // Also detect by shared name (normalised)
+    const nameMap: Record<string, typeof allEstablished> = {};
+    for (const r of allEstablished) {
+      const norm = r.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9\s]/g, "").trim();
+      if (!nameMap[norm]) nameMap[norm] = [];
+      nameMap[norm].push(r);
+    }
+    for (const [name, members] of Object.entries(nameMap)) {
+      if (members.length > 1) {
+        const existingGroup = members.find(m => (m as any).business_group);
+        const key = existingGroup ? (existingGroup as any).business_group : members[0].name;
+        if (!groups[key]) groups[key] = [];
+        for (const m of members) {
+          if (!groups[key].find(g => g.id === m.id)) groups[key].push(m);
+        }
+      }
+    }
+    // Also detect parent_account_id groups
+    for (const r of allEstablished) {
+      if (r.parent_account_id) {
+        const parent = allEstablished.find(p => p.id === r.parent_account_id);
+        if (parent) {
+          const key = (parent as any).business_group || parent.name;
+          if (!groups[key]) groups[key] = [];
+          if (!groups[key].find(g => g.id === parent.id)) groups[key].push(parent);
+          if (!groups[key].find(g => g.id === r.id)) groups[key].push(r);
+        }
+      }
+    }
+    return Object.entries(groups).filter(([, members]) => members.length > 1).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [allEstablished]);
 
   const runBulkAIAnalysis = async () => {
     const unanalysed = allEstablished.filter((r) => {
@@ -306,6 +350,7 @@ export default function CurrentAccounts() {
       <div className="flex items-center gap-2">
         {([
           { key: "all" as const, label: "All Accounts" },
+          { key: "groups" as const, label: `Groups (${accountGroups.length})` },
           { key: "alerts" as const, label: `Alerts (${alerts.length})` },
           { key: "retention" as const, label: `Retention (${retentionRisk.length})` },
         ]).map(tab => (
@@ -315,6 +360,73 @@ export default function CurrentAccounts() {
           </button>
         ))}
       </div>
+
+      {/* Group Accounts View */}
+      {viewTab === "groups" && (
+        <div className="space-y-4">
+          {accountGroups.length === 0 ? (
+            <div className="card-premium p-8 text-center">
+              <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No multi-site groups detected.</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Groups are auto-detected when accounts share the same trading name or are linked via parent accounts.</p>
+            </div>
+          ) : (
+            accountGroups.map(([groupName, members]) => {
+              const formatCurr = (v: number) => v > 0 ? `£${v.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—";
+              const total2025 = members.reduce((s, m) => s + (parseFloat(String(m.billing_2025_full_year)) || 0), 0);
+              const total2026 = members.reduce((s, m) => s + (parseFloat(String(m.billing_2026_ytd)) || 0), 0);
+
+              return (
+                <div key={groupName} className="card-premium p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <Users className="w-5 h-5 text-gold" strokeWidth={1.5} />
+                      <h3 className="text-base font-display font-semibold text-foreground">{groupName}</h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-champagne/40 text-gold-dark font-medium">{members.length} sites</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm font-display font-bold text-foreground">{formatCurr(total2025)}</p>
+                        <p className="text-[9px] text-muted-foreground">2025 Total</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-display font-bold shimmer-gold">{formatCurr(total2026)}</p>
+                        <p className="text-[9px] text-muted-foreground">2026 YTD</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {members.map(m => (
+                      <div key={m.id} onClick={() => navigate(`/retailer/${m.id}`)} className="flex items-center justify-between p-3 rounded-lg hover:bg-champagne/10 cursor-pointer border border-border/10 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{m.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{m.town}, {m.county}</p>
+                          </div>
+                          {m.pipeline_stage === "retention_risk" && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-warning-light text-warning font-medium">At Risk</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-xs font-display font-bold text-foreground">{formatCurr(parseFloat(String(m.billing_2025_full_year)) || 0)}</p>
+                            <p className="text-[9px] text-muted-foreground">2025</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-display font-bold text-foreground">{formatCurr(parseFloat(String(m.billing_2026_ytd)) || 0)}</p>
+                            <p className="text-[9px] text-muted-foreground">2026 YTD</p>
+                          </div>
+                          <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">

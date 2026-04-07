@@ -88,8 +88,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: existingRetailers } = await supabase.from("retailers").select("name");
-    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name");
+    const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town");
+    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town");
     const existingNames = [
       ...(existingRetailers || []).map((r: any) => r.name),
       ...(existingProspects || []).map((p: any) => p.name),
@@ -229,18 +229,44 @@ CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fie
     const similarBrands = generated.similar_brands || [];
 
     const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
-    const unique = prospects.filter((p: any) => {
+    const unique: any[] = [];
+    const branchFlags: Map<number, { related_account_id: string; related_name: string; related_town: string }> = new Map();
+
+    prospects.forEach((p: any) => {
       const pLower = p.name.toLowerCase();
-      if (lowerExisting.has(pLower)) return false;
+      const pTown = (p.town || '').toLowerCase();
       const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
-      for (const existing of existingNames) {
-        const eNorm = existing.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
-        if (pNorm.length > 3 && eNorm.length > 3 && (pNorm.includes(eNorm) || eNorm.includes(pNorm))) return false;
+
+      const isDupInBatch = unique.some(u => u.name.toLowerCase() === pLower && (u.town || '').toLowerCase() === pTown);
+      if (isDupInBatch) return;
+
+      let blocked = false;
+      let matchedRetailer: any = null;
+
+      for (const r of (existingRetailers || [])) {
+        const rNorm = r.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+        const nameMatch = pLower === r.name.toLowerCase() || (pNorm.length > 3 && rNorm.length > 3 && (pNorm.includes(rNorm) || rNorm.includes(pNorm)));
+        if (nameMatch) {
+          if ((r.town || '').toLowerCase() === pTown) { blocked = true; break; }
+          else { matchedRetailer = r; }
+        }
       }
-      return true;
+      if (blocked) return;
+
+      for (const ep of (existingProspects || [])) {
+        const epNorm = ep.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+        const nameMatch = pLower === ep.name.toLowerCase() || (pNorm.length > 3 && epNorm.length > 3 && (pNorm.includes(epNorm) || epNorm.includes(pNorm)));
+        if (nameMatch && (ep.town || '').toLowerCase() === pTown) { blocked = true; break; }
+      }
+      if (blocked) return;
+
+      if (matchedRetailer) {
+        branchFlags.set(unique.length, { related_account_id: matchedRetailer.id, related_name: matchedRetailer.name, related_town: matchedRetailer.town });
+      }
+      unique.push(p);
     });
 
-    const toInsert = unique.map((p: any) => {
+    const toInsert = unique.map((p: any, idx: number) => {
       const factors = {
         estimated_store_quality: p.estimated_store_quality || 50,
         category_alignment: p.category_alignment || 'moderate',
@@ -252,6 +278,7 @@ CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fie
         price_positioning: p.estimated_price_positioning || 'mid_market',
       };
       const breakdown = calculateFitScore(factors);
+      const branch = branchFlags.get(idx);
 
       return {
         user_id: userId,
@@ -263,7 +290,9 @@ CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fie
         review_count: p.review_count,
         estimated_store_quality: p.estimated_store_quality,
         predicted_fit_score: breakdown.total,
-        ai_reason: `[Stocks: ${(p.brands_stocked || []).join(", ")}] ${p.ai_reason}`,
+        ai_reason: branch
+          ? `⚡ Potential branch of existing account "${branch.related_name}" in ${branch.related_town}. [Stocks: ${(p.brands_stocked || []).join(", ")}] ${p.ai_reason}`
+          : `[Stocks: ${(p.brands_stocked || []).join(", ")}] ${p.ai_reason}`,
         estimated_price_positioning: p.estimated_price_positioning,
         website: p.website || null,
         address: p.address || null,
@@ -272,7 +301,11 @@ CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fie
         discovery_source: `Brand: ${brand}`,
         verification_status: "unverified",
         status: "new",
-        raw_data: { fit_score_factors: factors, fit_score_breakdown: breakdown },
+        raw_data: {
+          fit_score_factors: factors,
+          fit_score_breakdown: breakdown,
+          ...(branch ? { related_account_id: branch.related_account_id, related_account_name: branch.related_name, related_account_town: branch.related_town, is_potential_branch: true } : {}),
+        },
       };
     });
 

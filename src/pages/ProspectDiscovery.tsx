@@ -1053,6 +1053,11 @@ export default function ProspectDiscovery() {
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
                   <VerificationBadge status={(p as any).verification_status} />
+                  {((p.raw_data as any)?.is_potential_branch) && (
+                    <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-accent/20 text-accent-foreground flex items-center gap-1">
+                      <Users className="w-2.5 h-2.5" />Branch of {(p.raw_data as any)?.related_account_name} ({(p.raw_data as any)?.related_account_town})
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-4 mb-2">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>

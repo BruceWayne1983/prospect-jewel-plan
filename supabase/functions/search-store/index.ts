@@ -228,23 +228,31 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Check existing
-    const { data: existingRetailers } = await supabase.from("retailers").select("name").ilike("name", `%${result.name}%`);
-    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name").ilike("name", `%${result.name}%`);
+    // Check existing — allow different town (branch detection)
+    const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town").ilike("name", `%${result.name}%`);
+    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town").ilike("name", `%${result.name}%`);
 
-    if ((existingRetailers?.length || 0) > 0) {
+    const resultTown = (result.town || '').toLowerCase();
+    const sameTownRetailer = (existingRetailers || []).find((r: any) => (r.town || '').toLowerCase() === resultTown);
+    const differentTownRetailer = (existingRetailers || []).find((r: any) => (r.town || '').toLowerCase() !== resultTown);
+
+    if (sameTownRetailer) {
       return new Response(JSON.stringify({
         success: true, found: true, alreadyExists: true, existsAs: "retailer",
-        message: `"${result.name}" already exists as a current account`, store: result,
+        message: `"${result.name}" already exists as a current account in ${sameTownRetailer.town}`, store: result,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    if ((existingProspects?.length || 0) > 0) {
+    const sameTownProspect = (existingProspects || []).find((p: any) => (p.town || '').toLowerCase() === resultTown);
+    if (sameTownProspect) {
       return new Response(JSON.stringify({
         success: true, found: true, alreadyExists: true, existsAs: "prospect",
         message: `"${result.name}" already exists as a discovered prospect`, store: result,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // If name matches a retailer in a different town, flag as potential branch
+    const branchOf = differentTownRetailer || null;
 
     // Calculate deterministic fit score
     const factors = {
@@ -269,7 +277,9 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
       review_count: result.review_count || null,
       estimated_store_quality: result.estimated_store_quality,
       predicted_fit_score: breakdown.total,
-      ai_reason: result.ai_reason,
+      ai_reason: branchOf
+        ? `⚡ Potential branch of existing account "${branchOf.name}" in ${branchOf.town}. ${result.ai_reason}`
+        : result.ai_reason,
       estimated_price_positioning: result.estimated_price_positioning,
       website: result.website || null,
       address: result.address || null,
@@ -283,7 +293,13 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
       discovery_source: "Manual Search",
       verification_status: "web_verified",
       status: "new",
-      raw_data: { fit_score_factors: factors, fit_score_breakdown: breakdown, data_sources: result.data_sources, confidence: result.confidence },
+      raw_data: {
+        fit_score_factors: factors,
+        fit_score_breakdown: breakdown,
+        data_sources: result.data_sources,
+        confidence: result.confidence,
+        ...(branchOf ? { related_account_id: branchOf.id, related_account_name: branchOf.name, related_account_town: branchOf.town, is_potential_branch: true } : {}),
+      },
     };
 
     const { data: inserted, error: insertError } = await supabase
