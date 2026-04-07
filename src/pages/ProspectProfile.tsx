@@ -26,6 +26,48 @@ export default function ProspectProfile() {
   const [prospect, setProspect] = useState<DiscoveredProspect | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissDialog, setDismissDialog] = useState<{ open: boolean; reason: string; detail: string }>({ open: false, reason: 'not_fit', detail: '' });
+  const [verifying, setVerifying] = useState(false);
+
+  const verifyProspect = async () => {
+    if (!prospect) return;
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-prospect', {
+        body: { prospect_id: prospect.id, name: prospect.name, town: prospect.town, county: prospect.county, category: prospect.category },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      setProspect(prev => prev ? {
+        ...prev,
+        verification_status: data.verification_status,
+        verification_data: data,
+        website: data.website || prev.website,
+        phone: data.phone || prev.phone,
+        address: data.address || prev.address,
+        email: data.email || prev.email,
+      } as any : prev);
+      if (data.exists) {
+        toast.success(`Verified — business found online (${data.confidence} confidence)`);
+      } else {
+        toast.warning(`Could not verify this business exists online. It may be AI-generated.`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Verification failed");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const markManuallyVerified = async () => {
+    if (!id) return;
+    const { error } = await supabase.from("discovered_prospects").update({
+      verification_status: 'manually_verified',
+      verification_data: { verified_at: new Date().toISOString(), method: 'manual', verified_by: 'field_visit' },
+    } as any).eq("id", id);
+    if (error) { toast.error("Update failed"); return; }
+    setProspect(prev => prev ? { ...prev, verification_status: 'manually_verified' } as any : prev);
+    toast.success("Marked as manually verified");
+  };
 
   const fetchProspect = async () => {
     if (!id) return;
