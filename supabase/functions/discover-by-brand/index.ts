@@ -7,8 +7,11 @@ const corsHeaders = {
 };
 
 const SOUTH_WEST_COUNTIES = [
-  "Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Avon",
-  "Cardiff", "Swansea", "Newport", "Vale of Glamorgan", "Bridgend", "Neath Port Talbot", "Carmarthenshire", "Pembrokeshire", "Monmouthshire",
+  "Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Bristol", "Avon",
+  "Herefordshire", "Worcestershire",
+  "Cardiff", "Swansea", "Newport", "Vale of Glamorgan", "Bridgend", "Neath Port Talbot",
+  "Carmarthenshire", "Pembrokeshire", "Monmouthshire", "Rhondda Cynon Taf", "Merthyr Tydfil",
+  "Caerphilly", "Blaenau Gwent", "Torfaen", "Powys", "Ceredigion",
 ];
 
 const CATEGORIES = [
