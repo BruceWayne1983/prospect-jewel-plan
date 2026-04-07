@@ -11,6 +11,7 @@ import { VoiceToCRM } from "@/components/retailer/VoiceToCRM";
 import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
 import { BillingPanel } from "@/components/retailer/BillingPanel";
 import { GroupAccounts } from "@/components/retailer/GroupAccounts";
+import { NearbyProspects } from "@/components/retailer/NearbyProspects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
@@ -869,6 +870,17 @@ export default function RetailerProfile() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Nearby Prospects — only for approved accounts */}
+      <NearbyProspects
+        retailerId={r.id}
+        retailerName={r.name}
+        retailerLat={r.lat ?? null}
+        retailerLng={r.lng ?? null}
+        retailerTown={r.town}
+        retailerCounty={r.county}
+        pipelineStage={r.pipeline_stage}
+      />
     </div>
   );
 }
