@@ -1045,11 +1045,12 @@ export default function ProspectDiscovery() {
           <div key={p.id} onClick={() => navigate(`/prospect/${p.id}`)} className={`card-premium p-6 cursor-pointer hover:shadow-md transition-shadow ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1">
-                <div className="flex items-center gap-2.5 mb-2">
+                <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                   <h3 className="text-base font-display font-semibold text-foreground hover:text-gold transition-colors">{p.name}</h3>
                   <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
+                  <VerificationBadge status={(p as any).verification_status} />
                 </div>
                 <div className="flex items-center gap-4 mb-2">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
@@ -1125,6 +1126,26 @@ export default function ProspectDiscovery() {
                 <div className="text-[10px] text-muted-foreground capitalize">
                   Est. quality: {p.estimated_store_quality}/100
                 </div>
+                {/* Verify buttons */}
+                <div className="flex gap-1.5">
+                  {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+                    <Button variant="outline" size="sm" onClick={() => verifyProspect(p)} disabled={verifyingIds.has(p.id)} className="text-[10px] h-7 px-2 border-warning/40 text-warning hover:bg-warning-light">
+                      {verifyingIds.has(p.id) ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
+                      Verify Exists
+                    </Button>
+                  )}
+                  {(p as any).verification_status === 'web_verified' && (
+                    <Button variant="outline" size="sm" onClick={() => markManuallyVerified(p.id)} className="text-[10px] h-7 px-2 border-info/40 text-info hover:bg-info-light">
+                      <Shield className="w-3 h-3 mr-1" /> Mark Visited
+                    </Button>
+                  )}
+                </div>
+                {/* Verified fake warning */}
+                {(p as any).verification_status === 'verified_fake' && (
+                  <div className="text-[9px] text-destructive bg-destructive/10 rounded px-2 py-1 max-w-[200px] text-right">
+                    Could not verify this business exists online. It may be AI-generated.
+                  </div>
+                )}
                 {p.status === 'new' || p.status === 'reviewing' ? (
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => updateStatus(p.id, 'reviewing')} className="text-[10px] h-7 px-2 border-border/40">
@@ -1140,9 +1161,24 @@ export default function ProspectDiscovery() {
                 ) : p.status === 'accepted' ? (
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success">accepted</span>
-                    <Button variant="outline" size="sm" onClick={() => promoteToRetailer(p)} className="text-[10px] h-7 px-2 border-gold/40 text-gold-dark hover:bg-champagne/30">
-                      <ArrowUpRight className="w-3 h-3 mr-1" /> Promote to Pipeline
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => promoteToRetailer(p)}
+                            disabled={(p as any).verification_status === 'unverified' || !(p as any).verification_status}
+                            className="text-[10px] h-7 px-2 border-gold/40 text-gold-dark hover:bg-champagne/30"
+                          >
+                            <ArrowUpRight className="w-3 h-3 mr-1" /> Promote to Pipeline
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+                        <TooltipContent className="text-xs">Verify this store exists before adding to pipeline</TooltipContent>
+                      )}
+                    </Tooltip>
                   </div>
                 ) : (
                   <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>
