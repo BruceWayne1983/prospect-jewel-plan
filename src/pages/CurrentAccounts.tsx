@@ -28,6 +28,7 @@ import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlert
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function CurrentAccounts() {
+  const navigate = useNavigate();
   const { retailers, loading, refetch } = useRetailers();
   const [search, setSearch] = useState("");
   const [filterCounty, setFilterCounty] = useState("all");
