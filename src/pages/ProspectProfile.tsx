@@ -195,7 +195,7 @@ export default function ProspectProfile() {
                 return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />AI GENERATED — NOT VERIFIED</span>;
               })()}
               {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
-                <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-destructive/10 text-destructive">⚠ No Socials</span>
+                <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-info-light text-info">💡 Social Opportunity</span>
               )}
             </div>
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">{p.name}</h1>
