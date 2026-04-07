@@ -17,6 +17,9 @@ const clusters = [
   { name: "Wiltshire", towns: ["Salisbury", "Swindon"], region: "Wiltshire" },
   { name: "Somerset", towns: ["Taunton"], region: "Somerset" },
   { name: "Cardiff & South Wales", towns: ["Cardiff", "Swansea", "Newport", "Cowbridge"], region: "South Wales" },
+  { name: "Valleys & Heads of Valleys", towns: ["Pontypridd", "Merthyr Tydfil", "Caerphilly", "Brynmawr", "Cwmbran"], region: "South Wales Valleys" },
+  { name: "Mid Wales", towns: ["Welshpool", "Brecon", "Ystradgynlais", "Cardigan"], region: "Powys / Ceredigion" },
+  { name: "Herefordshire & Worcestershire", towns: ["Hereford", "Redditch", "Worcester"], region: "West Midlands Border" },
 ];
 
 export default function TerritoryMap() {
