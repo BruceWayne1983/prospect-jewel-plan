@@ -150,7 +150,7 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
               <div className="bg-background/60 rounded-lg p-3 text-center border border-border/20">
                 <p className="text-xl font-display font-bold text-foreground">£{(totalYtd / 1000).toFixed(1)}k</p>
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wider">2026 YTD</p>
