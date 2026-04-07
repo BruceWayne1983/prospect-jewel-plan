@@ -179,6 +179,16 @@ export default function JourneyPlanner() {
     } catch { return new Set(); }
   });
 
+  // Fetch nearby prospects for route stops
+  const [nearbyProspects, setNearbyProspects] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from("discovered_prospects")
+      .select("id, name, town, county, category, lat, lng, predicted_fit_score, status")
+      .neq("status", "dismissed")
+      .neq("status", "accepted")
+      .then(({ data }) => setNearbyProspects(data || []));
+  }, []);
+
   const enrichedRetailers: RetailerWithMeta[] = useMemo(() =>
     retailers.map(r => {
       const outreach = getOutreach(r);
