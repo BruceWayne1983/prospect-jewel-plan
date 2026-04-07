@@ -128,8 +128,8 @@ function ScoreBreakdownTooltip({ prospect }: { prospect: DiscoveredProspect }) {
           </div>
           {!hasSocials && (
             <div className="px-3 pb-3">
-              <div className="p-2 rounded bg-destructive/10 border border-destructive/20">
-                <p className="text-[9px] text-destructive font-medium">⚠ No social media — score penalised</p>
+              <div className="p-2 rounded bg-info-light border border-info/20">
+                <p className="text-[9px] text-info font-medium">💡 No social media — opportunity to offer setup support</p>
               </div>
             </div>
           )}
