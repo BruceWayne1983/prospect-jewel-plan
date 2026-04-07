@@ -16,6 +16,7 @@ const SOUTH_WEST_COUNTIES = [
 
 const CATEGORIES = [
   "jeweller", "gift_shop", "fashion_boutique", "lifestyle_store", "premium_accessories", "concept_store",
+  "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
 async function discoverBatch(

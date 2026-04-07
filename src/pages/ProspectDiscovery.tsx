@@ -27,6 +27,11 @@ const CATEGORIES = [
   { value: "lifestyle_store", label: "Lifestyle Stores" },
   { value: "premium_accessories", label: "Premium Accessories" },
   { value: "concept_store", label: "Concept Stores" },
+  { value: "department_store", label: "Department Stores" },
+  { value: "garden_centre_gift_hall", label: "Garden Centre Gift Halls" },
+  { value: "wedding_bridal", label: "Wedding & Bridal" },
+  { value: "heritage_tourist_gift", label: "Heritage / Tourist Gift Shops" },
+  { value: "multi_brand_retailer", label: "Multi-Brand Retailers" },
 ];
 
 const BRAND_OPTIONS = [

@@ -1,5 +1,5 @@
 // Types
-export type RetailerCategory = 'jeweller' | 'gift_shop' | 'fashion_boutique' | 'lifestyle_store' | 'premium_accessories' | 'concept_store';
+export type RetailerCategory = 'jeweller' | 'gift_shop' | 'fashion_boutique' | 'lifestyle_store' | 'premium_accessories' | 'concept_store' | 'department_store' | 'garden_centre_gift_hall' | 'wedding_bridal' | 'heritage_tourist_gift' | 'multi_brand_retailer';
 export type PipelineStage = 'new_lead' | 'research_needed' | 'qualified' | 'priority_outreach' | 'contacted' | 'follow_up_needed' | 'meeting_booked' | 'under_review' | 'approved' | 'rejected' | 'retention_risk';
 export type StorePositioning = 'premium' | 'mid_market' | 'budget';
 
@@ -32,6 +32,11 @@ export const CATEGORIES: { key: RetailerCategory; label: string }[] = [
   { key: 'lifestyle_store', label: 'Lifestyle Store' },
   { key: 'premium_accessories', label: 'Premium Accessories' },
   { key: 'concept_store', label: 'Concept Store' },
+  { key: 'department_store', label: 'Department Store' },
+  { key: 'garden_centre_gift_hall', label: 'Garden Centre Gift Hall' },
+  { key: 'wedding_bridal', label: 'Wedding & Bridal' },
+  { key: 'heritage_tourist_gift', label: 'Heritage / Tourist Gift Shop' },
+  { key: 'multi_brand_retailer', label: 'Multi-Brand Retailer' },
 ];
 
 // Static reference data (industry benchmarks, not user-specific)
