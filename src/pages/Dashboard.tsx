@@ -113,6 +113,21 @@ export default function Dashboard() {
         const priorYearProrated = totalPriorYear > 0 ? (totalPriorYear / 12) * currentMonth : 0;
         const ytdChangePct = priorYearProrated > 0 ? Math.round(((totalYtd - priorYearProrated) / priorYearProrated) * 1000) / 10 : null;
 
+        // Revenue at risk: accounts with historical spend but zero/declining 2026
+        const revenueAtRisk = currentAccounts.reduce((s, r) => {
+          const b2024 = Number(r.billing_2024_full_year || 0);
+          const b2025 = Number(r.billing_2025_full_year || 0);
+          const b2026ytd = Number(r.billing_2026_ytd || 0);
+          const historicalBest = Math.max(b2024, b2025);
+          if (historicalBest > 0 && b2026ytd === 0) return s + historicalBest;
+          if (historicalBest > 0 && b2026ytd > 0) {
+            const projected = b2026ytd * (12 / currentMonth);
+            const decline = historicalBest - projected;
+            if (decline > historicalBest * 0.3) return s + decline;
+          }
+          return s;
+        }, 0);
+
         const sortedByBilling = [...billingAccounts]
           .sort((a, b) => Number(b.billing_2026_ytd || 0) - Number(a.billing_2026_ytd || 0));
         const top5 = sortedByBilling.slice(0, 5);
