@@ -152,20 +152,50 @@ SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
   const generated = JSON.parse(toolCall.function.arguments);
   const prospects = generated.prospects || [];
 
-  // Filter out any that match existing names (exact or fuzzy)
+  // Filter out exact name+town duplicates but allow same name in different towns (branch detection)
   const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
-  const unique = prospects.filter((p: any) => {
+  const unique: any[] = [];
+  const branchFlags: Map<number, { related_account_id: string; related_name: string; related_town: string }> = new Map();
+
+  prospects.forEach((p: any, idx: number) => {
     const pLower = p.name.toLowerCase();
-    if (lowerExisting.has(pLower)) return false;
+    const pTown = (p.town || '').toLowerCase();
     const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
-    for (const existing of existingNames) {
-      const eNorm = existing.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
-      if (pNorm.length > 3 && eNorm.length > 3 && (pNorm.includes(eNorm) || eNorm.includes(pNorm))) return false;
+
+    // Check for exact name+town duplicate in prospects already being inserted
+    const isDupInBatch = unique.some(u => u.name.toLowerCase() === pLower && (u.town || '').toLowerCase() === pTown);
+    if (isDupInBatch) return;
+
+    // Check against existing retailers — allow different town (branch), block same town
+    let blocked = false;
+    let matchedRetailer: any = null;
+
+    // Check retailer entries (have id + town)
+    for (const r of (existingRetailers || [])) {
+      const rNorm = r.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+      const nameMatch = pLower === r.name.toLowerCase() || (pNorm.length > 3 && rNorm.length > 3 && (pNorm.includes(rNorm) || rNorm.includes(pNorm)));
+      if (nameMatch) {
+        if ((r.town || '').toLowerCase() === pTown) { blocked = true; break; }
+        else { matchedRetailer = r; }
+      }
     }
-    return true;
+    if (blocked) return;
+
+    // Check prospect entries (name only — block same name+town)
+    for (const ep of (existingProspects || [])) {
+      const epNorm = ep.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+      const nameMatch = pLower === ep.name.toLowerCase() || (pNorm.length > 3 && epNorm.length > 3 && (pNorm.includes(epNorm) || epNorm.includes(pNorm)));
+      if (nameMatch && (ep.town || '').toLowerCase() === pTown) { blocked = true; break; }
+    }
+    if (blocked) return;
+
+    if (matchedRetailer) {
+      branchFlags.set(unique.length, { related_account_id: matchedRetailer.id, related_name: matchedRetailer.name, related_town: matchedRetailer.town });
+    }
+    unique.push(p);
   });
 
-  const toInsert = unique.map((p: any) => {
+  const toInsert = unique.map((p: any, idx: number) => {
     const factors = {
       estimated_store_quality: p.estimated_store_quality || 50,
       category_alignment: p.category_alignment || 'moderate',
@@ -177,6 +207,7 @@ SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
       price_positioning: p.estimated_price_positioning || 'mid_market',
     };
     const breakdown = calculateFitScore(factors);
+    const branch = branchFlags.get(idx);
 
     return {
       user_id: userId,
@@ -188,7 +219,9 @@ SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
       review_count: p.review_count,
       estimated_store_quality: p.estimated_store_quality,
       predicted_fit_score: breakdown.total,
-      ai_reason: p.ai_reason,
+      ai_reason: branch
+        ? `⚡ Potential branch of existing account "${branch.related_name}" in ${branch.related_town}. ${p.ai_reason}`
+        : p.ai_reason,
       estimated_price_positioning: p.estimated_price_positioning,
       website: p.website || null,
       address: p.address || null,
@@ -197,7 +230,11 @@ SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
       discovery_source: "AI Scanner",
       verification_status: "unverified",
       status: "new",
-      raw_data: { fit_score_factors: factors, fit_score_breakdown: breakdown },
+      raw_data: {
+        fit_score_factors: factors,
+        fit_score_breakdown: breakdown,
+        ...(branch ? { related_account_id: branch.related_account_id, related_account_name: branch.related_name, related_account_town: branch.related_town, is_potential_branch: true } : {}),
+      },
     };
   });
 
@@ -252,11 +289,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: existingRetailers } = await supabase.from("retailers").select("name, town");
-    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name");
-    const retailerNames = (existingRetailers || []).map((r: any) => r.name);
+    const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town");
+    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town");
+    const retailerEntries = (existingRetailers || []).map((r: any) => ({ id: r.id, name: r.name, town: r.town }));
     const prospectNames = (existingProspects || []).map((p: any) => p.name);
-    const existingNames = [...retailerNames, ...prospectNames];
+    const existingNames = [...retailerEntries.map((r: any) => r.name), ...prospectNames];
 
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
     let notFitContext = "";
