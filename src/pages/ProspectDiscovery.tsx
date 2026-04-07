@@ -72,26 +72,28 @@ function VerificationBadge({ status }: { status: string | null | undefined }) {
 
 function ScoreBreakdownTooltip({ prospect }: { prospect: DiscoveredProspect }) {
   const p = prospect;
-  const quality = p.estimated_store_quality ?? 50;
-  const hasSocials = !!(p.instagram || p.facebook || p.tiktok || p.twitter || p.linkedin);
-  const reviewScore = Math.min(100, ((p.review_count ?? 0) / 200) * 100);
+  const rawData = (p.raw_data ?? {}) as any;
+  const breakdown = rawData?.fit_score_breakdown;
+  const scoreFactors = rawData?.fit_score_factors;
 
-  // Approximate the factor scores
-  const storeQuality = Math.round(quality * 0.25);
-  const brandAlignment = Math.round((p.predicted_fit_score ?? 50) * 0.20);
-  const location = Math.round(((p.rating ?? 3) / 5) * 100 * 0.15);
-  const onlinePresence = Math.round((hasSocials ? 80 : 15) * 0.15);
-  const commercialHealth = Math.round(((reviewScore + ((p.rating ?? 3) / 5) * 100) / 2) * 0.15);
-  const independence = Math.round(90 * 0.10); // assumed independent
-
-  const factors = [
-    { label: 'Store Quality', score: storeQuality, max: 25, detail: `${quality}/100` },
-    { label: 'Brand Alignment', score: brandAlignment, max: 20, detail: p.discovery_source?.startsWith('Brand:') ? p.discovery_source.replace('Brand: ', '') : 'General' },
-    { label: 'Location', score: location, max: 15, detail: `${p.town}, ${p.county}` },
-    { label: 'Online Presence', score: onlinePresence, max: 15, detail: hasSocials ? '✓ Has socials' : '✗ No socials (−15)' },
-    { label: 'Commercial Health', score: commercialHealth, max: 15, detail: `★${p.rating ?? 0} (${p.review_count ?? 0} reviews)` },
-    { label: 'Independence', score: independence, max: 10, detail: 'Independent' },
+  // Use actual breakdown if available, otherwise approximate
+  const factors = breakdown ? [
+    { label: 'Store Quality', score: breakdown.store_quality?.score ?? 0, max: 25, detail: `${scoreFactors?.estimated_store_quality ?? '?'}/95` },
+    { label: 'Category Fit', score: breakdown.category_alignment?.score ?? 0, max: 20, detail: breakdown.category_alignment?.value ?? 'unknown' },
+    { label: 'Location Appeal', score: breakdown.location_appeal?.score ?? 0, max: 15, detail: breakdown.location_appeal?.value ?? 'unknown' },
+    { label: 'Online Presence', score: breakdown.online_presence?.score ?? 0, max: 15, detail: `${breakdown.online_presence?.website ? '✓ Website' : '✗ No site'} · ${breakdown.online_presence?.social ? '✓ Socials' : '✗ No socials'}` },
+    { label: 'Commercial Health', score: breakdown.commercial_health?.score ?? 0, max: 15, detail: `★${breakdown.commercial_health?.rating ?? 0}` },
+    { label: 'Independence', score: breakdown.independence?.score ?? 0, max: 10, detail: breakdown.independence?.value ? 'Independent' : 'Chain/Franchise' },
+  ] : [
+    { label: 'Store Quality', score: Math.round(((p.estimated_store_quality ?? 50) / 95) * 25), max: 25, detail: `${p.estimated_store_quality ?? 50}/95` },
+    { label: 'Category Fit', score: 12, max: 20, detail: 'estimated' },
+    { label: 'Location Appeal', score: 9, max: 15, detail: `${p.town}` },
+    { label: 'Online Presence', score: (p.website ? 8 : 0) + ((p.instagram || p.facebook || p.tiktok || p.twitter) ? 7 : 0), max: 15, detail: 'estimated' },
+    { label: 'Commercial Health', score: p.rating ? Math.round((Number(p.rating) / 5) * 15) : 8, max: 15, detail: `★${p.rating ?? '?'}` },
+    { label: 'Independence', score: 9, max: 10, detail: 'assumed' },
   ];
+
+  const hasSocials = breakdown ? breakdown.online_presence?.social : !!(p.instagram || p.facebook || p.tiktok || p.twitter || p.linkedin);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -99,13 +101,13 @@ function ScoreBreakdownTooltip({ prospect }: { prospect: DiscoveredProspect }) {
         <TooltipTrigger asChild>
           <div className="text-center cursor-help group">
             <span className={`text-2xl font-display font-bold ${(p.predicted_fit_score ?? 0) >= 80 ? 'score-excellent' : (p.predicted_fit_score ?? 0) >= 70 ? 'score-good' : 'score-moderate'}`}>{p.predicted_fit_score}</span>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center justify-center gap-0.5">Predicted Fit <Info className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider flex items-center justify-center gap-0.5">Fit Score <Info className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
           </div>
         </TooltipTrigger>
         <TooltipContent side="left" className="w-64 p-0 bg-card border-border/40 shadow-xl">
           <div className="p-3 border-b border-border/20">
             <p className="text-xs font-display font-semibold text-foreground">Score Breakdown</p>
-            <p className="text-[10px] text-muted-foreground">How this fit score was calculated</p>
+            <p className="text-[10px] text-muted-foreground">{breakdown ? 'Deterministic calculation' : 'Estimated (legacy data)'}</p>
           </div>
           <div className="p-3 space-y-2.5">
             {factors.map(f => (
