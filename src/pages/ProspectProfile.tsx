@@ -195,7 +195,7 @@ export default function ProspectProfile() {
                 return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />AI GENERATED — NOT VERIFIED</span>;
               })()}
               {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
-                <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-destructive/10 text-destructive">⚠ No Socials</span>
+                <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-info-light text-info">💡 Social Opportunity</span>
               )}
             </div>
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">{p.name}</h1>
@@ -376,9 +376,9 @@ export default function ProspectProfile() {
             {totalFollowers > 0 && <p className="text-xs text-muted-foreground">👥 {totalFollowers.toLocaleString()} total followers</p>}
             {p.estimated_monthly_traffic && p.estimated_monthly_traffic > 0 && <p className="text-xs text-muted-foreground">🌐 ~{p.estimated_monthly_traffic.toLocaleString()}/mo website visitors</p>}
             {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">⚠️ No Social Media Presence</p>
-                <p className="text-[11px] text-destructive/80 mt-1">This is a significant red flag — modern retailers should have active social media accounts. Consider this carefully before pursuing.</p>
+              <div className="p-3 rounded-lg bg-info-light border border-info/20">
+                <p className="text-xs font-semibold text-info flex items-center gap-1.5">💡 Social Media Setup Opportunity</p>
+                <p className="text-[11px] text-info/80 mt-1">This retailer has no detectable social media presence. This is a value-add opportunity — Emma can offer to help them set up Instagram/Facebook as part of the Nomination partnership, increasing their visibility and your brand's reach.</p>
               </div>
             )}
           </div>

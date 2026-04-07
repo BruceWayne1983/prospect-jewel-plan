@@ -18,8 +18,8 @@ function calculateFitScore(factors: any) {
   const catScore = CAT_SCORES[factors.category_alignment] || 10;
   const locScore = LOC_SCORES[factors.town_appeal] || 9;
   let onlineScore = 0;
-  if (factors.has_website) onlineScore += 8;
-  if (factors.has_social_media) onlineScore += 7;
+  if (factors.has_website) onlineScore += 10;
+  if (factors.has_social_media) onlineScore += 5;
   let commercialScore;
   if (factors.estimated_rating > 0) {
     commercialScore = Math.round((factors.estimated_rating / 5) * 15);

@@ -3,7 +3,7 @@ export interface FitScoreFactors {
   category_alignment: 'perfect' | 'strong' | 'moderate' | 'weak';
   price_positioning: 'premium' | 'mid_market' | 'budget';
   town_appeal: 'prime' | 'good' | 'average' | 'poor';
-  has_social_media: boolean;
+  has_social_media: boolean; // kept for data but NOT penalised
   is_independent: boolean;
   estimated_rating: number; // 1-5, 0 if unknown
   has_website: boolean;
@@ -32,10 +32,12 @@ export function calculateFitScore(factors: FitScoreFactors): FitScoreBreakdown {
   // Location Appeal: 15%
   const locScore = LOC_SCORES[factors.town_appeal] ?? 9;
 
-  // Online Presence: 15%
+  // Online Presence: 15% — website only, social media is NOT penalised
+  // Many excellent retailers (especially rural Wales) have no social media
+  // but do £100k+ annual sales. Social = opportunity, not penalty.
   let onlineScore = 0;
-  if (factors.has_website) onlineScore += 8;
-  if (factors.has_social_media) onlineScore += 7;
+  if (factors.has_website) onlineScore += 10;
+  if (factors.has_social_media) onlineScore += 5; // bonus, not penalty for absence
 
   // Commercial Health: 15%
   let commercialScore: number;
@@ -70,8 +72,8 @@ function calculateFitScore(factors) {
   const catScore = CAT_SCORES[factors.category_alignment] || 10;
   const locScore = LOC_SCORES[factors.town_appeal] || 9;
   let onlineScore = 0;
-  if (factors.has_website) onlineScore += 8;
-  if (factors.has_social_media) onlineScore += 7;
+  if (factors.has_website) onlineScore += 10;
+  if (factors.has_social_media) onlineScore += 5;
   let commercialScore;
   if (factors.estimated_rating > 0) {
     commercialScore = Math.round((factors.estimated_rating / 5) * 15);
