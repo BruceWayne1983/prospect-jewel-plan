@@ -431,9 +431,10 @@ export default function CurrentAccounts() {
       )}
 
       {/* View Tabs */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {([
           { key: "all" as const, label: "All Accounts" },
+          { key: "winback" as const, label: `Win-Back (${dormantAccounts.length})` },
           { key: "groups" as const, label: `Groups (${accountGroups.length})` },
           { key: "alerts" as const, label: `Alerts (${alerts.length})` },
           { key: "retention" as const, label: `Retention (${retentionRisk.length})` },
@@ -444,6 +445,95 @@ export default function CurrentAccounts() {
           </button>
         ))}
       </div>
+
+      {/* Win-Back Targets */}
+      {viewTab === "winback" && (
+        <div className="space-y-4">
+          <div className="card-premium p-6 border-destructive/20">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <Ghost className="w-5 h-5 text-destructive" strokeWidth={1.5} />
+                <div>
+                  <h3 className="text-lg font-display font-semibold text-foreground">Win-Back Targets</h3>
+                  <p className="text-[10px] text-muted-foreground">Dormant accounts with historical spend — revenue recovery opportunities</p>
+                </div>
+              </div>
+              {totalRevenueAtRisk > 0 && (
+                <div className="text-right">
+                  <p className="text-lg font-display font-bold text-destructive">£{(totalRevenueAtRisk / 1000).toFixed(0)}k</p>
+                  <p className="text-[9px] text-muted-foreground">Revenue at Risk</p>
+                </div>
+              )}
+            </div>
+
+            {dormantAccounts.length === 0 ? (
+              <div className="text-center py-8">
+                <Ghost className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">No dormant accounts detected.</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Accounts become dormant when YTD billing is zero despite historical spend.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {dormantAccounts.map(d => (
+                  <div key={d.id} className="flex items-center justify-between p-4 rounded-xl border border-border/20 hover:bg-champagne/10 transition-colors">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground truncate cursor-pointer hover:text-gold transition-colors"
+                            onClick={() => navigate(`/retailer/${d.id}`)}>{d.name}</p>
+                          {d.isSeasonal && (
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-info-light text-info font-medium flex-shrink-0">Seasonal — verify</span>
+                          )}
+                          {d.pipeline_stage === "dormant" && (
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium flex-shrink-0">Dormant</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{d.town}, {d.county}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <div className="text-center">
+                        <p className="text-xs font-display font-bold text-foreground">£{d.b2024.toLocaleString()}</p>
+                        <p className="text-[8px] text-muted-foreground">2024</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-display font-bold text-foreground">£{d.b2025.toLocaleString()}</p>
+                        <p className="text-[8px] text-muted-foreground">2025</p>
+                      </div>
+                      <div className="text-center">
+                        <p className={`text-xs font-display font-bold ${d.b2026ytd === 0 ? "text-destructive" : "text-warning"}`}>£{d.b2026ytd.toLocaleString()}</p>
+                        <p className="text-[8px] text-muted-foreground">2026 YTD</p>
+                      </div>
+                      <div className="text-center border-l border-border/20 pl-4">
+                        <p className="text-xs font-display font-bold text-destructive">£{Math.max(0, d.revenueAtRisk).toLocaleString()}</p>
+                        <p className="text-[8px] text-muted-foreground">At Risk</p>
+                      </div>
+                      <div className="text-center">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          <p className="text-xs font-medium text-muted-foreground">{d.daysSinceLastOrder}d</p>
+                        </div>
+                        <p className="text-[8px] text-muted-foreground">Since order</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-[10px] h-7 border-gold/30 text-gold-dark hover:bg-champagne/30"
+                        disabled={generatingBrief === d.id}
+                        onClick={() => generateWinBackBrief(d)}
+                      >
+                        {generatingBrief === d.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                        Win-Back Brief
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Group Accounts View */}
       {viewTab === "groups" && (
