@@ -344,6 +344,47 @@ export default function ProspectDiscovery() {
     toast.success(`${p.name} promoted to Pipeline!`);
   };
 
+  const verifyProspect = async (p: DiscoveredProspect) => {
+    setVerifyingIds(prev => new Set(prev).add(p.id));
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-prospect', {
+        body: { prospect_id: p.id, name: p.name, town: p.town, county: p.county, category: p.category },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+
+      setProspects(prev => prev.map(x => x.id === p.id ? {
+        ...x,
+        verification_status: data.verification_status,
+        verification_data: data,
+        website: data.website || x.website,
+        phone: data.phone || x.phone,
+        address: data.address || x.address,
+        email: data.email || x.email,
+      } as any : x));
+
+      if (data.exists) {
+        toast.success(`${p.name} verified — business found online (${data.confidence} confidence)`);
+      } else {
+        toast.warning(`${p.name} could not be verified online. It may be AI-generated.`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Verification failed");
+    } finally {
+      setVerifyingIds(prev => { const n = new Set(prev); n.delete(p.id); return n; });
+    }
+  };
+
+  const markManuallyVerified = async (id: string) => {
+    const { error } = await supabase.from("discovered_prospects").update({
+      verification_status: 'manually_verified',
+      verification_data: { verified_at: new Date().toISOString(), method: 'manual', verified_by: 'field_visit' },
+    } as any).eq("id", id);
+    if (error) { toast.error("Update failed"); return; }
+    setProspects(prev => prev.map(p => p.id === id ? { ...p, verification_status: 'manually_verified' } as any : p));
+    toast.success("Marked as manually verified");
+  };
+
   const ensureSession = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
