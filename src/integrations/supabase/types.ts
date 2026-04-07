@@ -746,6 +746,11 @@ export type Database = {
         | "lifestyle_store"
         | "premium_accessories"
         | "concept_store"
+        | "department_store"
+        | "garden_centre_gift_hall"
+        | "wedding_bridal"
+        | "heritage_tourist_gift"
+        | "multi_brand_retailer"
       store_positioning: "premium" | "mid_market" | "budget"
     }
     CompositeTypes: {
@@ -896,6 +901,11 @@ export const Constants = {
         "lifestyle_store",
         "premium_accessories",
         "concept_store",
+        "department_store",
+        "garden_centre_gift_hall",
+        "wedding_bridal",
+        "heritage_tourist_gift",
+        "multi_brand_retailer",
       ],
       store_positioning: ["premium", "mid_market", "budget"],
     },
