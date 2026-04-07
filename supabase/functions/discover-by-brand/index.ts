@@ -19,6 +19,34 @@ const CATEGORIES = [
   "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
+function calculateFitScore(factors: any) {
+  const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
+  const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
+  const storeQuality = Math.round(((factors.estimated_store_quality || 50) / 95) * 25);
+  const catScore = CAT_SCORES[factors.category_alignment] || 10;
+  const locScore = LOC_SCORES[factors.town_appeal] || 9;
+  let onlineScore = 0;
+  if (factors.has_website) onlineScore += 8;
+  if (factors.has_social_media) onlineScore += 7;
+  let commercialScore;
+  if (factors.estimated_rating > 0) {
+    commercialScore = Math.round((factors.estimated_rating / 5) * 15);
+  } else {
+    commercialScore = 8;
+  }
+  const indepScore = factors.is_independent ? 9 : 3;
+  const total = Math.round(Math.min(100, Math.max(0, storeQuality + catScore + locScore + onlineScore + commercialScore + indepScore)));
+  return {
+    total,
+    store_quality: { score: storeQuality, max: 25 },
+    category_alignment: { score: catScore, max: 20, value: factors.category_alignment },
+    location_appeal: { score: locScore, max: 15, value: factors.town_appeal },
+    online_presence: { score: onlineScore, max: 15, website: factors.has_website, social: factors.has_social_media },
+    commercial_health: { score: commercialScore, max: 15, rating: factors.estimated_rating },
+    independence: { score: indepScore, max: 10, value: factors.is_independent },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -60,7 +88,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch existing names for deduplication
     const { data: existingRetailers } = await supabase.from("retailers").select("name");
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name");
     const existingNames = [
@@ -68,7 +95,6 @@ Deno.serve(async (req) => {
       ...(existingProspects || []).map((p: any) => p.name),
     ];
 
-    // Fetch disqualification patterns to teach the AI what to avoid
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
     let notFitContext = "";
     if (disqualPatterns && disqualPatterns.length > 0) {
@@ -81,7 +107,7 @@ Deno.serve(async (req) => {
         }
       });
       const topReasons = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => `${r} (${c}x)`).join(", ");
-      notFitContext = `\n\nIMPORTANT — LEARNED "NOT FIT" PATTERNS from previous disqualifications:\nTop reasons for rejection: ${topReasons}\nExamples of rejected stores:\n${examples.join("\n")}\n\nAvoid suggesting stores that match these patterns. The user has repeatedly rejected these types of stores.`;
+      notFitContext = `\n\nIMPORTANT — LEARNED "NOT FIT" PATTERNS:\nTop reasons: ${topReasons}\nExamples:\n${examples.join("\n")}\n\nAvoid suggesting stores that match these patterns.`;
     }
 
     const excludeClause = existingNames.length > 0
@@ -106,14 +132,14 @@ Deno.serve(async (req) => {
           type: "function",
           function: {
             name: "find_brand_stockists",
-            description: `Find ${targetCount} independent retailers in the South West of England that stock ${brand} or similar/complementary brands, and would be good prospects for Nomination Italy.`,
+            description: `Find ${targetCount} independent retailers that stock ${brand} or similar brands.`,
             parameters: {
               type: "object",
               properties: {
                 similar_brands: {
                   type: "array",
                   items: { type: "string" },
-                  description: `List of 5-10 brands similar to or complementary to "${brand}" in the UK jewellery/gift/accessories market`,
+                  description: `List of 5-10 brands similar to "${brand}"`,
                 },
                 prospects: {
                   type: "array",
@@ -124,19 +150,23 @@ Deno.serve(async (req) => {
                       town: { type: "string", description: "Real town in the South West" },
                       county: { type: "string", enum: SOUTH_WEST_COUNTIES },
                       category: { type: "string", enum: CATEGORIES },
-                      rating: { type: "number", description: "Google rating 3.5-5.0" },
-                      review_count: { type: "integer", description: "Number of reviews 10-500" },
+                      rating: { type: "number", description: "Google rating 3.5-5.0, or 0 if unknown" },
+                      review_count: { type: "integer", description: "Number of reviews, or 0 if unknown" },
                       estimated_store_quality: { type: "integer", description: "Quality score 40-95" },
-                      predicted_fit_score: { type: "integer", description: "How well this retailer fits Nomination 50-95" },
-                      brands_stocked: { type: "array", items: { type: "string" }, description: `Brands this store likely stocks, including "${brand}" or similar` },
-                      ai_reason: { type: "string", description: "2-sentence explanation focusing on the brand connection and why this is a good Nomination prospect" },
+                      category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"], description: "How well the store category aligns with Nomination Italy" },
+                      town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"], description: "Town retail appeal level" },
+                      has_social_media: { type: "boolean", description: "ONLY true if verified. Default false." },
+                      is_independent: { type: "boolean", description: "Whether independent (not a chain)" },
+                      has_website: { type: "boolean", description: "ONLY true if verified. Default false." },
+                      brands_stocked: { type: "array", items: { type: "string" }, description: `Brands this store likely stocks` },
+                      ai_reason: { type: "string", description: "2-sentence explanation focusing on brand connection" },
                       estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                      website: { type: "string", description: "Leave EMPTY. Do NOT generate or guess URLs." },
-                      address: { type: "string", description: "Leave EMPTY. Do NOT generate or guess addresses." },
-                      phone: { type: "string", description: "Leave EMPTY. Do NOT generate or guess phone numbers." },
-                      email: { type: "string", description: "Leave EMPTY. Do NOT generate or guess email addresses." },
+                      website: { type: "string", description: "Leave EMPTY." },
+                      address: { type: "string", description: "Leave EMPTY." },
+                      phone: { type: "string", description: "Leave EMPTY." },
+                      email: { type: "string", description: "Leave EMPTY." },
                     },
-                    required: ["name", "town", "county", "category", "rating", "review_count", "estimated_store_quality", "predicted_fit_score", "brands_stocked", "ai_reason", "estimated_price_positioning"],
+                    required: ["name", "town", "county", "category", "rating", "review_count", "estimated_store_quality", "category_alignment", "town_appeal", "has_social_media", "is_independent", "has_website", "brands_stocked", "ai_reason", "estimated_price_positioning"],
                     additionalProperties: false,
                   },
                 },
@@ -150,40 +180,25 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a UK retail market analyst specialising in jewellery, gift, and accessories brands in the South West of England and South Wales. You have deep knowledge of which independent retailers stock which brands. Your task is to identify stores that stock "${brand}" or similar/complementary brands that would also be excellent candidates for stocking Nomination Italy charm jewellery.
+            content: `You are a UK retail market analyst specialising in jewellery, gift, and accessories brands in the South West of England and South Wales. Identify stores that stock "${brand}" or similar brands that would be good candidates for Nomination Italy.
 
 CRITICAL EXCLUSION RULES:
-- Do NOT include toy stores, toy shops, or children's toy retailers — even if they stock "${brand}". We are looking for jewellery shops, gift shops, fashion boutiques, lifestyle stores, premium accessories stores, small independent department stores, wedding & bridal shops, heritage/tourist gift shops, and multi-brand retailers ONLY.
-- Do NOT include chain stores or franchises — only independent retailers.
-- Do NOT include online-only stores — they must have a physical retail presence.
+- Do NOT include toy stores, children's shops, chain stores, or online-only stores.
+- ONLY independent physical retail stores.
 
-GARDEN CENTRE RULE: When evaluating garden centres, check if they have a substantial gift hall or jewellery department. Many garden centres in South West England have gift retail sections turning over £1m+. Include these as "garden_centre_gift_hall" category with a note in ai_reason about "Requires manual verification of gift hall suitability". Exclude garden centres that are purely plants/outdoor/hardware.
+GARDEN CENTRE RULE: Include garden centres with substantial gift halls as "garden_centre_gift_hall" with verification note.
 
-SOCIAL MEDIA RULE (VERY IMPORTANT):
-- Stores WITHOUT any social media presence (no Instagram, Facebook, TikTok, etc.) are HIGHLY NEGATIVE prospects and should be scored significantly lower (predicted_fit_score reduced by 15-25 points).
-- A modern independent retailer MUST have social media to be considered a strong prospect for Nomination Italy.
-- If you cannot confirm a store has social media, flag this in the ai_reason as a concern and lower the fit score accordingly.
+SCORING FACTORS — Return RAW FACTOR VALUES:
+- category_alignment: "perfect" for jewellers/premium accessories, "strong" for gift shops/lifestyle, "moderate" for fashion/concept/bridal, "weak" for other
+- town_appeal: "prime" for major retail destinations, "good" for strong market towns, "average" for smaller towns, "poor" for rural
+- has_social_media: ONLY true if verified. Default false if uncertain.
+- has_website: ONLY true if verified. Default false if uncertain.
 
-Brands similar to or complementary to popular UK jewellery/accessory brands include:
-- Joma Jewellery → ChloBo, Estella Bartlett, Katie Loxton, Olivia Burton
-- Pandora → Thomas Sabo, Chamilia, Links of London
-- Swarovski → Coeur de Lion, Trollbeads
-- Annie Haak → Lola Rose, Daisy London
-- Jellycat → Katie Loxton, Joules (when sold alongside gift/lifestyle products, NOT in toy stores)
-
-Use this knowledge to identify realistic prospects. Every shop name must be unique.
-
-CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings. Contact data will be sourced separately through verified channels only.${notFitContext}`,
+CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fields empty.${notFitContext}`,
           },
           {
             role: "user",
-            content: `Find ${targetCount} independent retailers in the South West of England and South Wales that currently stock "${brand}" or brands with similar appeal (same price tier, same customer demographic, complementary product range). These retailers would be ideal prospects for Nomination Italy charm jewellery.
-
-IMPORTANT: Do NOT include toy stores, children's shops, or any store primarily selling toys — even if they stock "${brand}". DO include garden centres with substantial gift halls/jewellery sections — categorise them as "garden_centre_gift_hall".
-
-${countyInstruction}
-
-For each prospect, explain the brand connection — why stocking "${brand}" (or similar) makes them a natural fit for Nomination.${excludeClause}`,
+            content: `Find ${targetCount} independent retailers that stock "${brand}" or similar brands. ${countyInstruction}${excludeClause}`,
           },
         ],
       }),
@@ -193,12 +208,12 @@ For each prospect, explain the brand connection — why stocking "${brand}" (or 
       const status = aiResponse.status;
       await aiResponse.text();
       if (status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again in a moment" }), {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds in Settings > Workspace > Usage." }), {
+        return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -213,7 +228,6 @@ For each prospect, explain the brand connection — why stocking "${brand}" (or 
     const prospects = generated.prospects || [];
     const similarBrands = generated.similar_brands || [];
 
-    // Deduplicate — exact and fuzzy matching against current accounts
     const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
     const unique = prospects.filter((p: any) => {
       const pLower = p.name.toLowerCase();
@@ -226,32 +240,45 @@ For each prospect, explain the brand connection — why stocking "${brand}" (or 
       return true;
     });
 
-    const toInsert = unique.map((p: any) => ({
-      user_id: userId,
-      name: p.name,
-      town: p.town,
-      county: p.county,
-      category: p.category,
-      rating: p.rating,
-      review_count: p.review_count,
-      estimated_store_quality: p.estimated_store_quality,
-      predicted_fit_score: p.predicted_fit_score,
-      ai_reason: `[Stocks: ${(p.brands_stocked || []).join(", ")}] ${p.ai_reason}`,
-      estimated_price_positioning: p.estimated_price_positioning,
-      website: p.website || null,
-      address: p.address || null,
-      phone: p.phone || null,
-      email: p.email || null,
-      discovery_source: `Brand: ${brand}`,
-      verification_status: "unverified",
-      status: "new",
-    }));
+    const toInsert = unique.map((p: any) => {
+      const factors = {
+        estimated_store_quality: p.estimated_store_quality || 50,
+        category_alignment: p.category_alignment || 'moderate',
+        town_appeal: p.town_appeal || 'average',
+        has_social_media: p.has_social_media || false,
+        is_independent: p.is_independent !== false,
+        estimated_rating: p.rating || 0,
+        has_website: p.has_website || false,
+        price_positioning: p.estimated_price_positioning || 'mid_market',
+      };
+      const breakdown = calculateFitScore(factors);
+
+      return {
+        user_id: userId,
+        name: p.name,
+        town: p.town,
+        county: p.county,
+        category: p.category,
+        rating: p.rating,
+        review_count: p.review_count,
+        estimated_store_quality: p.estimated_store_quality,
+        predicted_fit_score: breakdown.total,
+        ai_reason: `[Stocks: ${(p.brands_stocked || []).join(", ")}] ${p.ai_reason}`,
+        estimated_price_positioning: p.estimated_price_positioning,
+        website: p.website || null,
+        address: p.address || null,
+        phone: p.phone || null,
+        email: p.email || null,
+        discovery_source: `Brand: ${brand}`,
+        verification_status: "unverified",
+        status: "new",
+        raw_data: { fit_score_factors: factors, fit_score_breakdown: breakdown },
+      };
+    });
 
     if (toInsert.length === 0) {
       return new Response(JSON.stringify({
-        success: true,
-        prospects: [],
-        similarBrands,
+        success: true, prospects: [], similarBrands,
         message: "No new unique prospects found for this brand",
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -267,10 +294,7 @@ For each prospect, explain the brand connection — why stocking "${brand}" (or 
     }
 
     return new Response(JSON.stringify({
-      success: true,
-      prospects: inserted || [],
-      similarBrands,
-      searchBrand: brand,
+      success: true, prospects: inserted || [], similarBrands, searchBrand: brand,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error:", error);

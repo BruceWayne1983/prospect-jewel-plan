@@ -19,6 +19,34 @@ const CATEGORIES = [
   "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
+function calculateFitScore(factors: any) {
+  const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
+  const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
+  const storeQuality = Math.round(((factors.estimated_store_quality || 50) / 95) * 25);
+  const catScore = CAT_SCORES[factors.category_alignment] || 10;
+  const locScore = LOC_SCORES[factors.town_appeal] || 9;
+  let onlineScore = 0;
+  if (factors.has_website) onlineScore += 8;
+  if (factors.has_social_media) onlineScore += 7;
+  let commercialScore;
+  if (factors.estimated_rating > 0) {
+    commercialScore = Math.round((factors.estimated_rating / 5) * 15);
+  } else {
+    commercialScore = 8;
+  }
+  const indepScore = factors.is_independent ? 9 : 3;
+  const total = Math.round(Math.min(100, Math.max(0, storeQuality + catScore + locScore + onlineScore + commercialScore + indepScore)));
+  return {
+    total,
+    store_quality: { score: storeQuality, max: 25 },
+    category_alignment: { score: catScore, max: 20, value: factors.category_alignment },
+    location_appeal: { score: locScore, max: 15, value: factors.town_appeal },
+    online_presence: { score: onlineScore, max: 15, website: factors.has_website, social: factors.has_social_media },
+    commercial_health: { score: commercialScore, max: 15, rating: factors.estimated_rating },
+    independence: { score: indepScore, max: 10, value: factors.is_independent },
+  };
+}
+
 async function discoverBatch(
   supabase: any,
   userId: string,
@@ -57,18 +85,22 @@ async function discoverBatch(
                       name: { type: "string", description: "Realistic shop name" },
                       town: { type: "string", description: `Real town in ${county}` },
                       category: { type: "string", enum: CATEGORIES },
-                      rating: { type: "number", description: "Google rating 3.5-5.0" },
-                      review_count: { type: "integer", description: "Number of reviews 10-500" },
-                      estimated_store_quality: { type: "integer", description: "Quality score 40-95" },
-                      predicted_fit_score: { type: "integer", description: "How well this retailer fits Nomination 50-95" },
-                      ai_reason: { type: "string", description: "2-sentence explanation of why this is a good prospect" },
+                      rating: { type: "number", description: "Google rating 3.5-5.0, or 0 if unknown" },
+                      review_count: { type: "integer", description: "Number of reviews 10-500, or 0 if unknown" },
+                      estimated_store_quality: { type: "integer", description: "Quality score 40-95 based on store type, location, and positioning" },
+                      category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"], description: "How well the store category aligns with Nomination Italy. perfect=jeweller/premium accessories, strong=gift shop/lifestyle, moderate=fashion boutique/concept store, weak=other" },
+                      town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"], description: "Town retail appeal. prime=Bath/Exeter/Cardiff city centre, good=Cheltenham/Truro/Wells, average=smaller market towns, poor=rural/low footfall" },
+                      has_social_media: { type: "boolean", description: "ONLY set true if you can VERIFY the store has social media. If uncertain, set false." },
+                      is_independent: { type: "boolean", description: "Whether this is an independent store (not a chain)" },
+                      has_website: { type: "boolean", description: "ONLY set true if you can VERIFY the store has a website. If uncertain, set false." },
                       estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
+                      ai_reason: { type: "string", description: "2-sentence explanation of why this is a good prospect" },
                       website: { type: "string", description: "Leave EMPTY. Do NOT generate or guess URLs." },
                       address: { type: "string", description: "Leave EMPTY. Do NOT generate or guess addresses." },
                       phone: { type: "string", description: "Leave EMPTY. Do NOT generate or guess phone numbers." },
                       email: { type: "string", description: "Leave EMPTY. Do NOT generate or guess email addresses." },
                     },
-                    required: ["name", "town", "category", "rating", "review_count", "estimated_store_quality", "predicted_fit_score", "ai_reason", "estimated_price_positioning"],
+                    required: ["name", "town", "category", "rating", "review_count", "estimated_store_quality", "category_alignment", "town_appeal", "has_social_media", "is_independent", "has_website", "estimated_price_positioning", "ai_reason"],
                   additionalProperties: false,
                 },
               },
@@ -88,18 +120,18 @@ CRITICAL: Do NOT include toy stores, children's shops, chain stores (like Debenh
 
 GARDEN CENTRE RULE: When evaluating garden centres, check if they have a substantial gift hall or jewellery department. Many garden centres in South West England have gift retail sections turning over £1m+. Include these as "garden_centre_gift_hall" category with a note in ai_reason about "Requires manual verification of gift hall suitability". Exclude garden centres that are purely plants/outdoor/hardware.
 
-CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings. Contact data will be sourced separately through verified channels only.
+CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings.
 
-SOCIAL MEDIA RULE (VERY IMPORTANT):
-- Stores WITHOUT any social media presence (no Instagram, Facebook, TikTok, etc.) are HIGHLY NEGATIVE prospects and should be scored significantly lower (predicted_fit_score reduced by 15-25 points).
-- A modern independent retailer MUST have social media to be considered a strong prospect for Nomination Italy.
-- If you cannot confirm a store has social media, flag this in the ai_reason as a concern and lower the fit score accordingly.${notFitContext}`,
+SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
+- category_alignment: "perfect" for jewellers/premium accessories (core Nomination fit), "strong" for gift shops/lifestyle stores, "moderate" for fashion boutiques/concept stores/bridal, "weak" for other categories
+- town_appeal: "prime" for major retail destinations (Bath, Exeter, Cardiff, Bristol city centre, Cheltenham), "good" for strong market towns (Truro, Wells, Taunton, Barnstaple), "average" for smaller towns, "poor" for rural/low footfall areas
+- has_social_media: ONLY true if you can verify from your knowledge. Default to false if uncertain.
+- has_website: ONLY true if you can verify from your knowledge. Default to false if uncertain.
+- is_independent: true for independent stores, false for chains/franchises.${notFitContext}`,
         },
         {
           role: "user",
-          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name, a plausible full address with postcode, a plausible phone number, and a plausible contact email.
-
-Do NOT suggest toy stores, children's shops, or chain retailers. DO include garden centres with substantial gift halls/jewellery sections — categorise them as "garden_centre_gift_hall".${excludeClause}`,
+          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}.${excludeClause}`,
         },
       ],
     }),
@@ -124,38 +156,50 @@ Do NOT suggest toy stores, children's shops, or chain retailers. DO include gard
   const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
   const unique = prospects.filter((p: any) => {
     const pLower = p.name.toLowerCase();
-    // Exact match
     if (lowerExisting.has(pLower)) return false;
-    // Fuzzy: strip parenthetical suffixes and compare
     const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
     for (const existing of existingNames) {
       const eNorm = existing.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
-      // If one name contains the other (handles "Shop" vs "Shop (Town)")
       if (pNorm.length > 3 && eNorm.length > 3 && (pNorm.includes(eNorm) || eNorm.includes(pNorm))) return false;
     }
     return true;
   });
 
-  const toInsert = unique.map((p: any) => ({
-    user_id: userId,
-    name: p.name,
-    town: p.town,
-    county,
-    category: p.category,
-    rating: p.rating,
-    review_count: p.review_count,
-    estimated_store_quality: p.estimated_store_quality,
-    predicted_fit_score: p.predicted_fit_score,
-    ai_reason: p.ai_reason,
-    estimated_price_positioning: p.estimated_price_positioning,
-    website: p.website || null,
-    address: p.address || null,
-    phone: p.phone || null,
-    email: p.email || null,
-    discovery_source: "AI Scanner",
-    verification_status: "unverified",
-    status: "new",
-  }));
+  const toInsert = unique.map((p: any) => {
+    const factors = {
+      estimated_store_quality: p.estimated_store_quality || 50,
+      category_alignment: p.category_alignment || 'moderate',
+      town_appeal: p.town_appeal || 'average',
+      has_social_media: p.has_social_media || false,
+      is_independent: p.is_independent !== false,
+      estimated_rating: p.rating || 0,
+      has_website: p.has_website || false,
+      price_positioning: p.estimated_price_positioning || 'mid_market',
+    };
+    const breakdown = calculateFitScore(factors);
+
+    return {
+      user_id: userId,
+      name: p.name,
+      town: p.town,
+      county,
+      category: p.category,
+      rating: p.rating,
+      review_count: p.review_count,
+      estimated_store_quality: p.estimated_store_quality,
+      predicted_fit_score: breakdown.total,
+      ai_reason: p.ai_reason,
+      estimated_price_positioning: p.estimated_price_positioning,
+      website: p.website || null,
+      address: p.address || null,
+      phone: p.phone || null,
+      email: p.email || null,
+      discovery_source: "AI Scanner",
+      verification_status: "unverified",
+      status: "new",
+      raw_data: { fit_score_factors: factors, fit_score_breakdown: breakdown },
+    };
+  });
 
   if (toInsert.length === 0) return [];
 
@@ -208,21 +252,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch existing names for deduplication (retailers = current accounts)
     const { data: existingRetailers } = await supabase.from("retailers").select("name, town");
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name");
     const retailerNames = (existingRetailers || []).map((r: any) => r.name);
     const prospectNames = (existingProspects || []).map((p: any) => p.name);
     const existingNames = [...retailerNames, ...prospectNames];
 
-    // Build a normalized list of current account names for fuzzy matching
-    const normalizedRetailerNames = retailerNames.map((n: string) => ({
-      original: n,
-      normalized: n.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim(),
-      words: n.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").split(/\s+/).filter((w: string) => w.length > 2),
-    }));
-
-    // Fetch disqualification patterns for AI learning
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
     let notFitContext = "";
     if (disqualPatterns && disqualPatterns.length > 0) {

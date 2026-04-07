@@ -8,7 +8,36 @@ const corsHeaders = {
 
 const CATEGORIES = [
   "jeweller", "gift_shop", "fashion_boutique", "lifestyle_store", "premium_accessories", "concept_store",
+  "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
+
+function calculateFitScore(factors: any) {
+  const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
+  const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
+  const storeQuality = Math.round(((factors.estimated_store_quality || 50) / 95) * 25);
+  const catScore = CAT_SCORES[factors.category_alignment] || 10;
+  const locScore = LOC_SCORES[factors.town_appeal] || 9;
+  let onlineScore = 0;
+  if (factors.has_website) onlineScore += 8;
+  if (factors.has_social_media) onlineScore += 7;
+  let commercialScore;
+  if (factors.estimated_rating > 0) {
+    commercialScore = Math.round((factors.estimated_rating / 5) * 15);
+  } else {
+    commercialScore = 8;
+  }
+  const indepScore = factors.is_independent ? 9 : 3;
+  const total = Math.round(Math.min(100, Math.max(0, storeQuality + catScore + locScore + onlineScore + commercialScore + indepScore)));
+  return {
+    total,
+    store_quality: { score: storeQuality, max: 25 },
+    category_alignment: { score: catScore, max: 20, value: factors.category_alignment },
+    location_appeal: { score: locScore, max: 15, value: factors.town_appeal },
+    online_presence: { score: onlineScore, max: 15, website: factors.has_website, social: factors.has_social_media },
+    commercial_health: { score: commercialScore, max: 15, rating: factors.estimated_rating },
+    independence: { score: indepScore, max: 10, value: factors.is_independent },
+  };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -64,7 +93,6 @@ Deno.serve(async (req) => {
 
     console.log("Manual search:", searchQuery);
 
-    // Step 1: Firecrawl search for the specific store
     const searchResponse = await fetch("https://api.firecrawl.dev/v1/search", {
       method: "POST",
       headers: {
@@ -97,12 +125,10 @@ Deno.serve(async (req) => {
     const results = searchData.data || [];
     console.log(`Firecrawl returned ${results.length} results for "${searchName}"`);
 
-    // Compile scraped content
     const scrapedContent = results.map((r: any, i: number) =>
       `[${i + 1}] URL: ${r.url}\nTitle: ${r.title || "N/A"}\nDescription: ${r.description || "N/A"}\nContent: ${(r.markdown || "").substring(0, 2000)}`
     ).join("\n\n---\n\n");
 
-    // Step 2: AI to extract verified data about this specific store
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -115,37 +141,37 @@ Deno.serve(async (req) => {
           type: "function",
           function: {
             name: "extract_store_data",
-            description: "Extract verified data about a specific retail store from web search results",
+            description: "Extract verified data about a specific retail store from web search results with scoring factors",
             parameters: {
               type: "object",
               properties: {
-                found: { type: "boolean", description: "Whether the specific store was found in the search results" },
+                found: { type: "boolean", description: "Whether the specific store was found" },
                 name: { type: "string", description: "Confirmed store name" },
-                town: { type: "string", description: "Town or city where the store is located" },
-                county: { type: "string", description: "County (e.g. Somerset, Devon)" },
+                town: { type: "string", description: "Town or city" },
+                county: { type: "string", description: "County" },
                 category: { type: "string", enum: CATEGORIES },
-                address: { type: "string", description: "Full address with postcode — ONLY if found in scraped content. Empty string if not found." },
-                phone: { type: "string", description: "Phone number — ONLY if found in scraped content. Empty string if not found." },
-                email: { type: "string", description: "Email address — ONLY if found in scraped content. Empty string if not found." },
-                website: { type: "string", description: "Website URL — ONLY if found in scraped content. Must be the store's own website, not a directory listing. Empty string if not found." },
-                instagram: { type: "string", description: "Instagram handle — ONLY if found in scraped content. Empty string if not found." },
-                facebook: { type: "string", description: "Facebook page — ONLY if found in scraped content. Empty string if not found." },
-                tiktok: { type: "string", description: "TikTok handle — ONLY if found in scraped content. Empty string if not found." },
-                twitter: { type: "string", description: "Twitter/X handle — ONLY if found in scraped content. Empty string if not found." },
-                rating: { type: "number", description: "Google rating if found, otherwise 0" },
-                review_count: { type: "integer", description: "Review count if found, otherwise 0" },
-                estimated_store_quality: { type: "integer", description: "Quality estimate 40-95 based on what was found" },
-                predicted_fit_score: { type: "integer", description: "How well this retailer fits Nomination Italy 30-95" },
+                address: { type: "string", description: "Full address — ONLY if found. Empty if not." },
+                phone: { type: "string", description: "Phone — ONLY if found. Empty if not." },
+                email: { type: "string", description: "Email — ONLY if found. Empty if not." },
+                website: { type: "string", description: "Own website URL — ONLY if found. Empty if not." },
+                instagram: { type: "string", description: "Instagram — ONLY if found. Empty if not." },
+                facebook: { type: "string", description: "Facebook — ONLY if found. Empty if not." },
+                tiktok: { type: "string", description: "TikTok — ONLY if found. Empty if not." },
+                twitter: { type: "string", description: "Twitter — ONLY if found. Empty if not." },
+                rating: { type: "number", description: "Google rating if found, 0 if not" },
+                review_count: { type: "integer", description: "Review count if found, 0 if not" },
+                estimated_store_quality: { type: "integer", description: "Quality estimate 40-95" },
+                category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"], description: "Category fit for Nomination" },
+                town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"], description: "Town retail appeal" },
+                has_social_media: { type: "boolean", description: "true ONLY if social media found in scraped content" },
+                is_independent: { type: "boolean", description: "Whether independent" },
+                has_website: { type: "boolean", description: "true ONLY if own website found" },
                 estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                ai_reason: { type: "string", description: "3-4 sentence analysis of this store based on what was actually found online. Include what sources confirmed the data." },
-                data_sources: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "List of URLs/sources where data was found",
-                },
-                confidence: { type: "string", enum: ["high", "medium", "low"], description: "How confident you are this is the right store with accurate data" },
+                ai_reason: { type: "string", description: "3-4 sentence analysis citing sources" },
+                data_sources: { type: "array", items: { type: "string" }, description: "URLs where data was found" },
+                confidence: { type: "string", enum: ["high", "medium", "low"] },
               },
-              required: ["found", "name", "town", "county", "category", "address", "phone", "email", "website", "instagram", "facebook", "tiktok", "twitter", "rating", "review_count", "estimated_store_quality", "predicted_fit_score", "estimated_price_positioning", "ai_reason", "data_sources", "confidence"],
+              required: ["found", "name", "town", "county", "category", "address", "phone", "email", "website", "instagram", "facebook", "tiktok", "twitter", "rating", "review_count", "estimated_store_quality", "category_alignment", "town_appeal", "has_social_media", "is_independent", "has_website", "estimated_price_positioning", "ai_reason", "data_sources", "confidence"],
               additionalProperties: false,
             },
           },
@@ -154,33 +180,32 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a UK retail intelligence researcher for Nomination Italy, a premium Italian charm jewellery brand. You have been given REAL web search results about a specific store. Your job is to extract ONLY verified, real data that actually appears in the scraped content.
+            content: `You are a UK retail intelligence researcher for Nomination Italy. Extract ONLY verified data from the scraped content.
 
 CRITICAL RULES:
-1. ONLY include contact details (phone, email, website, address, social handles) that you can see in the scraped content. Do NOT guess or fabricate ANY data.
-2. For website: Only include the store's OWN website domain (e.g. www.storename.co.uk), NOT directory listings, TripAdvisor, Yell, Google Maps, or review sites.
-3. For social media: Only include handles/URLs that appear in the scraped content. Do NOT guess handles based on the store name.
-4. If the store is NOT found in the results, set found=false and explain in ai_reason.
-5. Set confidence based on how much real data you found: high = multiple sources confirm, medium = some data found, low = sparse or uncertain.
-6. In ai_reason, cite which sources confirmed the data.
-7. For predicted_fit_score: Apply a -15 to -25 penalty if no social media is found. A modern retailer needs social media to be a strong Nomination prospect.
+1. ONLY include contact details that appear in the scraped content. Do NOT guess.
+2. For website: Only the store's OWN website, not directories.
+3. For social media: Only handles/URLs that appear in the content.
+4. If store NOT found, set found=false.
 
-STORE TYPE FILTERING (CRITICAL):
-- ONLY accept stores that are: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories shops, or concept stores.
-- REJECT and set found=false for: toy stores, children's shops, supermarkets, chain stores, online-only retailers, pet shops, hardware stores, garden centres, charity shops, phone shops, vape shops, tattoo shops, hairdressers, restaurants, cafes, or any non-retail business.
-- If the store exists but is NOT a suitable type for Nomination jewellery, set found=false and explain why in ai_reason.${category ? `\n- The user expects this to be a "${category.replace("_", " ")}" — verify this matches.` : ""}`,
+SCORING FACTORS — Return RAW FACTOR VALUES:
+- category_alignment: "perfect" for jewellers/premium accessories, "strong" for gift shops/lifestyle, "moderate" for fashion/concept/bridal, "weak" for other
+- town_appeal: "prime" for major retail destinations, "good" for strong market towns, "average" for smaller towns, "poor" for rural
+- has_social_media: true ONLY if social media found in scraped content
+- has_website: true ONLY if own website found in scraped content
+
+STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores, dept stores, garden centre gift halls, wedding/bridal, heritage/tourist gifts, multi-brand retailers.${category ? `\n- Expected type: "${category.replace("_", " ")}" — verify this matches.` : ""}`,
           },
           {
             role: "user",
-            content: `I'm searching for a specific store called "${searchName}"${town ? ` in or near ${town}` : ' in the UK'}.${category ? ` Expected type: ${category.replace("_", " ")}.` : ''} Extract all VERIFIED data about this store from the search results below. Only include data you can actually see in the content — do not guess or fabricate anything. If this store is not a suitable type for Nomination Italy jewellery (e.g. it's a toy shop, supermarket, chain, etc.), reject it.\n\n${scrapedContent || "No search results found."}`,
+            content: `Search for "${searchName}"${town ? ` in or near ${town}` : ' in the UK'}.${category ? ` Expected type: ${category.replace("_", " ")}.` : ''} Extract VERIFIED data only.\n\n${scrapedContent || "No search results found."}`,
           },
         ],
       }),
     });
 
     if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
+      console.error("AI error:", aiResponse.status);
       return new Response(JSON.stringify({ error: "AI analysis failed" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -198,39 +223,42 @@ STORE TYPE FILTERING (CRITICAL):
 
     if (!result.found) {
       return new Response(JSON.stringify({
-        success: true,
-        found: false,
+        success: true, found: false,
         message: `Could not find "${searchName}" in web results. ${result.ai_reason || ''}`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Check if already exists
+    // Check existing
     const { data: existingRetailers } = await supabase.from("retailers").select("name").ilike("name", `%${result.name}%`);
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name").ilike("name", `%${result.name}%`);
 
     if ((existingRetailers?.length || 0) > 0) {
       return new Response(JSON.stringify({
-        success: true,
-        found: true,
-        alreadyExists: true,
-        existsAs: "retailer",
-        message: `"${result.name}" already exists as a current account`,
-        store: result,
+        success: true, found: true, alreadyExists: true, existsAs: "retailer",
+        message: `"${result.name}" already exists as a current account`, store: result,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if ((existingProspects?.length || 0) > 0) {
       return new Response(JSON.stringify({
-        success: true,
-        found: true,
-        alreadyExists: true,
-        existsAs: "prospect",
-        message: `"${result.name}" already exists as a discovered prospect`,
-        store: result,
+        success: true, found: true, alreadyExists: true, existsAs: "prospect",
+        message: `"${result.name}" already exists as a discovered prospect`, store: result,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Insert as new prospect
+    // Calculate deterministic fit score
+    const factors = {
+      estimated_store_quality: result.estimated_store_quality || 50,
+      category_alignment: result.category_alignment || 'moderate',
+      town_appeal: result.town_appeal || 'average',
+      has_social_media: result.has_social_media || !!(result.instagram || result.facebook || result.tiktok || result.twitter),
+      is_independent: result.is_independent !== false,
+      estimated_rating: result.rating || 0,
+      has_website: result.has_website || !!(result.website),
+      price_positioning: result.estimated_price_positioning || 'mid_market',
+    };
+    const breakdown = calculateFitScore(factors);
+
     const toInsert = {
       user_id: user.id,
       name: result.name,
@@ -240,7 +268,7 @@ STORE TYPE FILTERING (CRITICAL):
       rating: result.rating || null,
       review_count: result.review_count || null,
       estimated_store_quality: result.estimated_store_quality,
-      predicted_fit_score: result.predicted_fit_score,
+      predicted_fit_score: breakdown.total,
       ai_reason: result.ai_reason,
       estimated_price_positioning: result.estimated_price_positioning,
       website: result.website || null,
@@ -255,6 +283,7 @@ STORE TYPE FILTERING (CRITICAL):
       discovery_source: "Manual Search",
       verification_status: "web_verified",
       status: "new",
+      raw_data: { fit_score_factors: factors, fit_score_breakdown: breakdown, data_sources: result.data_sources, confidence: result.confidence },
     };
 
     const { data: inserted, error: insertError } = await supabase
@@ -271,10 +300,7 @@ STORE TYPE FILTERING (CRITICAL):
     }
 
     return new Response(JSON.stringify({
-      success: true,
-      found: true,
-      store: result,
-      prospect: inserted,
+      success: true, found: true, store: result, prospect: inserted,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error:", error);
