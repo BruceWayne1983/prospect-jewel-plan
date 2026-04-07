@@ -173,6 +173,12 @@ export default function Dashboard() {
                 <p className="text-xl font-display font-bold text-foreground">{billingAccounts.length}</p>
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Billing Accounts</p>
               </div>
+              {revenueAtRisk > 0 && (
+                <div className="bg-destructive/5 rounded-lg p-3 text-center border border-destructive/15 cursor-pointer hover:bg-destructive/10 transition-colors" onClick={() => navigate("/accounts")}>
+                  <p className="text-xl font-display font-bold text-destructive">£{(revenueAtRisk / 1000).toFixed(0)}k</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Revenue at Risk</p>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
