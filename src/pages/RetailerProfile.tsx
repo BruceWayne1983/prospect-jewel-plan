@@ -228,6 +228,27 @@ export default function RetailerProfile() {
           <div className="text-right flex-shrink-0 space-y-2">
             <p className="section-header text-[9px] mb-1">Predicted Annual Value</p>
             <p className="text-2xl font-display font-bold shimmer-gold">{pred.predictedAnnualValue}</p>
+            {(r.pipeline_stage === 'approved' || r.pipeline_stage === 'retention_risk') && (r.billing_2026_ytd || r.billing_2025_full_year) && (() => {
+              const ytd = Number(r.billing_2026_ytd || 0);
+              const currentMonth = new Date().getMonth() + 1;
+              const annualised = currentMonth > 0 ? Math.round((ytd / currentMonth) * 12) : 0;
+              const predVal = parseFloat(String(pred.predictedAnnualValue).replace(/[^0-9.]/g, '')) || 0;
+              const diff = annualised > 0 && predVal > 0 ? Math.round(((annualised - predVal) / predVal) * 100) : null;
+              return (
+                <div className="text-[10px] space-y-0.5">
+                  {annualised > 0 && (
+                    <p className="text-muted-foreground">
+                      Actual YTD (annualised): <span className="font-semibold text-foreground">£{annualised.toLocaleString()}</span>
+                    </p>
+                  )}
+                  {diff !== null && (
+                    <p className={diff >= 0 ? 'text-success' : 'text-warning'}>
+                      {diff >= 0 ? '↑' : '↓'} {Math.abs(diff)}% vs prediction
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             <Button
               onClick={runAnalysis}
               disabled={analysing}
