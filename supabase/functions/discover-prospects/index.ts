@@ -153,6 +153,7 @@ Do NOT suggest toy stores, children's shops, or chain retailers. DO include gard
     phone: p.phone || null,
     email: p.email || null,
     discovery_source: "AI Scanner",
+    verification_status: "unverified",
     status: "new",
   }));
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -54,6 +54,20 @@ function SourceBadge({ source }: { source: string | null }) {
     return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info flex items-center gap-1"><Globe className="w-2.5 h-2.5" />Web Verified</span>;
   }
   return <span className="text-[10px] text-gold-dark">{source}</span>;
+}
+
+function VerificationBadge({ status }: { status: string | null | undefined }) {
+  switch (status) {
+    case 'web_verified':
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" />WEB VERIFIED</span>;
+    case 'manually_verified':
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info flex items-center gap-1"><Shield className="w-2.5 h-2.5" />MANUALLY VERIFIED</span>;
+    case 'verified_fake':
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-destructive/15 text-destructive flex items-center gap-1"><ShieldAlert className="w-2.5 h-2.5" />NOT FOUND ONLINE</span>;
+    case 'unverified':
+    default:
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />AI GENERATED — NOT VERIFIED</span>;
+  }
 }
 
 function ScoreBreakdownTooltip({ prospect }: { prospect: DiscoveredProspect }) {
@@ -155,6 +169,9 @@ export default function ProspectDiscovery() {
   const [manualSearchCategory, setManualSearchCategory] = useState<string>("all");
   const [manualSearching, setManualSearching] = useState(false);
   const [manualResult, setManualResult] = useState<any>(null);
+  // Verification
+  const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
+  const [hideUnverified, setHideUnverified] = useState(true);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -233,6 +250,7 @@ export default function ProspectDiscovery() {
       if (Number(filterFitMin) > 0 && (p.predicted_fit_score ?? 0) < Number(filterFitMin)) return false;
       if (Number(filterRatingMin) > 0 && (p.rating ?? 0) < Number(filterRatingMin)) return false;
       if (filterNearCurrent && !existingTowns.includes(p.town)) return false;
+      if (hideUnverified && (p as any).verification_status === 'unverified') return false;
       return true;
     });
 
@@ -250,7 +268,7 @@ export default function ProspectDiscovery() {
       default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
     }
     return result;
-  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, sortBy, existingTowns, existingRetailerKeys]);
+  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, hideUnverified, sortBy, existingTowns, existingRetailerKeys]);
 
   const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
     const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
@@ -325,6 +343,47 @@ export default function ProspectDiscovery() {
     await supabase.from("discovered_prospects").delete().eq("id", p.id);
     setProspects(prev => prev.filter(x => x.id !== p.id));
     toast.success(`${p.name} promoted to Pipeline!`);
+  };
+
+  const verifyProspect = async (p: DiscoveredProspect) => {
+    setVerifyingIds(prev => new Set(prev).add(p.id));
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-prospect', {
+        body: { prospect_id: p.id, name: p.name, town: p.town, county: p.county, category: p.category },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+
+      setProspects(prev => prev.map(x => x.id === p.id ? {
+        ...x,
+        verification_status: data.verification_status,
+        verification_data: data,
+        website: data.website || x.website,
+        phone: data.phone || x.phone,
+        address: data.address || x.address,
+        email: data.email || x.email,
+      } as any : x));
+
+      if (data.exists) {
+        toast.success(`${p.name} verified — business found online (${data.confidence} confidence)`);
+      } else {
+        toast.warning(`${p.name} could not be verified online. It may be AI-generated.`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Verification failed");
+    } finally {
+      setVerifyingIds(prev => { const n = new Set(prev); n.delete(p.id); return n; });
+    }
+  };
+
+  const markManuallyVerified = async (id: string) => {
+    const { error } = await supabase.from("discovered_prospects").update({
+      verification_status: 'manually_verified',
+      verification_data: { verified_at: new Date().toISOString(), method: 'manual', verified_by: 'field_visit' },
+    } as any).eq("id", id);
+    if (error) { toast.error("Update failed"); return; }
+    setProspects(prev => prev.map(p => p.id === id ? { ...p, verification_status: 'manually_verified' } as any : p));
+    toast.success("Marked as manually verified");
   };
 
   const ensureSession = async () => {
@@ -786,6 +845,13 @@ export default function ProspectDiscovery() {
           </button>
         ))}
 
+        <div className="flex items-center gap-2 ml-2 border-l border-border/20 pl-3">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={hideUnverified} onChange={e => setHideUnverified(e.target.checked)} className="rounded border-border/40" />
+            <span className="text-[10px] text-muted-foreground">Hide unverified</span>
+          </label>
+        </div>
+
         <Button
           onClick={runBulkEnrich}
           disabled={enriching || unenrichedAccepted === 0}
@@ -979,11 +1045,12 @@ export default function ProspectDiscovery() {
           <div key={p.id} onClick={() => navigate(`/prospect/${p.id}`)} className={`card-premium p-6 cursor-pointer hover:shadow-md transition-shadow ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1">
-                <div className="flex items-center gap-2.5 mb-2">
+                <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                   <h3 className="text-base font-display font-semibold text-foreground hover:text-gold transition-colors">{p.name}</h3>
                   <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
+                  <VerificationBadge status={(p as any).verification_status} />
                 </div>
                 <div className="flex items-center gap-4 mb-2">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
@@ -1059,6 +1126,26 @@ export default function ProspectDiscovery() {
                 <div className="text-[10px] text-muted-foreground capitalize">
                   Est. quality: {p.estimated_store_quality}/100
                 </div>
+                {/* Verify buttons */}
+                <div className="flex gap-1.5">
+                  {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+                    <Button variant="outline" size="sm" onClick={() => verifyProspect(p)} disabled={verifyingIds.has(p.id)} className="text-[10px] h-7 px-2 border-warning/40 text-warning hover:bg-warning-light">
+                      {verifyingIds.has(p.id) ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
+                      Verify Exists
+                    </Button>
+                  )}
+                  {(p as any).verification_status === 'web_verified' && (
+                    <Button variant="outline" size="sm" onClick={() => markManuallyVerified(p.id)} className="text-[10px] h-7 px-2 border-info/40 text-info hover:bg-info-light">
+                      <Shield className="w-3 h-3 mr-1" /> Mark Visited
+                    </Button>
+                  )}
+                </div>
+                {/* Verified fake warning */}
+                {(p as any).verification_status === 'verified_fake' && (
+                  <div className="text-[9px] text-destructive bg-destructive/10 rounded px-2 py-1 max-w-[200px] text-right">
+                    Could not verify this business exists online. It may be AI-generated.
+                  </div>
+                )}
                 {p.status === 'new' || p.status === 'reviewing' ? (
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => updateStatus(p.id, 'reviewing')} className="text-[10px] h-7 px-2 border-border/40">
@@ -1074,9 +1161,24 @@ export default function ProspectDiscovery() {
                 ) : p.status === 'accepted' ? (
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success">accepted</span>
-                    <Button variant="outline" size="sm" onClick={() => promoteToRetailer(p)} className="text-[10px] h-7 px-2 border-gold/40 text-gold-dark hover:bg-champagne/30">
-                      <ArrowUpRight className="w-3 h-3 mr-1" /> Promote to Pipeline
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => promoteToRetailer(p)}
+                            disabled={(p as any).verification_status === 'unverified' || !(p as any).verification_status}
+                            className="text-[10px] h-7 px-2 border-gold/40 text-gold-dark hover:bg-champagne/30"
+                          >
+                            <ArrowUpRight className="w-3 h-3 mr-1" /> Promote to Pipeline
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+                        <TooltipContent className="text-xs">Verify this store exists before adding to pipeline</TooltipContent>
+                      )}
+                    </Tooltip>
                   </div>
                 ) : (
                   <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>

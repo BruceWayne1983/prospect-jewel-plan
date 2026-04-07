@@ -253,6 +253,7 @@ STORE TYPE FILTERING (CRITICAL):
       twitter: result.twitter || null,
       social_verified: !!(result.instagram || result.facebook || result.tiktok || result.twitter),
       discovery_source: "Manual Search",
+      verification_status: "web_verified",
       status: "new",
     };
 

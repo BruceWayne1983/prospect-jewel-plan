@@ -243,6 +243,7 @@ For each prospect, explain the brand connection — why stocking "${brand}" (or 
       phone: p.phone || null,
       email: p.email || null,
       discovery_source: `Brand: ${brand}`,
+      verification_status: "unverified",
       status: "new",
     }));
 

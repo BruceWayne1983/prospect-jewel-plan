@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, Sparkles, CheckCircle, XCircle, Eye, ArrowUpRight, Loader2, Tag, Users, Instagram, Calendar, AlertTriangle, Search, Info } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Mail, Globe, Star, Sparkles, CheckCircle, XCircle, Eye, ArrowUpRight, Loader2, Tag, Users, Instagram, Calendar, AlertTriangle, Search, Info, ShieldCheck, ShieldAlert, ShieldQuestion, Shield } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { QuickBookButton } from "@/components/calendar/EventBooker";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +26,48 @@ export default function ProspectProfile() {
   const [prospect, setProspect] = useState<DiscoveredProspect | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissDialog, setDismissDialog] = useState<{ open: boolean; reason: string; detail: string }>({ open: false, reason: 'not_fit', detail: '' });
+  const [verifying, setVerifying] = useState(false);
+
+  const verifyProspect = async () => {
+    if (!prospect) return;
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-prospect', {
+        body: { prospect_id: prospect.id, name: prospect.name, town: prospect.town, county: prospect.county, category: prospect.category },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      setProspect(prev => prev ? {
+        ...prev,
+        verification_status: data.verification_status,
+        verification_data: data,
+        website: data.website || prev.website,
+        phone: data.phone || prev.phone,
+        address: data.address || prev.address,
+        email: data.email || prev.email,
+      } as any : prev);
+      if (data.exists) {
+        toast.success(`Verified — business found online (${data.confidence} confidence)`);
+      } else {
+        toast.warning(`Could not verify this business exists online. It may be AI-generated.`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Verification failed");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const markManuallyVerified = async () => {
+    if (!id) return;
+    const { error } = await supabase.from("discovered_prospects").update({
+      verification_status: 'manually_verified',
+      verification_data: { verified_at: new Date().toISOString(), method: 'manual', verified_by: 'field_visit' },
+    } as any).eq("id", id);
+    if (error) { toast.error("Update failed"); return; }
+    setProspect(prev => prev ? { ...prev, verification_status: 'manually_verified' } as any : prev);
+    toast.success("Marked as manually verified");
+  };
 
   const fetchProspect = async () => {
     if (!id) return;
@@ -143,6 +186,14 @@ export default function ProspectProfile() {
               }`}>{p.status}</span>
               <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
               {p.discovery_source && <span className="text-[10px] text-muted-foreground">{p.discovery_source}</span>}
+              {/* Verification Badge */}
+              {(() => {
+                const vs = (p as any).verification_status;
+                if (vs === 'web_verified') return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" />WEB VERIFIED</span>;
+                if (vs === 'manually_verified') return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info flex items-center gap-1"><Shield className="w-2.5 h-2.5" />MANUALLY VERIFIED</span>;
+                if (vs === 'verified_fake') return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-destructive/15 text-destructive flex items-center gap-1"><ShieldAlert className="w-2.5 h-2.5" />NOT FOUND ONLINE</span>;
+                return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />AI GENERATED — NOT VERIFIED</span>;
+              })()}
               {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
                 <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-destructive/10 text-destructive">⚠ No Socials</span>
               )}
@@ -175,6 +226,18 @@ export default function ProspectProfile() {
         <div className="flex items-center gap-3 flex-wrap">
           <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="call" />
           <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="visit" />
+          {/* Verification actions */}
+          {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+            <Button onClick={verifyProspect} disabled={verifying} variant="outline" className="text-xs h-9 px-4 border-warning/40 text-warning hover:bg-warning-light">
+              {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />}
+              Verify Store Exists
+            </Button>
+          )}
+          {(p as any).verification_status === 'web_verified' && (
+            <Button onClick={markManuallyVerified} variant="outline" className="text-xs h-9 px-4 border-info/40 text-info hover:bg-info-light">
+              <Shield className="w-3.5 h-3.5 mr-1.5" /> Mark as Visited
+            </Button>
+          )}
           {(p.status === 'new' || p.status === 'reviewing') && (
             <>
               <Button onClick={() => updateStatus('reviewing')} variant="outline" className="text-xs h-9 px-4 border-border/40">
@@ -190,13 +253,31 @@ export default function ProspectProfile() {
           )}
           {p.status === 'accepted' && (
             <>
-              <Button onClick={promoteToRetailer} className="gold-gradient text-sidebar-background text-xs h-9 px-4">
-                <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Promote to Pipeline
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={promoteToRetailer}
+                      disabled={(p as any).verification_status === 'unverified' || !(p as any).verification_status}
+                      className="gold-gradient text-sidebar-background text-xs h-9 px-4"
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Promote to Pipeline
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+                  <TooltipContent>Verify this store exists before adding to pipeline</TooltipContent>
+                )}
+              </Tooltip>
               <Button onClick={() => setDismissDialog({ open: true, reason: 'not_fit', detail: '' })} variant="outline" className="text-xs h-9 px-4 border-destructive/40 text-destructive hover:bg-destructive/10">
                 <XCircle className="w-3.5 h-3.5 mr-1.5" /> Decline
               </Button>
             </>
+          )}
+          {(p as any).verification_status === 'verified_fake' && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-lg px-4 py-2 border border-destructive/20">
+              ⚠ Could not verify this business exists online. It may be AI-generated. Consider removing from pipeline.
+            </div>
           )}
           {p.status === 'dismissed' && (
             <>
