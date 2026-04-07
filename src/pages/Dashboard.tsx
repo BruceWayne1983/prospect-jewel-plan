@@ -43,8 +43,8 @@ export default function Dashboard() {
   }
 
   // Core segments
-  const currentAccounts = retailers.filter(r => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk");
-  const activeProspects = retailers.filter(r => !["approved", "rejected", "retention_risk"].includes(r.pipeline_stage));
+  const currentAccounts = retailers.filter(r => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk" || r.pipeline_stage === "dormant");
+  const activeProspects = retailers.filter(r => !["approved", "rejected", "retention_risk", "dormant"].includes(r.pipeline_stage));
   const highPriority = retailers.filter(r => getOutreach(r).outreachPriority === "high").sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
   const atRisk = currentAccounts.filter(r => (r.risk_flags ?? []).length > 0);
   const withMeetings = retailers.filter(r => getActivity(r).meetingScheduled);
