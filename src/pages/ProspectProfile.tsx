@@ -226,6 +226,18 @@ export default function ProspectProfile() {
         <div className="flex items-center gap-3 flex-wrap">
           <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="call" />
           <QuickBookButton retailerId={p.id} retailerName={p.name} town={p.town} defaultType="visit" />
+          {/* Verification actions */}
+          {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+            <Button onClick={verifyProspect} disabled={verifying} variant="outline" className="text-xs h-9 px-4 border-warning/40 text-warning hover:bg-warning-light">
+              {verifying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />}
+              Verify Store Exists
+            </Button>
+          )}
+          {(p as any).verification_status === 'web_verified' && (
+            <Button onClick={markManuallyVerified} variant="outline" className="text-xs h-9 px-4 border-info/40 text-info hover:bg-info-light">
+              <Shield className="w-3.5 h-3.5 mr-1.5" /> Mark as Visited
+            </Button>
+          )}
           {(p.status === 'new' || p.status === 'reviewing') && (
             <>
               <Button onClick={() => updateStatus('reviewing')} variant="outline" className="text-xs h-9 px-4 border-border/40">
@@ -241,13 +253,31 @@ export default function ProspectProfile() {
           )}
           {p.status === 'accepted' && (
             <>
-              <Button onClick={promoteToRetailer} className="gold-gradient text-sidebar-background text-xs h-9 px-4">
-                <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Promote to Pipeline
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={promoteToRetailer}
+                      disabled={(p as any).verification_status === 'unverified' || !(p as any).verification_status}
+                      className="gold-gradient text-sidebar-background text-xs h-9 px-4"
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" /> Promote to Pipeline
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
+                  <TooltipContent>Verify this store exists before adding to pipeline</TooltipContent>
+                )}
+              </Tooltip>
               <Button onClick={() => setDismissDialog({ open: true, reason: 'not_fit', detail: '' })} variant="outline" className="text-xs h-9 px-4 border-destructive/40 text-destructive hover:bg-destructive/10">
                 <XCircle className="w-3.5 h-3.5 mr-1.5" /> Decline
               </Button>
             </>
+          )}
+          {(p as any).verification_status === 'verified_fake' && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-lg px-4 py-2 border border-destructive/20">
+              ⚠ Could not verify this business exists online. It may be AI-generated. Consider removing from pipeline.
+            </div>
           )}
           {p.status === 'dismissed' && (
             <>
