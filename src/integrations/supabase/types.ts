@@ -750,6 +750,7 @@ export type Database = {
         | "approved"
         | "rejected"
         | "retention_risk"
+        | "dormant"
       prospect_status: "new" | "reviewing" | "accepted" | "dismissed"
       retailer_category:
         | "jeweller"
@@ -909,6 +910,7 @@ export const Constants = {
         "approved",
         "rejected",
         "retention_risk",
+        "dormant",
       ],
       prospect_status: ["new", "reviewing", "accepted", "dismissed"],
       retailer_category: [

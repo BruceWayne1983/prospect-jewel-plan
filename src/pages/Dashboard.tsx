@@ -43,8 +43,8 @@ export default function Dashboard() {
   }
 
   // Core segments
-  const currentAccounts = retailers.filter(r => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk");
-  const activeProspects = retailers.filter(r => !["approved", "rejected", "retention_risk"].includes(r.pipeline_stage));
+  const currentAccounts = retailers.filter(r => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk" || r.pipeline_stage === "dormant");
+  const activeProspects = retailers.filter(r => !["approved", "rejected", "retention_risk", "dormant"].includes(r.pipeline_stage));
   const highPriority = retailers.filter(r => getOutreach(r).outreachPriority === "high").sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
   const atRisk = currentAccounts.filter(r => (r.risk_flags ?? []).length > 0);
   const withMeetings = retailers.filter(r => getActivity(r).meetingScheduled);
@@ -113,6 +113,21 @@ export default function Dashboard() {
         const priorYearProrated = totalPriorYear > 0 ? (totalPriorYear / 12) * currentMonth : 0;
         const ytdChangePct = priorYearProrated > 0 ? Math.round(((totalYtd - priorYearProrated) / priorYearProrated) * 1000) / 10 : null;
 
+        // Revenue at risk: accounts with historical spend but zero/declining 2026
+        const revenueAtRisk = currentAccounts.reduce((s, r) => {
+          const b2024 = Number(r.billing_2024_full_year || 0);
+          const b2025 = Number(r.billing_2025_full_year || 0);
+          const b2026ytd = Number(r.billing_2026_ytd || 0);
+          const historicalBest = Math.max(b2024, b2025);
+          if (historicalBest > 0 && b2026ytd === 0) return s + historicalBest;
+          if (historicalBest > 0 && b2026ytd > 0) {
+            const projected = b2026ytd * (12 / currentMonth);
+            const decline = historicalBest - projected;
+            if (decline > historicalBest * 0.3) return s + decline;
+          }
+          return s;
+        }, 0);
+
         const sortedByBilling = [...billingAccounts]
           .sort((a, b) => Number(b.billing_2026_ytd || 0) - Number(a.billing_2026_ytd || 0));
         const top5 = sortedByBilling.slice(0, 5);
@@ -135,7 +150,7 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
               <div className="bg-background/60 rounded-lg p-3 text-center border border-border/20">
                 <p className="text-xl font-display font-bold text-foreground">£{(totalYtd / 1000).toFixed(1)}k</p>
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wider">2026 YTD</p>
@@ -158,6 +173,12 @@ export default function Dashboard() {
                 <p className="text-xl font-display font-bold text-foreground">{billingAccounts.length}</p>
                 <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Billing Accounts</p>
               </div>
+              {revenueAtRisk > 0 && (
+                <div className="bg-destructive/5 rounded-lg p-3 text-center border border-destructive/15 cursor-pointer hover:bg-destructive/10 transition-colors" onClick={() => navigate("/accounts")}>
+                  <p className="text-xl font-display font-bold text-destructive">£{(revenueAtRisk / 1000).toFixed(0)}k</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Revenue at Risk</p>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

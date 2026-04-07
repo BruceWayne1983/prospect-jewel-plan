@@ -1,6 +1,6 @@
 // Types
 export type RetailerCategory = 'jeweller' | 'gift_shop' | 'fashion_boutique' | 'lifestyle_store' | 'premium_accessories' | 'concept_store' | 'department_store' | 'garden_centre_gift_hall' | 'wedding_bridal' | 'heritage_tourist_gift' | 'multi_brand_retailer';
-export type PipelineStage = 'new_lead' | 'research_needed' | 'qualified' | 'priority_outreach' | 'contacted' | 'follow_up_needed' | 'meeting_booked' | 'under_review' | 'approved' | 'rejected' | 'retention_risk';
+export type PipelineStage = 'new_lead' | 'research_needed' | 'qualified' | 'priority_outreach' | 'contacted' | 'follow_up_needed' | 'meeting_booked' | 'under_review' | 'approved' | 'rejected' | 'retention_risk' | 'dormant';
 export type StorePositioning = 'premium' | 'mid_market' | 'budget';
 
 export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
@@ -14,6 +14,7 @@ export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
   { key: 'under_review', label: 'Under Review' },
   { key: 'approved', label: 'Approved Prospect' },
   { key: 'retention_risk', label: 'Retention Risk' },
+  { key: 'dormant', label: 'Dormant' },
   { key: 'rejected', label: 'Rejected' },
 ];
 
