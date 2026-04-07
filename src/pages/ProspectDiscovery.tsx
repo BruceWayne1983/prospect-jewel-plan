@@ -250,6 +250,7 @@ export default function ProspectDiscovery() {
       if (Number(filterFitMin) > 0 && (p.predicted_fit_score ?? 0) < Number(filterFitMin)) return false;
       if (Number(filterRatingMin) > 0 && (p.rating ?? 0) < Number(filterRatingMin)) return false;
       if (filterNearCurrent && !existingTowns.includes(p.town)) return false;
+      if (hideUnverified && (p as any).verification_status === 'unverified') return false;
       return true;
     });
 
