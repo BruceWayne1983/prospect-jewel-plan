@@ -684,6 +684,48 @@ export default function JourneyPlanner() {
                       })}
                     </div>
 
+                    {/* Nearby un-contacted prospects for this stop */}
+                    {(() => {
+                      const clusterProspects = nearbyProspects.filter(p => {
+                        if (!p.lat || !p.lng || !cluster.lat || !cluster.lng) return false;
+                        const km = haversine(cluster.lat, cluster.lng, p.lat, p.lng);
+                        const miles = km * 0.621371;
+                        return miles <= 10;
+                      }).map(p => ({
+                        ...p,
+                        distanceMiles: haversine(cluster.lat, cluster.lng, p.lat, p.lng) * 0.621371,
+                      })).sort((a, b) => a.distanceMiles - b.distanceMiles).slice(0, 3);
+
+                      if (clusterProspects.length === 0) return null;
+                      return (
+                        <div className="ml-3 pl-6 border-l-2 border-primary/10 pb-2">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Radar className="w-3 h-3 text-primary/60" />
+                            <span className="text-[9px] text-primary/70 font-medium uppercase tracking-wider">Prospects nearby</span>
+                          </div>
+                          {clusterProspects.map(p => (
+                            <button
+                              key={p.id}
+                              onClick={() => navigate(`/prospect/${p.id}`)}
+                              className="w-full text-left flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-champagne/10 transition-colors"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-medium text-foreground/70">{p.name}</span>
+                                <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-champagne/30 text-primary font-medium">
+                                  {p.category.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] text-muted-foreground">{p.distanceMiles.toFixed(1)} mi</span>
+                                <span className="text-[9px] text-muted-foreground/60">fit {p.predicted_fit_score ?? 0}</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-muted-foreground/30" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
                     {ci < activeRoute.clusters.length - 1 && (
                       <div className="flex items-center gap-2 ml-3 pl-6 py-1.5 text-muted-foreground/50">
                         <Car className="w-3 h-3" />
