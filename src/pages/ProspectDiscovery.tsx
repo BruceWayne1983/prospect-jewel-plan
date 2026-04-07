@@ -169,6 +169,9 @@ export default function ProspectDiscovery() {
   const [manualSearchCategory, setManualSearchCategory] = useState<string>("all");
   const [manualSearching, setManualSearching] = useState(false);
   const [manualResult, setManualResult] = useState<any>(null);
+  // Verification
+  const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
+  const [hideUnverified, setHideUnverified] = useState(true);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
