@@ -242,6 +242,7 @@ Deno.serve(async (req) => {
       phone: p.phone || null,
       email: p.email || null,
       discovery_source: "Web Scanner",
+      verification_status: "web_verified",
       status: "new",
     }));
 
