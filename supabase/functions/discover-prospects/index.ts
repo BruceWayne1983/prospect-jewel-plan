@@ -84,7 +84,9 @@ async function discoverBatch(
             role: "system",
             content: `You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.
 
-CRITICAL: Do NOT include toy stores, children's shops, chain stores, or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores.
+CRITICAL: Do NOT include toy stores, children's shops, chain stores (like Debenhams, John Lewis, H&M), or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores, small independent department stores, wedding & bridal shops, heritage/tourist gift shops, and multi-brand retailers.
+
+GARDEN CENTRE RULE: When evaluating garden centres, check if they have a substantial gift hall or jewellery department. Many garden centres in South West England have gift retail sections turning over £1m+. Include these as "garden_centre_gift_hall" category with a note in ai_reason about "Requires manual verification of gift hall suitability". Exclude garden centres that are purely plants/outdoor/hardware.
 
 CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings. Contact data will be sourced separately through verified channels only.
 
@@ -97,7 +99,7 @@ SOCIAL MEDIA RULE (VERY IMPORTANT):
           role: "user",
           content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}. Each prospect should have a unique, realistic shop name, a plausible full address with postcode, a plausible phone number, and a plausible contact email.
 
-Do NOT suggest toy stores, children's shops, or chain retailers.${excludeClause}`,
+Do NOT suggest toy stores, children's shops, or chain retailers. DO include garden centres with substantial gift halls/jewellery sections — categorise them as "garden_centre_gift_hall".${excludeClause}`,
         },
       ],
     }),
