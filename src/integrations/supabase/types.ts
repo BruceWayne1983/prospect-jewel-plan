@@ -193,6 +193,8 @@ export type Database = {
           twitter: string | null
           updated_at: string
           user_id: string
+          verification_data: Json | null
+          verification_status: Database["public"]["Enums"]["verification_status"]
           website: string | null
         }
         Insert: {
@@ -234,6 +236,8 @@ export type Database = {
           twitter?: string | null
           updated_at?: string
           user_id: string
+          verification_data?: Json | null
+          verification_status?: Database["public"]["Enums"]["verification_status"]
           website?: string | null
         }
         Update: {
@@ -275,6 +279,8 @@ export type Database = {
           twitter?: string | null
           updated_at?: string
           user_id?: string
+          verification_data?: Json | null
+          verification_status?: Database["public"]["Enums"]["verification_status"]
           website?: string | null
         }
         Relationships: []
@@ -752,6 +758,11 @@ export type Database = {
         | "heritage_tourist_gift"
         | "multi_brand_retailer"
       store_positioning: "premium" | "mid_market" | "budget"
+      verification_status:
+        | "unverified"
+        | "web_verified"
+        | "manually_verified"
+        | "verified_fake"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -908,6 +919,12 @@ export const Constants = {
         "multi_brand_retailer",
       ],
       store_positioning: ["premium", "mid_market", "budget"],
+      verification_status: [
+        "unverified",
+        "web_verified",
+        "manually_verified",
+        "verified_fake",
+      ],
     },
   },
 } as const
