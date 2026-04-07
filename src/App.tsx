@@ -32,33 +32,7 @@ import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { session, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Loading…</div>
-      </div>
-    );
-  }
-
-  // Allow reset-password route without session
-  if (window.location.pathname === "/reset-password") {
-    return (
-      <Routes>
-        <Route path="/reset-password" element={<ResetPassword />} />
-      </Routes>
-    );
-  }
-
-  if (!session) {
-    return (
-      <Routes>
-        <Route path="*" element={<Auth />} />
-      </Routes>
-    );
-  }
-
+  // Auth gate temporarily disabled for testing
   return (
     <AppLayout>
       <Routes>
@@ -82,6 +56,7 @@ function AppRoutes() {
         <Route path="/locations" element={<RetailLocations />} />
         <Route path="/prospect/:id" element={<ProspectProfile />} />
         <Route path="/weekly-review" element={<WeeklyReview />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
