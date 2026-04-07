@@ -845,6 +845,13 @@ export default function ProspectDiscovery() {
           </button>
         ))}
 
+        <div className="flex items-center gap-2 ml-2 border-l border-border/20 pl-3">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" checked={hideUnverified} onChange={e => setHideUnverified(e.target.checked)} className="rounded border-border/40" />
+            <span className="text-[10px] text-muted-foreground">Hide unverified</span>
+          </label>
+        </div>
+
         <Button
           onClick={runBulkEnrich}
           disabled={enriching || unenrichedAccepted === 0}
