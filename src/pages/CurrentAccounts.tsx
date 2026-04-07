@@ -349,6 +349,7 @@ export default function CurrentAccounts() {
       <div className="flex items-center gap-2">
         {([
           { key: "all" as const, label: "All Accounts" },
+          { key: "groups" as const, label: `Groups (${accountGroups.length})` },
           { key: "alerts" as const, label: `Alerts (${alerts.length})` },
           { key: "retention" as const, label: `Retention (${retentionRisk.length})` },
         ]).map(tab => (
