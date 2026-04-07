@@ -480,6 +480,7 @@ export type Database = {
           billing_2024_full_year: number | null
           billing_2025_full_year: number | null
           billing_2026_ytd: number | null
+          billing_history: Json | null
           billing_last_updated: string | null
           business_group: string | null
           category: Database["public"]["Enums"]["retailer_category"]
@@ -536,6 +537,7 @@ export type Database = {
           billing_2024_full_year?: number | null
           billing_2025_full_year?: number | null
           billing_2026_ytd?: number | null
+          billing_history?: Json | null
           billing_last_updated?: string | null
           business_group?: string | null
           category?: Database["public"]["Enums"]["retailer_category"]
@@ -592,6 +594,7 @@ export type Database = {
           billing_2024_full_year?: number | null
           billing_2025_full_year?: number | null
           billing_2026_ytd?: number | null
+          billing_history?: Json | null
           billing_last_updated?: string | null
           business_group?: string | null
           category?: Database["public"]["Enums"]["retailer_category"]
