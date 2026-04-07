@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRetailers, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
-import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert, MapPin, Users, ArrowUpRight } from "lucide-react";
+import { Loader2, Store, Search, TrendingUp, Calendar, AlertTriangle, Filter, DatabaseZap, Sparkles, PoundSterling, ShieldAlert, MapPin, Users, ArrowUpRight, Ghost, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,7 +34,8 @@ export default function CurrentAccounts() {
   const [filterCounty, setFilterCounty] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortBy, setSortBy] = useState("priority");
-  const [viewTab, setViewTab] = useState<"all" | "alerts" | "retention" | "groups">("all");
+  const [viewTab, setViewTab] = useState<"all" | "alerts" | "retention" | "groups" | "winback">("all");
+  const [generatingBrief, setGeneratingBrief] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [analysingAll, setAnalysingAll] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({ done: 0, total: 0 });
@@ -67,11 +68,94 @@ export default function CurrentAccounts() {
     }
   };
 
-  // All established (unfiltered) for stats
+  // All established (unfiltered) for stats — includes dormant
   const allEstablished = useMemo(
-    () => retailers.filter((r) => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk"),
+    () => retailers.filter((r) => r.pipeline_stage === "approved" || r.pipeline_stage === "retention_risk" || r.pipeline_stage === "dormant"),
     [retailers]
   );
+
+  // Dormant detection: approved/retention_risk accounts with no recent billing
+  const dormantAccounts = useMemo(() => {
+    return allEstablished.filter(r => {
+      const b2024 = Number(r.billing_2024_full_year || 0);
+      const b2025 = Number(r.billing_2025_full_year || 0);
+      const b2026ytd = Number(r.billing_2026_ytd || 0);
+      const hadHistorical = b2024 > 0 || b2025 > 0;
+
+      // Explicitly dormant stage
+      if (r.pipeline_stage === "dormant") return true;
+
+      // YTD 2026 is zero while historical > 0
+      if (b2026ytd === 0 && hadHistorical) return true;
+
+      // Check billing_history for recency
+      const bh = (r.billing_history ?? {}) as Record<string, any>;
+      const monthly = Array.isArray(bh.monthly) ? bh.monthly : [];
+      if (monthly.length > 0) {
+        const lastEntry = monthly[monthly.length - 1];
+        if (lastEntry?.month) {
+          const lastDate = new Date(lastEntry.month + "-01");
+          const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSince > 90 && hadHistorical) return true;
+        }
+      }
+
+      return false;
+    }).map(r => {
+      const b2024 = Number(r.billing_2024_full_year || 0);
+      const b2025 = Number(r.billing_2025_full_year || 0);
+      const b2026ytd = Number(r.billing_2026_ytd || 0);
+      const historicalBest = Math.max(b2024, b2025);
+      const revenueAtRisk = historicalBest - b2026ytd;
+
+      // Days since last order
+      const bh = (r.billing_history ?? {}) as Record<string, any>;
+      const monthly = Array.isArray(bh.monthly) ? bh.monthly : [];
+      let daysSinceLastOrder = 999;
+      let lastOrderDate = "";
+      if (monthly.length > 0) {
+        const lastEntry = monthly[monthly.length - 1];
+        if (lastEntry?.month) {
+          lastOrderDate = lastEntry.month;
+          daysSinceLastOrder = Math.floor((Date.now() - new Date(lastEntry.month + "-01").getTime()) / (1000 * 60 * 60 * 24));
+        }
+      } else if (b2026ytd > 0) {
+        daysSinceLastOrder = 30; // has YTD so recent-ish
+      } else if (b2025 > 0) {
+        daysSinceLastOrder = 180;
+        lastOrderDate = "2025 (est.)";
+      } else if (b2024 > 0) {
+        daysSinceLastOrder = 365;
+        lastOrderDate = "2024 (est.)";
+      }
+
+      // Seasonal flag
+      const isSeasonal = r.category === "heritage_tourist_gift" || (r.location_context ?? "").toLowerCase().includes("seasonal");
+
+      return { ...r, historicalBest, revenueAtRisk, daysSinceLastOrder, lastOrderDate, isSeasonal, b2024, b2025, b2026ytd };
+    }).sort((a, b) => b.revenueAtRisk - a.revenueAtRisk);
+  }, [allEstablished]);
+
+  const totalRevenueAtRisk = useMemo(() => dormantAccounts.reduce((s, d) => s + Math.max(0, d.revenueAtRisk), 0), [dormantAccounts]);
+
+  const generateWinBackBrief = async (retailer: typeof dormantAccounts[0]) => {
+    setGeneratingBrief(retailer.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-briefing", {
+        body: {
+          retailerId: retailer.id,
+          context: `WIN-BACK BRIEFING: This is a dormant account that previously generated £${retailer.historicalBest.toLocaleString()} annually. 2024: £${retailer.b2024.toLocaleString()}, 2025: £${retailer.b2025.toLocaleString()}, 2026 YTD: £${retailer.b2026ytd.toLocaleString()}. Last order approximately ${retailer.daysSinceLastOrder} days ago. Revenue at risk: £${retailer.revenueAtRisk.toLocaleString()}. Focus on: why they may have stopped ordering, what has changed, re-engagement approach, special offers or incentives to restart.`
+        }
+      });
+      if (error) throw error;
+      toast.success("Win-back brief generated — check the retailer profile");
+      navigate(`/retailer/${retailer.id}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate brief");
+    } finally {
+      setGeneratingBrief(null);
+    }
+  };
 
   const retentionRisk = useMemo(() => retailers.filter(r => r.pipeline_stage === "retention_risk"), [retailers]);
   const alerts = useMemo(() => computeAlerts(allEstablished, calendarEvents), [allEstablished, calendarEvents]);
