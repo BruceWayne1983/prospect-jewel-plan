@@ -154,6 +154,7 @@ export default function MyReports() {
           <TabsTrigger value="upload">Upload Report</TabsTrigger>
           <TabsTrigger value="history">Report History ({reports.length})</TabsTrigger>
           <TabsTrigger value="trends">Trends & Insights</TabsTrigger>
+          <TabsTrigger value="actions">Actions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
@@ -285,6 +286,10 @@ export default function MyReports() {
 
         <TabsContent value="trends">
           <ReportTrends reports={reports} />
+        </TabsContent>
+
+        <TabsContent value="actions">
+          <ReportActions reports={reports} />
         </TabsContent>
       </Tabs>
     </div>
