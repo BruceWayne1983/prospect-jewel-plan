@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Upload, FileText, Loader2, Sparkles, Trash2, Tag, AlertTriangle, CheckCircle2, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReportInsights from "@/components/reports/ReportInsights";
+import ReportTrends from "@/components/reports/ReportTrends";
 
 const REPORT_TYPES = [
   { value: "ord015", label: "ORD015 — Order Comparison", desc: "Shows orders placed. This is your REAL performance.", icon: "📊" },
