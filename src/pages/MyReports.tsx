@@ -281,6 +281,10 @@ export default function MyReports() {
             reports.map((report: any) => <ReportCard key={report.id} report={report} analyseMutation={analyseMutation} deleteMutation={deleteMutation} />)
           )}
         </TabsContent>
+
+        <TabsContent value="trends">
+          <ReportTrends reports={reports} />
+        </TabsContent>
       </Tabs>
     </div>
   );
