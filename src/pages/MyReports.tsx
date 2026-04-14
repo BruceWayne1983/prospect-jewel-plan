@@ -182,9 +182,9 @@ export default function MyReports() {
                 ))}
               </div>
               {reportType === "fat013" && (
-                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-xs text-amber-800">This report compares your 3 months against a full year. The percentages are not meaningful. I'll extract the useful numbers but flag the misleading comparisons.</p>
+                <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                  <p className="text-xs text-destructive">This report compares your 3 months against a full year. The percentages are not meaningful. I'll extract the useful numbers but flag the misleading comparisons.</p>
                 </div>
               )}
             </CardContent>
