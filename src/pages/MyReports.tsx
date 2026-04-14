@@ -12,8 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, Upload, FileText, Loader2, Sparkles, Trash2, Tag, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { CalendarIcon, Upload, FileText, Loader2, Sparkles, Trash2, Tag, AlertTriangle, CheckCircle2, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReportInsights from "@/components/reports/ReportInsights";
 
 const REPORT_TYPES = [
   { value: "ord015", label: "ORD015 — Order Comparison", desc: "Shows orders placed. This is your REAL performance.", icon: "📊" },
@@ -275,85 +276,7 @@ export default function MyReports() {
               </CardContent>
             </Card>
           ) : (
-            reports.map((report: any) => {
-              const typeInfo = REPORT_TYPES.find(t => t.value === report.report_type);
-              const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.uploaded;
-              return (
-                <Card key={report.id} className="overflow-hidden">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <span className="text-xl mt-0.5">{typeInfo?.icon || "📄"}</span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{report.file_name}</p>
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-[10px]">{typeInfo?.label.split(" — ")[0] || report.report_type}</Badge>
-                            {report.report_date && (
-                              <span className="text-[10px] text-muted-foreground">Report: {format(new Date(report.report_date), "d MMM yyyy")}</span>
-                            )}
-                            {report.period_start && report.period_end && (
-                              <span className="text-[10px] text-muted-foreground">
-                                Period: {format(new Date(report.period_start), "MMM yyyy")} — {format(new Date(report.period_end), "MMM yyyy")}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-1.5">
-                            <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium", status.color)}>
-                              {status.icon}{status.label}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">Uploaded {format(new Date(report.created_at), "d MMM yyyy 'at' HH:mm")}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {report.status === "uploaded" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => analyseMutation.mutate(report.id)}
-                            disabled={analyseMutation.isPending}
-                          >
-                            <Sparkles className="h-3.5 w-3.5 mr-1" />Translate
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(report)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* AI Summary */}
-                    {report.ai_summary && (
-                      <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border/50">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" />
-                          <span className="text-xs font-medium text-primary">What this report actually says</span>
-                        </div>
-                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{report.ai_summary}</p>
-                      </div>
-                    )}
-
-                    {/* Territory totals */}
-                    {(report.territory_total_cy || report.territory_total_py1) && (
-                      <div className="mt-2 flex items-center gap-4">
-                        {report.territory_total_cy && (
-                          <div className="text-xs">
-                            <span className="text-muted-foreground">This year: </span>
-                            <span className="font-semibold text-foreground">£{Number(report.territory_total_cy).toLocaleString()}</span>
-                          </div>
-                        )}
-                        {report.territory_total_py1 && (
-                          <div className="text-xs">
-                            <span className="text-muted-foreground">Same period last year: </span>
-                            <span className="font-semibold text-foreground">£{Number(report.territory_total_py1).toLocaleString()}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })
+            reports.map((report: any) => <ReportCard key={report.id} report={report} analyseMutation={analyseMutation} deleteMutation={deleteMutation} />)
           )}
         </TabsContent>
       </Tabs>
@@ -377,5 +300,81 @@ function DatePicker({ label, date, onSelect, placeholder }: { label: string; dat
         </PopoverContent>
       </Popover>
     </div>
+  );
+}
+
+function ReportCard({ report, analyseMutation, deleteMutation }: { report: any; analyseMutation: any; deleteMutation: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const typeInfo = REPORT_TYPES.find(t => t.value === report.report_type);
+  const status = STATUS_CONFIG[report.status] || STATUS_CONFIG.uploaded;
+  const hasInsights = report.status === "analysed" && (report.ai_summary || report.parsed_data);
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="text-xl mt-0.5">{typeInfo?.icon || "📄"}</span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{report.file_name}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <Badge variant="outline" className="text-[10px]">{typeInfo?.label.split(" — ")[0] || report.report_type}</Badge>
+                {report.report_date && (
+                  <span className="text-[10px] text-muted-foreground">Report: {format(new Date(report.report_date), "d MMM yyyy")}</span>
+                )}
+                {report.period_start && report.period_end && (
+                  <span className="text-[10px] text-muted-foreground">
+                    Period: {format(new Date(report.period_start), "MMM yyyy")} — {format(new Date(report.period_end), "MMM yyyy")}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium", status.color)}>
+                  {status.icon}{status.label}
+                </span>
+                <span className="text-[10px] text-muted-foreground">Uploaded {format(new Date(report.created_at), "d MMM yyyy 'at' HH:mm")}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {report.status === "uploaded" && (
+              <Button variant="outline" size="sm" onClick={() => analyseMutation.mutate(report.id)} disabled={analyseMutation.isPending}>
+                <Sparkles className="h-3.5 w-3.5 mr-1" />Translate
+              </Button>
+            )}
+            {hasInsights && (
+              <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
+                {expanded ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+                {expanded ? "Collapse" : "View Insights"}
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(report)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick territory totals when collapsed */}
+        {!expanded && (report.territory_total_cy || report.territory_total_py1) && (
+          <div className="mt-2 flex items-center gap-4">
+            {report.territory_total_cy && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">This year: </span>
+                <span className="font-semibold text-foreground">£{Number(report.territory_total_cy).toLocaleString()}</span>
+              </div>
+            )}
+            {report.territory_total_py1 && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">Same period last year: </span>
+                <span className="font-semibold text-foreground">£{Number(report.territory_total_py1).toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Expanded insights */}
+        {expanded && hasInsights && <ReportInsights report={report} />}
+      </CardContent>
+    </Card>
   );
 }
