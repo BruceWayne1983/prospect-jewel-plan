@@ -26,6 +26,7 @@ import BrandHub from "@/pages/BrandHub";
 import RetailLocations from "@/pages/RetailLocations";
 import ProspectProfile from "@/pages/ProspectProfile";
 import WeeklyReview from "@/pages/WeeklyReview";
+import MyReports from "@/pages/MyReports";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="/locations" element={<RetailLocations />} />
         <Route path="/prospect/:id" element={<ProspectProfile />} />
         <Route path="/weekly-review" element={<WeeklyReview />} />
+        <Route path="/my-reports" element={<MyReports />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
