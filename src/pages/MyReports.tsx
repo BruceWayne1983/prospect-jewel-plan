@@ -12,8 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, Upload, FileText, Loader2, Sparkles, Trash2, Tag, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { CalendarIcon, Upload, FileText, Loader2, Sparkles, Trash2, Tag, AlertTriangle, CheckCircle2, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReportInsights from "@/components/reports/ReportInsights";
 
 const REPORT_TYPES = [
   { value: "ord015", label: "ORD015 — Order Comparison", desc: "Shows orders placed. This is your REAL performance.", icon: "📊" },
