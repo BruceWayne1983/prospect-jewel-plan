@@ -660,6 +660,72 @@ export type Database = {
           },
         ]
       }
+      sales_reports: {
+        Row: {
+          ai_summary: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string | null
+          id: string
+          notes: string | null
+          parsed_data: Json | null
+          period_end: string | null
+          period_start: string | null
+          report_date: string | null
+          report_type: string
+          status: string
+          tags: string[] | null
+          territory_total_cy: number | null
+          territory_total_py1: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          parsed_data?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          report_date?: string | null
+          report_type?: string
+          status?: string
+          tags?: string[] | null
+          territory_total_cy?: number | null
+          territory_total_py1?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_summary?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          parsed_data?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          report_date?: string | null
+          report_type?: string
+          status?: string
+          tags?: string[] | null
+          territory_total_cy?: number | null
+          territory_total_py1?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       uploaded_files: {
         Row: {
           ai_summary: string | null
