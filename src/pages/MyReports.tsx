@@ -16,6 +16,7 @@ import { CalendarIcon, Upload, FileText, Loader2, Sparkles, Trash2, Tag, AlertTr
 import { cn } from "@/lib/utils";
 import ReportInsights from "@/components/reports/ReportInsights";
 import ReportTrends from "@/components/reports/ReportTrends";
+import ReportActions from "@/components/reports/ReportActions";
 
 const REPORT_TYPES = [
   { value: "ord015", label: "ORD015 — Order Comparison", desc: "Shows orders placed. This is your REAL performance.", icon: "📊" },
