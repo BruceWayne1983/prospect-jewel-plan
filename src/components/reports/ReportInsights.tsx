@@ -4,7 +4,6 @@ import { Progress } from "@/components/ui/progress";
 import { Sparkles, TrendingUp, TrendingDown, XCircle, PieChart, Shield, AlertTriangle, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { calculateAnnualisedRate } from "@/utils/annualisation";
 
 interface AccountEntry {
