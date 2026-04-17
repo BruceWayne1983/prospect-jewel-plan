@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { TrendingUp, TrendingDown, Minus, GitCompare, Clock, BarChart3, Users, AlertTriangle } from "lucide-react";
 import { useState, useMemo } from "react";
+import { normaliseAccountName } from "@/utils/accountNames";
 
 interface ReportRecord {
   id: string;
@@ -67,13 +68,19 @@ function getReportDateObj(r: ReportRecord): Date | null {
 export default function ReportTrends({ reports }: ReportTrendsProps) {
   const analysedReports = reports.filter(r => r.status === "analysed" && (r.territory_total_cy || r.parsed_data));
 
-  if (analysedReports.length < 1) {
+  if (analysedReports.length < 2) {
+    const message = analysedReports.length === 0
+      ? "Upload your first report to start seeing insights"
+      : `Upload one more report to see trends over time — you've got ${analysedReports.length} analysed`;
+    const sub = analysedReports.length === 0
+      ? "I'll translate it into plain English and start building your trend view."
+      : "Trends compare reports against each other, so we need at least two.";
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <BarChart3 className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Upload and analyse at least 2 reports to see trends.</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">The more reports you upload, the better the picture.</p>
+          <p className="text-sm text-muted-foreground">{message}</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">{sub}</p>
         </CardContent>
       </Card>
     );
@@ -383,8 +390,10 @@ function AccountTrajectory({ reports }: { reports: ReportRecord[] }) {
       ];
 
       for (const acc of allAccounts) {
-        const key = (acc.name || "").toLowerCase().trim();
+        const key = normaliseAccountName(acc.name || "");
         if (!key) continue;
+        // Keep original display name from the FIRST sighting; normalised key
+        // groups the variants together.
         const existing = accountMap.get(key) || { name: acc.name, town: acc.town, entries: [] };
         existing.entries.push({
           reportDate,
