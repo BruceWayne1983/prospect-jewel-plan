@@ -111,12 +111,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const authClient = createClient(
+    // User-scoped client — RLS will automatically restrict reads/writes
+    // to retailers owned by the calling user. No service-role key needed.
+    const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
-    const { data: { user }, error: authError } = await authClient.auth.getUser();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -124,11 +127,7 @@ Deno.serve(async (req) => {
     }
     // ────────────────────────────────────────────────────────
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
-
-    // Get all retailers without coordinates
+    // RLS scopes this to the calling user's retailers only.
     const { data: retailers, error: fetchError } = await supabase
       .from("retailers")
       .select("id, name, town, county")
@@ -148,10 +147,13 @@ Deno.serve(async (req) => {
         const jitterLat = (Math.random() - 0.5) * 0.005;
         const jitterLng = (Math.random() - 0.5) * 0.005;
 
+        // RLS ensures we can only update our own rows; explicit user_id
+        // filter as belt-and-braces in case the policy is ever loosened.
         const { error: updateError } = await supabase
           .from("retailers")
           .update({ lat: coords.lat + jitterLat, lng: coords.lng + jitterLng })
-          .eq("id", r.id);
+          .eq("id", r.id)
+          .eq("user_id", user.id);
 
         if (!updateError) updated++;
       } else {
