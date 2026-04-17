@@ -17,6 +17,17 @@ import { cn } from "@/lib/utils";
 import ReportInsights from "@/components/reports/ReportInsights";
 import ReportTrends from "@/components/reports/ReportTrends";
 import ReportActions from "@/components/reports/ReportActions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const REPORT_TYPES = [
   { value: "ord015", label: "ORD015 — Order Comparison", desc: "Shows orders placed. This is your REAL performance.", icon: "📊" },
@@ -76,13 +87,29 @@ export default function MyReports() {
 
   const deleteMutation = useMutation({
     mutationFn: async (report: any) => {
-      await supabase.storage.from("data-hub").remove([report.file_path]);
+      // Delete the database row FIRST — this is the user-visible state.
       const { error } = await supabase.from("sales_reports").delete().eq("id", report.id);
       if (error) throw error;
+
+      // Then attempt storage cleanup. If it fails, the row is already gone,
+      // which is what the user wanted — log and move on.
+      try {
+        const { error: storageError } = await supabase.storage
+          .from("data-hub")
+          .remove([report.file_path]);
+        if (storageError) {
+          console.warn("Storage cleanup failed for", report.file_path, storageError);
+        }
+      } catch (storageErr) {
+        console.warn("Storage cleanup threw for", report.file_path, storageErr);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-reports"] });
       toast({ title: "Report deleted" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -374,9 +401,38 @@ function ReportCard({ report, analyseMutation, deleteMutation }: { report: any; 
                 {expanded ? "Collapse" : "View Insights"}
               </Button>
             )}
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMutation.mutate(report)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this report?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <span className="font-medium text-foreground">{report.file_name}</span> and its analysis. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={deleteMutation.isPending}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      deleteMutation.mutate(report);
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteMutation.isPending ? (
+                      <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Deleting...</>
+                    ) : (
+                      "Delete Report"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 

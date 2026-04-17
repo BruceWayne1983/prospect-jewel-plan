@@ -4,6 +4,8 @@ import { Progress } from "@/components/ui/progress";
 import { Sparkles, TrendingUp, TrendingDown, XCircle, PieChart, Shield, AlertTriangle, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { calculateAnnualisedRate } from "@/utils/annualisation";
 
 interface AccountEntry {
   name: string;
@@ -118,11 +120,12 @@ export default function ReportInsights({ report }: ReportInsightsProps) {
   const isUnfairReport = report.report_type === "fat013";
   const showUnfairSection = totalFullPY1 > 0 || isUnfairReport;
 
-  // Annualised run rate
-  const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const daysSoFar = Math.max(1, Math.floor((now.getTime() - startOfYear.getTime()) / 86400000));
-  const annualisedRate = totalCY > 0 ? (totalCY / daysSoFar) * 365 : 0;
+  // Annualised run rate — based on the report's actual reporting period
+  const { rate: annualisedRate, isEstimate: annualisedIsEstimate } = calculateAnnualisedRate(
+    totalCY,
+    report.period_start,
+    report.period_end
+  );
 
   return (
     <div className="space-y-4 mt-4">
