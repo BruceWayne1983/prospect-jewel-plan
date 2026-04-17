@@ -246,24 +246,49 @@ Deno.serve(async (req) => {
     const aiData = await aiResponse.json();
     const fullResponse = aiData.choices?.[0]?.message?.content || "No analysis generated.";
 
-    // Extract structured JSON
+    // Extract structured JSON — surface failures, don't swallow them
     let parsedData: Record<string, any> = {};
+    let errorDetail: string | null = null;
     const jsonMatch = fullResponse.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      try { parsedData = JSON.parse(jsonMatch[1]); } catch { /* ignore */ }
+
+    if (!jsonMatch) {
+      errorDetail = "AI response did not include the expected JSON block. Please retry the analysis.";
+    } else {
+      try {
+        parsedData = JSON.parse(jsonMatch[1]);
+      } catch (parseErr: any) {
+        errorDetail = `AI returned malformed data (JSON parse error: ${parseErr?.message || "unknown"}). Please retry.`;
+        parsedData = {};
+      }
     }
 
     const summary = fullResponse.replace(/```json\s*[\s\S]*?\s*```/, "").trim();
+
+    // Only mark "analysed" if we got at least one meaningful field
+    const hasUsefulData =
+      parsedData.territory_total_cy != null ||
+      (Array.isArray(parsedData.accounts_growing) && parsedData.accounts_growing.length > 0) ||
+      (Array.isArray(parsedData.category_breakdown) && parsedData.category_breakdown.length > 0);
+
+    const finalStatus = errorDetail || !hasUsefulData ? "error" : "analysed";
+    const finalErrorDetail = errorDetail
+      || (!hasUsefulData ? "AI response did not contain any usable territory data. Please retry." : null);
 
     await supabase.from("sales_reports").update({
       ai_summary: summary,
       parsed_data: parsedData,
       territory_total_cy: parsedData.territory_total_cy || null,
       territory_total_py1: parsedData.territory_total_py1 || null,
-      status: "analysed",
+      status: finalStatus,
+      error_detail: finalErrorDetail,
     }).eq("id", reportId);
 
-    return new Response(JSON.stringify({ success: true, summary, parsedData }), {
+    return new Response(JSON.stringify({
+      success: finalStatus === "analysed",
+      summary,
+      parsedData,
+      error_detail: finalErrorDetail,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

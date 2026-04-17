@@ -664,6 +664,7 @@ export type Database = {
         Row: {
           ai_summary: string | null
           created_at: string
+          error_detail: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -685,6 +686,7 @@ export type Database = {
         Insert: {
           ai_summary?: string | null
           created_at?: string
+          error_detail?: string | null
           file_name: string
           file_path: string
           file_size?: number
@@ -706,6 +708,7 @@ export type Database = {
         Update: {
           ai_summary?: string | null
           created_at?: string
+          error_detail?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
@@ -732,12 +735,14 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          error_detail: string | null
           file_name: string
           file_path: string
           file_size: number
           file_type: string | null
           id: string
           parsed_data: Json | null
+          status: string
           updated_at: string
           user_id: string
         }
@@ -746,12 +751,14 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          error_detail?: string | null
           file_name: string
           file_path: string
           file_size?: number
           file_type?: string | null
           id?: string
           parsed_data?: Json | null
+          status?: string
           updated_at?: string
           user_id: string
         }
@@ -760,12 +767,14 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          error_detail?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
           file_type?: string | null
           id?: string
           parsed_data?: Json | null
+          status?: string
           updated_at?: string
           user_id?: string
         }

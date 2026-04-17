@@ -198,24 +198,43 @@ Always try to extract stockist names, sales figures, and any patterns from the d
     const aiData = await aiResponse.json();
     const fullResponse = aiData.choices?.[0]?.message?.content || "No analysis generated.";
 
-    // Extract structured JSON from response
+    // Extract structured JSON — surface failures, don't swallow them
     let parsedData: Record<string, any> = {};
+    let errorDetail: string | null = null;
     const jsonMatch = fullResponse.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
+
+    if (!jsonMatch) {
+      errorDetail = "AI response did not include the expected JSON block. Please retry the analysis.";
+    } else {
       try {
         parsedData = JSON.parse(jsonMatch[1]);
-      } catch { /* ignore parse errors */ }
+      } catch (parseErr: any) {
+        errorDetail = `AI returned malformed data (JSON parse error: ${parseErr?.message || "unknown"}). Please retry.`;
+        parsedData = {};
+      }
     }
 
     // Remove the JSON block from the summary
     const summary = fullResponse.replace(/```json\s*[\s\S]*?\s*```/, "").trim();
 
+    const finalStatus = errorDetail ? "error" : "analysed";
+
     await supabase
       .from("uploaded_files")
-      .update({ ai_summary: summary, parsed_data: parsedData })
+      .update({
+        ai_summary: summary,
+        parsed_data: parsedData,
+        status: finalStatus,
+        error_detail: errorDetail,
+      })
       .eq("id", fileId);
 
-    return new Response(JSON.stringify({ success: true, summary, parsedData }), {
+    return new Response(JSON.stringify({
+      success: finalStatus === "analysed",
+      summary,
+      parsedData,
+      error_detail: errorDetail,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
