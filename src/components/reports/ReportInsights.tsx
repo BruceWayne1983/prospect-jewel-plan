@@ -255,6 +255,7 @@ export default function ReportInsights({ report }: ReportInsightsProps) {
           totalFullPY1={totalFullPY1}
           closedPY1={closedPY1}
           annualisedRate={annualisedRate}
+          annualisedIsEstimate={annualisedIsEstimate}
           isUnfairReport={isUnfairReport}
           reportType={report.report_type}
         />
@@ -336,12 +337,13 @@ function AccountSection({ title, subtitle, icon, accounts, variant }: {
   );
 }
 
-function UnfairComparisonSection({ totalCY, totalPY1, totalFullPY1, closedPY1, annualisedRate, isUnfairReport, reportType }: {
+function UnfairComparisonSection({ totalCY, totalPY1, totalFullPY1, closedPY1, annualisedRate, annualisedIsEstimate, isUnfairReport, reportType }: {
   totalCY: number;
   totalPY1: number;
   totalFullPY1: number;
   closedPY1: number;
   annualisedRate: number;
+  annualisedIsEstimate: boolean;
   isUnfairReport: boolean;
   reportType: string;
 }) {
@@ -380,13 +382,19 @@ function UnfairComparisonSection({ totalCY, totalPY1, totalFullPY1, closedPY1, a
 
         {/* Projected run rate */}
         {annualisedRate > 0 && (
-          <div className="p-3 rounded-lg bg-muted/50 text-center">
+          <div className="p-3 rounded-lg bg-muted/50 text-center space-y-1">
             <p className="text-xs text-muted-foreground">At your current pace, you'd finish the year at</p>
             <p className="text-lg font-bold text-foreground">{formatFullCurrency(annualisedRate)}</p>
             {fullYearToUse > 0 && (
               <p className="text-[10px] text-muted-foreground">
                 That's {((annualisedRate / fullYearToUse - 1) * 100).toFixed(0)}% {annualisedRate >= fullYearToUse ? "above" : "below"} last year's full year
               </p>
+            )}
+            {annualisedIsEstimate && (
+              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[9px] font-medium border border-amber-200">
+                <AlertTriangle className="h-2.5 w-2.5" />
+                projection based on year-to-date
+              </span>
             )}
           </div>
         )}

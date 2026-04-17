@@ -7,6 +7,7 @@ import { format, parseISO, differenceInDays, addDays } from "date-fns";
 import { Bell, FileText, Mail, Copy, Check, AlertTriangle, Calendar, TrendingUp, TrendingDown, Shield } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { calculateAnnualisedRate } from "@/utils/annualisation";
 
 interface ReportRecord {
   id: string;
@@ -214,8 +215,7 @@ function StateOfPlayGenerator({ reports }: { reports: ReportRecord[] }) {
     const pipeline = orderTotal > billingTotal ? orderTotal - billingTotal : 0;
 
     const now = new Date();
-    const daysSoFar = Math.max(1, Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000));
-    const annualised = cy > 0 ? (cy / daysSoFar) * 365 : 0;
+    const { rate: annualised } = calculateAnnualisedRate(cy, source.period_start, source.period_end);
 
     // Quarter context
     const quarter = Math.floor(now.getMonth() / 3) + 1;
@@ -386,8 +386,7 @@ function TalkToJudeDrafter({ reports }: { reports: ReportRecord[] }) {
     const top2Watch = [...declining].sort((a: any, b: any) => Math.abs(b.change_pct) - Math.abs(a.change_pct)).slice(0, 2);
 
     const now = new Date();
-    const daysSoFar = Math.max(1, Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000));
-    const annualised = cy > 0 ? (cy / daysSoFar) * 365 : 0;
+    const { rate: annualised } = calculateAnnualisedRate(cy, latest.period_start, latest.period_end);
 
     if (type === "proactive") {
       let email = `Hi Jude,\n\n`;
