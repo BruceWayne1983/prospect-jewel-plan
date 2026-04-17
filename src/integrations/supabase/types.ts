@@ -393,6 +393,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_buckets: {
+        Row: {
+          action: string
+          hour_count: number
+          hour_window: string
+          minute_count: number
+          minute_window: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          hour_count?: number
+          hour_window: string
+          minute_count?: number
+          minute_window: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          hour_count?: number
+          hour_window?: string
+          minute_count?: number
+          minute_window?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       retail_locations: {
         Row: {
           address: string | null
@@ -803,6 +833,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          _action: string
+          _max_per_hour: number
+          _max_per_minute: number
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -30,6 +30,21 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // ─── Rate limit: 30/min, 300/hour ───────────────────────
+    const { data: rl, error: rlErr } = await supabase.rpc("check_rate_limit", {
+      _action: "emma-assistant",
+      _max_per_minute: 30,
+      _max_per_hour: 300,
+    });
+    if (rlErr) console.warn("[rate-limit] check failed, allowing request:", rlErr.message);
+    if (rl && (rl as { allowed: boolean }).allowed === false) {
+      const retry = (rl as { retry_after?: number }).retry_after ?? 60;
+      return new Response(
+        JSON.stringify({ error: "I need a quick breather — try again in a moment!", retry_after: retry }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retry) } },
+      );
+    }
     // ────────────────────────────────────────────────────────
 
     const { messages, context } = await req.json();

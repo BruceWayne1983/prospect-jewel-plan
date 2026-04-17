@@ -125,6 +125,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── Rate limit: 10/min, 60/hour ────────────────────────
+    const { data: rl, error: rlErr } = await supabase.rpc("check_rate_limit", {
+      _action: "analyse-report",
+      _max_per_minute: 10,
+      _max_per_hour: 60,
+    });
+    if (rlErr) console.warn("[rate-limit] check failed, allowing request:", rlErr.message);
+    if (rl && (rl as { allowed: boolean }).allowed === false) {
+      const retry = (rl as { retry_after?: number }).retry_after ?? 60;
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Please wait a moment before trying again.", retry_after: retry }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retry) } },
+      );
+    }
+
     const { reportId } = await req.json();
     if (!reportId) {
       return new Response(JSON.stringify({ error: "reportId required" }), {
