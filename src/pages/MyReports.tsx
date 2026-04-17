@@ -346,12 +346,26 @@ function ReportCard({ report, analyseMutation, deleteMutation }: { report: any; 
                 </span>
                 <span className="text-[10px] text-muted-foreground">Uploaded {format(new Date(report.created_at), "d MMM yyyy 'at' HH:mm")}</span>
               </div>
+              {report.status === "error" && report.error_detail && (
+                <div className="mt-2 flex items-start gap-1.5 p-2 rounded-md bg-destructive/10 border border-destructive/20">
+                  <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-destructive leading-snug">{report.error_detail}</p>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {report.status === "uploaded" && (
               <Button variant="outline" size="sm" onClick={() => analyseMutation.mutate(report.id)} disabled={analyseMutation.isPending}>
                 <Sparkles className="h-3.5 w-3.5 mr-1" />Translate
+              </Button>
+            )}
+            {report.status === "error" && (
+              <Button variant="outline" size="sm" onClick={() => analyseMutation.mutate(report.id)} disabled={analyseMutation.isPending}>
+                {analyseMutation.isPending
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+                Retry Translation
               </Button>
             )}
             {hasInsights && (
