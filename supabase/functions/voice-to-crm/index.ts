@@ -19,6 +19,11 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { retailerId, transcript } = await req.json();
     if (!retailerId || !transcript) return new Response(JSON.stringify({ error: "retailerId and transcript required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
