@@ -57,6 +57,9 @@ export default function RetailerProfile() {
   const [linkedInResults, setLinkedInResults] = useState<any[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', facebook: '', tiktok: '', twitter: '', linkedin: '', address: '', postcode: '' });
+  const [verifyingContacts, setVerifyingContacts] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, string> | null>(null);
+  const [savingSuggestion, setSavingSuggestion] = useState<string | null>(null);
 
   const fetchRetailer = () => {
     if (!id) return;
