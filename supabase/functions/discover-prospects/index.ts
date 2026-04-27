@@ -121,11 +121,117 @@ const DIRECTORY_BLOCKLIST = [
   "chamberofcommerce.", "ukbusiness.", "businessmagnet.", "bdaily.",
 ];
 
+const GENERIC_NAMES = new Set([
+  "home", "welcome", "contact", "contact us", "about", "about us", "shop",
+  "store", "products", "services", "blog", "news", "search", "results",
+  "page not found", "404", "untitled", "index", "menu",
+]);
+
 function isDirectoryUrl(url: string): boolean {
   if (!url) return false;
   const lower = url.toLowerCase();
-  return DIRECTORY_BLOCKLIST.some(b => lower.includes(b));
+  if (DIRECTORY_BLOCKLIST.some(b => lower.includes(b))) return true;
+  // Reject obvious search-result pages
+  if (/[?&]q=|\/search\b|\/find\b|\/results\b/.test(lower)) return true;
+  return false;
 }
+
+function isValidShopUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    if (!/^https?:$/.test(u.protocol)) return false;
+    const host = u.hostname.replace(/^www\./, "");
+    // Must have a TLD
+    if (!host.includes(".")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isGenericName(name: string): boolean {
+  const n = (name || "").trim().toLowerCase();
+  if (n.length < 3) return true;
+  return GENERIC_NAMES.has(n);
+}
+
+// Normalise for fuzzy current-account matching (mirrors src/utils/accountNames.ts)
+function normaliseName(name: string): string {
+  if (!name) return "";
+  let n = name.toLowerCase();
+  n = n.replace(/^\d+\s*-\s*/, "");
+  const lastComma = n.lastIndexOf(",");
+  if (lastComma !== -1) n = n.slice(0, lastComma);
+  n = n.replace(/\([^)]*\)/g, " ");
+  n = n.replace(/&/g, " and ");
+  n = n.replace(/\b(ltd|limited|co\.?|plc)\b\.?/g, " ");
+  n = n.replace(/[^a-z0-9\s]/g, " ");
+  n = n.replace(/\b(jewellers?|jewelry|jewellery|the|shop|store|boutique|gallery|gift|gifts)\b/g, " ");
+  n = n.replace(/\s+/g, " ").trim();
+  return n;
+}
+
+function normTown(t: string): string {
+  return (t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function rootDomain(url: string | null | undefined): string {
+  if (!url) return "";
+  try {
+    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(/^www\./, "");
+    const parts = host.split(".");
+    if (parts.length >= 3 && parts[parts.length - 2].length <= 3) {
+      return parts.slice(-3).join(".");
+    }
+    return parts.slice(-2).join(".");
+  } catch {
+    return "";
+  }
+}
+
+interface RetailerLite { id: string; name: string; town: string; website?: string | null }
+
+function matchExistingRetailer(
+  name: string,
+  town: string,
+  website: string | null,
+  retailers: RetailerLite[],
+): RetailerLite | null {
+  const nName = normaliseName(name);
+  const nTown = normTown(town);
+  const nDomain = rootDomain(website);
+  if (nDomain) {
+    const byDomain = retailers.find(r => rootDomain(r.website) === nDomain);
+    if (byDomain) return byDomain;
+  }
+  if (!nName) return null;
+  const exact = retailers.find(r => normaliseName(r.name) === nName && normTown(r.town) === nTown && nTown !== "");
+  if (exact) return exact;
+  const loose = retailers.find(r => normaliseName(r.name) === nName && (!r.town || !nTown));
+  if (loose) return loose;
+  return null;
+}
+
+async function probeUrl(url: string): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    let res = await fetch(url, { method: "HEAD", redirect: "follow", signal: ctrl.signal })
+      .catch(() => null);
+    if (!res || res.status >= 400 || res.status === 405) {
+      // Some hosts reject HEAD — try GET
+      res = await fetch(url, { method: "GET", redirect: "follow", signal: ctrl.signal })
+        .catch(() => null);
+    }
+    clearTimeout(timer);
+    if (!res) return false;
+    return res.status >= 200 && res.status < 400;
+  } catch {
+    return false;
+  }
+}
+
 
 async function classifyAndScoreWithAI(
   businesses: Array<{ name: string; url?: string; description?: string }>,
