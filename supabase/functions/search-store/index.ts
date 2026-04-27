@@ -208,7 +208,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
     if (!result.found) {
       return new Response(JSON.stringify({
         success: true, found: false,
-        message: `Could not find "${searchName}" in web results. ${result.ai_reason || ''}`,
+        message: `Could not find "${searchName}" in web results.`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -238,16 +238,14 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
     // If name matches a retailer in a different town, flag as potential branch
     const branchOf = differentTownRetailer || null;
 
-    // Calculate deterministic fit score
+    // Deterministic fit score from verified facts only
     const factors = {
-      estimated_store_quality: result.estimated_store_quality || 50,
-      category_alignment: result.category_alignment || 'moderate',
-      town_appeal: result.town_appeal || 'average',
-      has_social_media: result.has_social_media || !!(result.instagram || result.facebook || result.tiktok || result.twitter),
+      rating: result.rating || 0,
+      review_count: result.review_count || 0,
+      has_website: !!(result.website),
+      has_contact: !!(result.phone || result.email),
       is_independent: result.is_independent !== false,
-      estimated_rating: result.rating || 0,
-      has_website: result.has_website || !!(result.website),
-      price_positioning: result.estimated_price_positioning || 'mid_market',
+      category: result.category,
     };
     const breakdown = calculateFitScore(factors);
 
@@ -259,12 +257,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
       category: result.category,
       rating: result.rating || null,
       review_count: result.review_count || null,
-      estimated_store_quality: result.estimated_store_quality,
       predicted_fit_score: breakdown.total,
-      ai_reason: branchOf
-        ? `⚡ Potential branch of existing account "${branchOf.name}" in ${branchOf.town}. ${result.ai_reason}`
-        : result.ai_reason,
-      estimated_price_positioning: result.estimated_price_positioning,
       website: result.website || null,
       address: result.address || null,
       phone: result.phone || null,
