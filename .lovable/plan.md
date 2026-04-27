@@ -1,76 +1,69 @@
-## Issues to fix
+## Two non-negotiable rules
 
-1. **AI is generating fake/imagined businesses** — the `discover-prospects` edge function uses Gemini to invent shop names from training data. Even with the "no contact details" rule, the names themselves are often fabricated. We need to switch to a verified-only discovery flow.
-2. **Journey Planner has no Google Maps handoff** — Emma can build a route but can't push it to her phone for navigation.
-3. **No way to remove a stop from the Journey Planner once added** — `removeAccountFromRoute` exists for the custom route builder, but stops on AI-clustered routes can't be removed.
-4. **No way to permanently delete a prospect** — only "dismiss" exists, which keeps it in the list (just hidden under the Dismissed filter).
+1. **Every prospect must be a real, verifiable business.** No invented names, no AI-fabricated towns/contacts, no unverified rows allowed into the list.
+2. **If a "prospect" is already a current account**, it must be removed from prospecting/research and the user must be told it's a stockist.
 
 ## Plan
 
-### 1. Stop AI from inventing businesses (Discovery Engine)
+### 1. Hard-enforce "real business only" in the Discovery engine
 
-Switch `supabase/functions/discover-prospects` from "AI invents names" to "AI uses Firecrawl to discover real ones":
+`supabase/functions/discover-prospects/index.ts` already uses Firecrawl, but we'll tighten it so nothing fabricated can leak through:
 
-- Replace the pure-Gemini name generation with a **Firecrawl-backed discovery pipeline**:
-  - Use Firecrawl search/scrape against Google Maps, Yell, and high-street directory pages for the chosen `{county, category}`.
-  - Pass the scraped results (real shop names + URLs) to Gemini only for **classification, scoring, and ai_reason** — never for generating the name, town, or contact details.
-- If Firecrawl returns no results for a category/county, return zero prospects for that batch (do NOT fall back to invented data).
-- Mark every saved prospect as `discovery_source: 'Firecrawl + AI'` and `verification_status: 'web_verified'` when Firecrawl confirms a website domain; otherwise keep `unverified`.
-- Update the Discovery page filter so the **default view shows only `web_verified` or `manually_verified`** prospects, with a toggle to "Show unverified (legacy)" for the existing pre-fix data.
-- Add a one-click **"Purge unverified legacy prospects"** button on the Discovery page (uses the existing delete RLS) so Emma can clear out previously generated AI rows in one go.
+- **Reject any classified row missing a real source URL.** Drop rows where `src.url` is empty or fails URL parsing. (Currently only filtered for directory hosts.)
+- **Domain sanity check**: require URL hostname to contain a TLD (`.co.uk`, `.com`, etc.) and not be a search/results page (`/search`, `?q=`, `/find/`).
+- **Name = exactly the cleaned page title or hostname brand** — already enforced, but we'll also drop any name that is generic ("Home", "Welcome", "Contact", "Shop", "About Us", etc.) or shorter than 3 chars after cleaning.
+- **Force `verification_status = 'web_verified'` only when the URL passes a HEAD/GET probe (200/301/302).** If the probe fails, the prospect is discarded — never saved as `unverified`.
+- **Remove any fallback paths** that allow saving without a confirmed URL. If Firecrawl returns nothing, the function returns 0 prospects for that batch (no AI invention).
+- **Discovery page filter**: change the default from "show all" to **only `web_verified` + `manually_verified`**. Remove the option for the user to even see legacy unverified rows from the main grid (they can be purged via the existing button).
 
-### 2. Journey Planner → Google Maps export
+### 2. Detect & block current-account duplicates at every layer
 
-Add a **"Open in Google Maps"** button to the active route detail panel (`src/pages/JourneyPlanner.tsx`):
+**Edge function (`discover-prospects`)** — already loads `existingRetailers`. Strengthen the matching:
 
-- Build a Google Maps Directions URL of the form:
-  ```
-  https://www.google.com/maps/dir/?api=1
-    &origin={home.lat},{home.lng}
-    &destination={home.lat},{home.lng}
-    &waypoints={stop1.lat,stop1.lng}|{stop2.lat,stop2.lng}|...
-    &travelmode=driving
-  ```
-- Stops are taken from `activeRoute.clusters` flat-mapped to retailers (in displayed order), filtered to those with `lat` & `lng`.
-- Google Maps caps waypoints at ~9; if a route has more, split into sequential "Leg 1 / Leg 2" links.
-- Button opens in a new tab — works on desktop (full Maps) and on mobile (deep-links into the Google Maps app).
-- Also add a smaller **"Copy Apple Maps link"** as a secondary option for Emma's iPhone (`maps://?saddr=...&daddr=...`).
+- Replace exact-match dedup with **fuzzy match** on normalised name (lowercase, strip punctuation, strip "Ltd/Limited/Jewellers/The") AND same town OR same postcode area.
+- If a Firecrawl result matches a current account → **never insert it as a prospect**. Instead, log it (return in the response under `matched_current_accounts: [{ name, town, retailer_id }]`) so the UI can tell Emma "We found *Smith & Co* but they're already a stockist — opening their account."
+- Domain-level match: if the Firecrawl URL's root domain matches a current account's `website` domain → same outcome (skip + return as match).
 
-### 3. Remove stops from any route
+**Discovery page (`src/pages/ProspectDiscovery.tsx`)**:
 
-Currently only the custom "Build a Route" panel supports removing accounts. We'll extend this so **every stop in the active route detail view has a remove (✕) button**:
+- Add a **toast/banner** after every scan listing any current-account matches found, with a "View account" link straight to `/retailer/:id`.
+- For any pre-existing prospect rows that match a current account (legacy data), surface a per-card badge **"Already a current account"** with two buttons: **"Open account"** (navigate to retailer profile) and **"Remove from prospects"** (hard-delete the discovered_prospects row).
+- Add a one-click bulk action **"Remove prospects that are current accounts"** at the top of the list — runs the same fuzzy match across all loaded prospects and deletes matches.
 
-- Track removed stop IDs in component state (`removedStopIds: Set<string>`, persisted in `localStorage` per route name).
-- Filter `cluster.retailers` through this set before rendering and before building the Google Maps URL.
-- Show a "Restore removed stops" link at the bottom of the route when any are hidden.
+**Manual override on every prospect card**:
 
-### 4. Hard-delete prospects from Discovery
+- Add a small **"Mark as current account"** action (next to Delete/Dismiss). It opens a tiny picker showing the closest-name retailers; selecting one deletes the prospect row and links it (no other state needed — the retailer already exists). 
+- This handles cases where the fuzzy match misses (different trading name).
 
-Add a **"Delete permanently"** action alongside the existing Dismiss button on each prospect card in `src/pages/ProspectDiscovery.tsx`:
+### 3. Prevent leakage in other research surfaces
 
-- Confirms via a small dialog ("Permanently delete {name}? This cannot be undone.").
-- Calls `supabase.from("discovered_prospects").delete().eq("id", p.id)` (RLS already allows owner delete).
-- Optionally inserts a `disqualification_pattern` row so the AI learns from it (same as Dismiss), but only if the user ticks "Teach AI to avoid similar".
-- Removes the row from local state immediately.
+The same fuzzy matcher will be exposed as a small util `src/utils/accountNames.ts` (file already exists) → add `findMatchingRetailer(name, town, retailers)` and reuse it in:
 
-### 5. Quick fix: leaflet runtime error
+- `discover-prospects` edge function (above)
+- `ProspectFinder.tsx` if it shows results from the same source
+- `NearbyProspects.tsx` so a current account never appears as a "nearby prospect"
 
-The console is throwing `Cannot read properties of undefined (reading '_leaflet_pos')` from the Territory map. This is the known react-leaflet teardown race when the map unmounts during a resize. We'll wrap the map container in a `key={routeKey}` so it remounts cleanly when the parent route changes, instead of trying to update an unmounted instance.
+### 4. Quick UX confirmation
+
+After a scan completes, the toast reads either:
+- "Found N verified businesses." (real-only)
+- "Found N verified businesses. M were already current accounts and have been linked." 
+- "No verified businesses found — try a different county/category."
 
 ## Technical notes
 
-- **Firecrawl secret** is already configured (`FIRECRAWL_API_KEY` is in the secrets list — managed by the connector). No new secrets needed.
-- **No DB migrations required** — `verification_status` already supports `web_verified` / `manually_verified`, and delete RLS is already in place on `discovered_prospects`.
-- **No new dependencies** — Google Maps export is a plain URL builder.
-- **Files touched**:
-  - `supabase/functions/discover-prospects/index.ts` (rewrite to Firecrawl-led)
-  - `src/pages/ProspectDiscovery.tsx` (default filter, purge button, delete action)
-  - `src/pages/JourneyPlanner.tsx` (Google Maps button, per-stop remove)
-  - `src/components/map/TerritoryLeafletMap.tsx` (key-based remount fix)
+**Files touched**
+- `supabase/functions/discover-prospects/index.ts` — URL probe, stricter rejection, fuzzy current-account match, return `matched_current_accounts`.
+- `src/utils/accountNames.ts` — add `findMatchingRetailer(name, town, retailers)` fuzzy helper (normalise + token overlap).
+- `src/pages/ProspectDiscovery.tsx` — default filter `web_verified|manually_verified`, scan-result banner for current-account matches, per-card "Already a current account" badge + "Open account" / "Remove from prospects" actions, bulk "Remove prospects that are current accounts", "Mark as current account" picker.
+- `src/components/retailer/NearbyProspects.tsx` — filter out anything matching a current account.
+
+**No DB migrations required.** All changes use existing columns and RLS.
+
+**No new secrets.** Firecrawl + Lovable AI keys already configured.
 
 ## What Emma will see after
 
-- Discovery only shows real businesses Firecrawl actually found online — no more "Bath Charm Boutique" style hallucinations.
-- Each route in Journey Planner has an **"Open in Google Maps"** button that hands off to her phone.
-- Every stop has a ✕ to drop it from the route before navigating.
-- Each prospect card has a **Delete** button to remove it permanently from the list.
+- Discovery only ever shows businesses Firecrawl actually found and whose website responded — no invented shops.
+- Any time the scanner stumbles onto an existing stockist, it's quietly linked to her current account instead of being shown as a prospect, and she gets a notice telling her so.
+- She has a one-click button to clean up any legacy "prospect" rows that are really already her accounts, and a manual "Mark as current account" on every card for edge cases.
