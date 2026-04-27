@@ -27,6 +27,37 @@ export default function ProspectProfile() {
   const [loading, setLoading] = useState(true);
   const [dismissDialog, setDismissDialog] = useState<{ open: boolean; reason: string; detail: string }>({ open: false, reason: 'not_fit', detail: '' });
   const [verifying, setVerifying] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  const enrichContacts = async () => {
+    if (!prospect) return;
+    setEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-contact-details', {
+        body: {
+          prospect_id: prospect.id,
+          name: prospect.name,
+          town: prospect.town,
+          county: prospect.county,
+          website: prospect.website,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      await fetchProspect();
+      const prov = data?.provenance || {};
+      const verifiedFields = ['phone','email','website','address'].filter(f => prov[f]?.confidence === 'high').length;
+      if (verifiedFields > 0) {
+        toast.success(`Verified ${verifiedFields} contact field${verifiedFields > 1 ? 's' : ''} from real sources`);
+      } else {
+        toast.warning('No contact details could be verified from the official website');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Enrichment failed');
+    } finally {
+      setEnriching(false);
+    }
+  };
 
   const verifyProspect = async () => {
     if (!prospect) return;
