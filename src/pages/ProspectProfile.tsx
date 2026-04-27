@@ -27,6 +27,37 @@ export default function ProspectProfile() {
   const [loading, setLoading] = useState(true);
   const [dismissDialog, setDismissDialog] = useState<{ open: boolean; reason: string; detail: string }>({ open: false, reason: 'not_fit', detail: '' });
   const [verifying, setVerifying] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  const enrichContacts = async () => {
+    if (!prospect) return;
+    setEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-contact-details', {
+        body: {
+          prospect_id: prospect.id,
+          name: prospect.name,
+          town: prospect.town,
+          county: prospect.county,
+          website: prospect.website,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      await fetchProspect();
+      const prov = data?.provenance || {};
+      const verifiedFields = ['phone','email','website','address'].filter(f => prov[f]?.confidence === 'high').length;
+      if (verifiedFields > 0) {
+        toast.success(`Verified ${verifiedFields} contact field${verifiedFields > 1 ? 's' : ''} from real sources`);
+      } else {
+        toast.warning('No contact details could be verified from the official website');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Enrichment failed');
+    } finally {
+      setEnriching(false);
+    }
+  };
 
   const verifyProspect = async () => {
     if (!prospect) return;
@@ -301,50 +332,73 @@ export default function ProspectProfile() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Contact Info */}
         <div className="card-premium p-6">
-          <h3 className="text-sm font-display font-semibold text-foreground mb-4">Contact & Web</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-display font-semibold text-foreground">Contact & Web</h3>
+            <Button size="sm" variant="outline" onClick={enrichContacts} disabled={enriching} className="text-xs h-7">
+              {enriching ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Verifying…</> : <><ShieldCheck className="w-3 h-3 mr-1" /> Verify contacts</>}
+            </Button>
+          </div>
           <div className="space-y-3">
-            {p.phone && (
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <Phone className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                  <a href={`tel:${p.phone}`} className="text-sm text-foreground hover:text-info">{p.phone}</a>
-                </div>
-                {p.discovery_source !== 'Web Scanner' && (
-                  <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ AI-estimated — verify before calling</p>
-                )}
-              </div>
-            )}
-            {p.email && (
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <Mail className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                  <a href={`mailto:${p.email}`} className="text-sm text-info hover:underline">{p.email}</a>
-                </div>
-                {p.discovery_source !== 'Web Scanner' && (
-                  <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ AI-estimated — verify before emailing</p>
-                )}
-              </div>
-            )}
-            {p.website && (
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <Globe className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                  <a href={p.website} target="_blank" rel="noopener noreferrer" className="text-sm text-info hover:underline truncate">{p.website}</a>
-                </div>
-                {p.discovery_source !== 'Web Scanner' && (
-                  <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ AI-estimated URL — may not exist</p>
-                )}
-              </div>
-            )}
-            {p.address && (
-              <div className="flex items-center gap-2.5">
-                <MapPin className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                <span className="text-sm text-foreground">{p.address}</span>
-              </div>
-            )}
-            {!p.phone && !p.email && !p.website && (
-              <p className="text-xs text-muted-foreground italic">No contact information available — run AI Analysis to enrich</p>
-            )}
+            {(() => {
+              const prov = ((p as any).verification_data || {}).contact_provenance || {};
+              const renderField = (
+                key: 'phone' | 'email' | 'website' | 'address',
+                value: string | null | undefined,
+                Icon: any,
+                href?: string,
+                external?: boolean,
+              ) => {
+                if (!value) return null;
+                const f = prov[key] || {};
+                const conf = f.confidence as string | undefined;
+                const isVerified = conf === 'high';
+                const isMedium = conf === 'medium';
+                const sourceHost = (() => { try { return f.source_url ? new URL(f.source_url).hostname.replace(/^www\./, '') : (f.source || ''); } catch { return f.source || ''; } })();
+                return (
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                      {href ? (
+                        <a href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} className={`text-sm ${external ? 'text-info hover:underline truncate' : 'text-foreground hover:text-info'}`}>{value}</a>
+                      ) : (
+                        <span className="text-sm text-foreground">{value}</span>
+                      )}
+                      {isVerified && (
+                        <Tooltip>
+                          <TooltipTrigger><ShieldCheck className="w-3.5 h-3.5 text-success" /></TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs">
+                              <div>Verified from <span className="font-mono">{sourceHost}</span></div>
+                              {f.scraped_at && <div className="text-muted-foreground">{new Date(f.scraped_at).toLocaleDateString('en-GB')}</div>}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {isMedium && (
+                        <Tooltip>
+                          <TooltipTrigger><ShieldQuestion className="w-3.5 h-3.5 text-warning" /></TooltipTrigger>
+                          <TooltipContent><div className="text-xs">Cross-checked from {sourceHost} — confirm before use.</div></TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    {!conf && (
+                      <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ Unverified — click "Verify contacts" to confirm from the official site</p>
+                    )}
+                  </div>
+                );
+              };
+              return (
+                <>
+                  {renderField('phone', p.phone, Phone, p.phone ? `tel:${p.phone}` : undefined)}
+                  {renderField('email', p.email, Mail, p.email ? `mailto:${p.email}` : undefined)}
+                  {renderField('website', p.website, Globe, p.website || undefined, true)}
+                  {renderField('address', p.address, MapPin)}
+                  {!p.phone && !p.email && !p.website && (
+                    <p className="text-xs text-muted-foreground italic">No contact information available — click "Verify contacts" to scrape from the official site</p>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 
