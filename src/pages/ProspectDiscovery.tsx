@@ -173,7 +173,8 @@ export default function ProspectDiscovery() {
   const [manualResult, setManualResult] = useState<any>(null);
   // Verification
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
-  const [hideUnverified, setHideUnverified] = useState(true);
+  const [hideUnverified, setHideUnverified] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -556,6 +557,22 @@ export default function ProspectDiscovery() {
     setEnrichProgress({ done: 0, total: 0 });
   };
 
+  const clearAllProspects = async () => {
+    if (!confirm(`Delete all ${prospects.length} prospects and learned patterns? This cannot be undone.`)) return;
+    setClearing(true);
+    try {
+      const { error: e1 } = await supabase.from("discovered_prospects").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (e1) throw e1;
+      await supabase.from("disqualification_patterns").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      setProspects([]);
+      toast.success("All prospects cleared — ready for fresh demo");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to clear prospects");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const runManualSearch = async () => {
     if (!manualSearchName.trim() || manualSearchName.trim().length < 2) {
       toast.error("Please enter a store name (at least 2 characters)");
@@ -872,6 +889,16 @@ export default function ProspectDiscovery() {
               Enrich All Accepted {unenrichedAccepted > 0 ? `(${unenrichedAccepted})` : ''}
             </>
           )}
+        </Button>
+        <Button
+          onClick={clearAllProspects}
+          disabled={clearing || prospects.length === 0}
+          variant="outline"
+          size="sm"
+          className="text-[10px] h-8 px-3 border-destructive/30 text-destructive hover:bg-destructive/10"
+        >
+          {clearing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5 mr-1.5" />}
+          Clear All
         </Button>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
