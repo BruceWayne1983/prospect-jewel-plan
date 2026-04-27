@@ -328,73 +328,24 @@ export default function ProspectProfile() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Contact Info */}
         <div className="card-premium p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h3 className="text-sm font-display font-semibold text-foreground">Contact & Web</h3>
-            <Button size="sm" variant="outline" onClick={enrichContacts} disabled={enriching} className="text-xs h-7">
-              {enriching ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Verifying…</> : <><ShieldCheck className="w-3 h-3 mr-1" /> Verify contacts</>}
+            <Button size="sm" variant="outline" onClick={runFullVerification} disabled={enriching} className="text-xs h-7">
+              {enriching ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Verifying…</> : <><ShieldCheck className="w-3 h-3 mr-1" /> Verify contact details</>}
             </Button>
           </div>
-          <div className="space-y-3">
-            {(() => {
-              const prov = ((p as any).verification_data || {}).contact_provenance || {};
-              const renderField = (
-                key: 'phone' | 'email' | 'website' | 'address',
-                value: string | null | undefined,
-                Icon: any,
-                href?: string,
-                external?: boolean,
-              ) => {
-                if (!value) return null;
-                const f = prov[key] || {};
-                const conf = f.confidence as string | undefined;
-                const isVerified = conf === 'high';
-                const isMedium = conf === 'medium';
-                const sourceHost = (() => { try { return f.source_url ? new URL(f.source_url).hostname.replace(/^www\./, '') : (f.source || ''); } catch { return f.source || ''; } })();
-                return (
-                  <div>
-                    <div className="flex items-center gap-2.5">
-                      <Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                      {href ? (
-                        <a href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} className={`text-sm ${external ? 'text-info hover:underline truncate' : 'text-foreground hover:text-info'}`}>{value}</a>
-                      ) : (
-                        <span className="text-sm text-foreground">{value}</span>
-                      )}
-                      {isVerified && (
-                        <Tooltip>
-                          <TooltipTrigger><ShieldCheck className="w-3.5 h-3.5 text-success" /></TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-xs">
-                              <div>Verified from <span className="font-mono">{sourceHost}</span></div>
-                              {f.scraped_at && <div className="text-muted-foreground">{new Date(f.scraped_at).toLocaleDateString('en-GB')}</div>}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {isMedium && (
-                        <Tooltip>
-                          <TooltipTrigger><ShieldQuestion className="w-3.5 h-3.5 text-warning" /></TooltipTrigger>
-                          <TooltipContent><div className="text-xs">Cross-checked from {sourceHost} — confirm before use.</div></TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    {!conf && (
-                      <p className="text-[10px] text-warning ml-6 mt-0.5">⚠ Unverified — click "Verify contacts" to confirm from the official site</p>
-                    )}
-                  </div>
-                );
-              };
-              return (
-                <>
-                  {renderField('phone', p.phone, Phone, p.phone ? `tel:${p.phone}` : undefined)}
-                  {renderField('email', p.email, Mail, p.email ? `mailto:${p.email}` : undefined)}
-                  {renderField('website', p.website, Globe, p.website || undefined, true)}
-                  {renderField('address', p.address, MapPin)}
-                  {!p.phone && !p.email && !p.website && (
-                    <p className="text-xs text-muted-foreground italic">No contact information available — click "Verify contacts" to scrape from the official site</p>
-                  )}
-                </>
-              );
-            })()}
+          <div className="space-y-1.5">
+            <ContactField field="phone" value={p.phone} provenanceData={(p as any).contact_provenance} onVerifyClick={enrichContacts} verifyBusy={enriching} />
+            <ContactField field="email" value={p.email} provenanceData={(p as any).contact_provenance} onVerifyClick={enrichContacts} verifyBusy={enriching} />
+            {p.website ? (
+              <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-foreground" strokeWidth={1.5} /><a href={p.website.startsWith('http') ? p.website : `https://${p.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-info hover:underline truncate">{p.website.replace(/^https?:\/\//, '')}</a></div>
+            ) : (
+              <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/60 italic">No website on file</span></div>
+            )}
+            <ContactField field="address" value={p.address} provenanceData={(p as any).contact_provenance} onVerifyClick={enrichContacts} verifyBusy={enriching} />
+            {!p.phone && !p.email && !p.website && !p.address && (
+              <p className="text-xs text-muted-foreground italic mt-2">No contact information on file — click "Verify contact details" to scrape from the official site.</p>
+            )}
           </div>
         </div>
 
