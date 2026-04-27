@@ -795,27 +795,31 @@ export default function ProspectDiscovery() {
       {/* Scan Controls */}
       <div className="card-premium p-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <Select value={selectedCounty} onValueChange={setSelectedCounty}>
-            <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
-              <SelectValue placeholder="All Counties" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Counties</SelectItem>
-              {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {discoveryMode === 'specific' && (
+            <>
+              <Select value={selectedCounty} onValueChange={setSelectedCounty}>
+                <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue placeholder="All Counties" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Counties</SelectItem>
+                  {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[180px] h-8 text-xs bg-cream/30 border-border/30">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[180px] h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-          <div className="h-6 w-px bg-border/30" />
+              <div className="h-6 w-px bg-border/30" />
+            </>
+          )}
 
           <Button onClick={runAIScan} disabled={scanning} className="gold-gradient text-sidebar-background text-xs h-8 px-4">
             {scanning && scanType === 'ai' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Radar className="w-3.5 h-3.5 mr-1.5" />}
