@@ -216,8 +216,20 @@ export default function RetailerProfile() {
                 'bg-muted text-muted-foreground'
               }`}>{r.qualification_status === 'in_progress' ? 'Qualifying' : r.qualification_status ?? 'unqualified'}</span>
               <ConfidenceBadge level={ai.confidenceLevel} />
+              {(() => {
+                if (r.pipeline_stage === 'approved') return <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-champagne text-gold-dark border border-gold/30">★ Current Account · Active</span>;
+                if (r.pipeline_stage === 'retention_risk') return <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-warning-light text-warning border border-warning/30">★ Current Account · At Risk</span>;
+                if (r.pipeline_stage === 'dormant') return <span className="text-[10px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wider bg-muted text-muted-foreground border border-border">★ Current Account · Dormant</span>;
+                return null;
+              })()}
               {r.risk_flags && r.risk_flags.length > 0 && <span className="badge-risk">⚠ {r.risk_flags.length} risk{r.risk_flags.length > 1 ? 's' : ''}</span>}
             </div>
+            {(r.pipeline_stage === 'approved' || r.pipeline_stage === 'retention_risk' || r.pipeline_stage === 'dormant') && (r.billing_last_updated || r.billing_2026_ytd) && (
+              <div className="text-[11px] text-muted-foreground mb-1 flex items-center gap-3 flex-wrap">
+                {r.billing_last_updated && <span>Last billed: <span className="text-foreground font-medium">{new Date(r.billing_last_updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span></span>}
+                {r.billing_2026_ytd != null && <span>2026 YTD: <span className="text-foreground font-medium">£{Number(r.billing_2026_ytd).toLocaleString()}</span></span>}
+              </div>
+            )}
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">{r.name}</h1>
             <div className="flex items-center gap-4 mt-2 flex-wrap">
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="w-3.5 h-3.5" strokeWidth={1.5} />{r.address && `${r.address}, `}{r.town}, {r.county}{r.postcode ? ` ${r.postcode}` : ''}</span>
