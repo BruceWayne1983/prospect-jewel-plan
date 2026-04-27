@@ -147,7 +147,6 @@ export default function ProspectProfile() {
           discovery_source: prospect.discovery_source,
           rating: prospect.rating,
           predicted_fit_score: prospect.predicted_fit_score,
-          ai_reason: prospect.ai_reason,
         },
       } as any);
     }
@@ -166,18 +165,14 @@ export default function ProspectProfile() {
     const { data: inserted, error } = await supabase.from("retailers").insert({
       user_id: user.id, name: p.name, town: p.town, county: p.county,
       category: p.category, rating: p.rating, review_count: p.review_count,
-      store_positioning: p.estimated_price_positioning, fit_score: p.predicted_fit_score,
+      fit_score: p.predicted_fit_score,
       address: p.address, website: p.website, lat: p.lat, lng: p.lng,
       phone: p.phone || null, email: p.email || null,
       instagram: p.instagram || null, facebook: p.facebook || null,
       tiktok: p.tiktok || null, twitter: p.twitter || null,
       linkedin: p.linkedin || null, social_verified: p.social_verified || false,
-      pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
+      pipeline_stage: 'new_lead',
       store_images: p.store_images || [],
-      follower_counts: p.follower_counts || {},
-      estimated_monthly_traffic: p.estimated_monthly_traffic || null,
-      google_review_summary: p.google_review_summary || null,
-      google_review_highlights: p.google_review_highlights || [],
     }).select().single();
 
     if (error) { toast.error("Failed to promote prospect"); console.error(error); return; }
@@ -433,12 +428,10 @@ export default function ProspectProfile() {
               </a>
             )}
             {p.social_verified && <span className="text-[10px] px-2 py-0.5 rounded-full bg-success-light text-success font-medium">✓ Socials Verified</span>}
-            {totalFollowers > 0 && <p className="text-xs text-muted-foreground">👥 {totalFollowers.toLocaleString()} total followers</p>}
-            {p.estimated_monthly_traffic && p.estimated_monthly_traffic > 0 && <p className="text-xs text-muted-foreground">🌐 ~{p.estimated_monthly_traffic.toLocaleString()}/mo website visitors</p>}
             {!p.instagram && !p.facebook && !p.tiktok && !p.twitter && !p.linkedin && (
               <div className="p-3 rounded-lg bg-info-light border border-info/20">
                 <p className="text-xs font-semibold text-info flex items-center gap-1.5">💡 Social Media Setup Opportunity</p>
-                <p className="text-[11px] text-info/80 mt-1">This retailer has no detectable social media presence. This is a value-add opportunity — Emma can offer to help them set up Instagram/Facebook as part of the Nomination partnership, increasing their visibility and your brand's reach.</p>
+                <p className="text-[11px] text-info/80 mt-1">No social media presence detected. Emma can offer to help them set up Instagram/Facebook as part of the Nomination partnership.</p>
               </div>
             )}
           </div>
@@ -514,86 +507,34 @@ export default function ProspectProfile() {
         );
       })()}
 
-      {/* AI Analysis & Discovery Details */}
+      {/* Discovery Details */}
       <div className="card-premium p-6 border-gold/20">
         <div className="flex items-center gap-2.5 mb-4">
-          <Sparkles className="w-4 h-4 text-gold" strokeWidth={1.5} />
-          <h3 className="text-sm font-display font-semibold text-foreground">AI Analysis & Discovery Details</h3>
+          <Search className="w-4 h-4 text-gold" strokeWidth={1.5} />
+          <h3 className="text-sm font-display font-semibold text-foreground">Discovery Details</h3>
         </div>
 
-        {/* How it was discovered */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           <div className="bg-muted/30 rounded-lg p-3.5 border border-border/15">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1"><Search className="w-3 h-3" /> Discovery Method</p>
-            <p className="text-sm font-medium text-foreground">{p.discovery_source || 'AI Scanner'}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {p.discovery_source?.startsWith('Brand:')
-                ? `Found by searching for retailers that stock ${p.discovery_source.replace('Brand: ', '')} or similar brands in the South West.`
-                : p.discovery_source === 'Web Scanner'
-                ? 'Found by searching real business directories and websites using Firecrawl web scraping.'
-                : 'Found by AI analysis of the independent retail landscape in the target territory.'}
-            </p>
+            <p className="text-sm font-medium text-foreground">{p.discovery_source || 'Web Scanner'}</p>
           </div>
           <div className="bg-muted/30 rounded-lg p-3.5 border border-border/15">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1"><Calendar className="w-3 h-3" /> Discovered</p>
             <p className="text-sm font-medium text-foreground">{new Date(p.discovered_date || p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Added to your prospect pipeline on this date.</p>
-          </div>
-          <div className="bg-muted/30 rounded-lg p-3.5 border border-border/15">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1"><Info className="w-3 h-3" /> Data Confidence</p>
-            <p className="text-sm font-medium text-foreground">
-              {p.discovery_source === 'Web Scanner' ? 'Higher' : 'Moderate'} Confidence
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {p.discovery_source === 'Web Scanner'
-                ? 'Based on real web data scraped from business directories. Contact details likely accurate.'
-                : 'AI-generated based on market knowledge. Store name, address, phone, email & website should all be verified before outreach.'}
-            </p>
           </div>
         </div>
 
-        {/* AI Reasoning */}
-        {p.ai_reason && (
-          <div className="mb-5">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">AI Reasoning — Why This Prospect?</p>
-            <div className="bg-champagne/15 rounded-lg p-4 border border-gold/10">
-              <p className="text-sm text-foreground leading-relaxed italic font-display">{p.ai_reason}</p>
-            </div>
-          </div>
-        )}
-
-        {/* What to verify */}
         <div className="bg-warning/5 rounded-lg p-4 border border-warning/20">
           <p className="text-xs font-semibold text-warning flex items-center gap-1.5 mb-2"><AlertTriangle className="w-3.5 h-3.5" /> Before You Reach Out — Verify These</p>
           <ul className="text-[11px] text-foreground/80 space-y-1.5 ml-5 list-disc">
-            <li><strong>Store exists:</strong> Check the website URL actually works and belongs to this business</li>
-            <li><strong>Contact details:</strong> Phone number, email, and address may be AI-estimated — confirm via Google or their website</li>
+            <li><strong>Store exists:</strong> Check the website URL works and belongs to this business</li>
+            <li><strong>Contact details:</strong> Confirm phone, email, and address via the Identity Confidence panel above</li>
             <li><strong>Still trading:</strong> Confirm the store is currently open and operating</li>
-            <li><strong>Correct category:</strong> Verify they actually sell jewellery/gifts/accessories (not just toys or unrelated products)</li>
-            <li><strong>Social media:</strong> Run a social verification scan to find their real Instagram, Facebook, etc.</li>
-            {p.discovery_source?.startsWith('Brand:') && (
-              <li><strong>Brand connection:</strong> Confirm they actually stock {p.discovery_source.replace('Brand: ', '')} — the AI inferred this from market knowledge</li>
-            )}
+            <li><strong>Correct category:</strong> Verify they actually sell jewellery/gifts/accessories</li>
           </ul>
         </div>
       </div>
-
-      {/* Google Reviews */}
-      {p.google_review_summary && (
-        <div className="card-premium p-6">
-          <h3 className="text-sm font-display font-semibold text-foreground mb-3">Google Review Summary</h3>
-          <p className="text-sm text-foreground leading-relaxed">{p.google_review_summary}</p>
-          {p.google_review_highlights && Array.isArray(p.google_review_highlights) && (p.google_review_highlights as any[]).length > 0 && (
-            <div className="mt-3 space-y-2">
-              {(p.google_review_highlights as any[]).map((h: any, i: number) => (
-                <div key={i} className="bg-cream/50 rounded-lg p-3 border border-border/15">
-                  <p className="text-xs text-foreground">"{h.text || h}"</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Store Images */}
       {p.store_images && p.store_images.length > 0 && (
