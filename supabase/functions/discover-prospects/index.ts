@@ -121,11 +121,117 @@ const DIRECTORY_BLOCKLIST = [
   "chamberofcommerce.", "ukbusiness.", "businessmagnet.", "bdaily.",
 ];
 
+const GENERIC_NAMES = new Set([
+  "home", "welcome", "contact", "contact us", "about", "about us", "shop",
+  "store", "products", "services", "blog", "news", "search", "results",
+  "page not found", "404", "untitled", "index", "menu",
+]);
+
 function isDirectoryUrl(url: string): boolean {
   if (!url) return false;
   const lower = url.toLowerCase();
-  return DIRECTORY_BLOCKLIST.some(b => lower.includes(b));
+  if (DIRECTORY_BLOCKLIST.some(b => lower.includes(b))) return true;
+  // Reject obvious search-result pages
+  if (/[?&]q=|\/search\b|\/find\b|\/results\b/.test(lower)) return true;
+  return false;
 }
+
+function isValidShopUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    if (!/^https?:$/.test(u.protocol)) return false;
+    const host = u.hostname.replace(/^www\./, "");
+    // Must have a TLD
+    if (!host.includes(".")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isGenericName(name: string): boolean {
+  const n = (name || "").trim().toLowerCase();
+  if (n.length < 3) return true;
+  return GENERIC_NAMES.has(n);
+}
+
+// Normalise for fuzzy current-account matching (mirrors src/utils/accountNames.ts)
+function normaliseName(name: string): string {
+  if (!name) return "";
+  let n = name.toLowerCase();
+  n = n.replace(/^\d+\s*-\s*/, "");
+  const lastComma = n.lastIndexOf(",");
+  if (lastComma !== -1) n = n.slice(0, lastComma);
+  n = n.replace(/\([^)]*\)/g, " ");
+  n = n.replace(/&/g, " and ");
+  n = n.replace(/\b(ltd|limited|co\.?|plc)\b\.?/g, " ");
+  n = n.replace(/[^a-z0-9\s]/g, " ");
+  n = n.replace(/\b(jewellers?|jewelry|jewellery|the|shop|store|boutique|gallery|gift|gifts)\b/g, " ");
+  n = n.replace(/\s+/g, " ").trim();
+  return n;
+}
+
+function normTown(t: string): string {
+  return (t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function rootDomain(url: string | null | undefined): string {
+  if (!url) return "";
+  try {
+    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(/^www\./, "");
+    const parts = host.split(".");
+    if (parts.length >= 3 && parts[parts.length - 2].length <= 3) {
+      return parts.slice(-3).join(".");
+    }
+    return parts.slice(-2).join(".");
+  } catch {
+    return "";
+  }
+}
+
+interface RetailerLite { id: string; name: string; town: string; website?: string | null }
+
+function matchExistingRetailer(
+  name: string,
+  town: string,
+  website: string | null,
+  retailers: RetailerLite[],
+): RetailerLite | null {
+  const nName = normaliseName(name);
+  const nTown = normTown(town);
+  const nDomain = rootDomain(website);
+  if (nDomain) {
+    const byDomain = retailers.find(r => rootDomain(r.website) === nDomain);
+    if (byDomain) return byDomain;
+  }
+  if (!nName) return null;
+  const exact = retailers.find(r => normaliseName(r.name) === nName && normTown(r.town) === nTown && nTown !== "");
+  if (exact) return exact;
+  const loose = retailers.find(r => normaliseName(r.name) === nName && (!r.town || !nTown));
+  if (loose) return loose;
+  return null;
+}
+
+async function probeUrl(url: string): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    let res = await fetch(url, { method: "HEAD", redirect: "follow", signal: ctrl.signal })
+      .catch(() => null);
+    if (!res || res.status >= 400 || res.status === 405) {
+      // Some hosts reject HEAD — try GET
+      res = await fetch(url, { method: "GET", redirect: "follow", signal: ctrl.signal })
+        .catch(() => null);
+    }
+    clearTimeout(timer);
+    if (!res) return false;
+    return res.status >= 200 && res.status < 400;
+  } catch {
+    return false;
+  }
+}
+
 
 async function classifyAndScoreWithAI(
   businesses: Array<{ name: string; url?: string; description?: string }>,
@@ -256,68 +362,81 @@ async function discoverBatch(
   LOVABLE_API_KEY: string,
   FIRECRAWL_API_KEY: string,
   notFitContext: string = "",
-  existingRetailers: Array<{ id: string; name: string; town: string }> = [],
+  existingRetailers: RetailerLite[] = [],
   existingProspects: Array<{ name: string; town: string }> = [],
-) {
+): Promise<{ inserted: any[]; matchedAccounts: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> }> {
+  const matchedAccounts: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> = [];
+
   // Step 1: Real-business discovery via Firecrawl
   const rawBusinesses = await firecrawlSearchBusinesses(county, category, FIRECRAWL_API_KEY);
 
-  // Filter out directory/listing URLs before sending to AI
-  const realBusinesses = rawBusinesses.filter(b => b.url && !isDirectoryUrl(b.url));
+  // RULE 1: Drop anything without a valid, non-directory URL
+  const realBusinesses = rawBusinesses.filter(b =>
+    b.url && isValidShopUrl(b.url) && !isDirectoryUrl(b.url) && !isGenericName(b.name)
+  );
 
   if (realBusinesses.length === 0) {
     console.log(`No real businesses found via Firecrawl for ${county}/${category}`);
-    return [];
+    return { inserted: [], matchedAccounts };
   }
 
   // Step 2: AI classification & scoring (no name invention)
   const classified = await classifyAndScoreWithAI(realBusinesses, county, category, LOVABLE_API_KEY, notFitContext);
 
-  if (classified.length === 0) return [];
+  if (classified.length === 0) return { inserted: [], matchedAccounts };
 
-  // Step 3: Dedup against existing retailers/prospects
-  const lowerExistingRetailers = new Map(
-    existingRetailers.map(r => [`${r.name.toLowerCase()}|${(r.town || "").toLowerCase()}`, r])
-  );
+  // Step 3: Dedup and current-account filtering
   const lowerExistingProspects = new Set(
     existingProspects.map(p => `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`)
   );
-
   const seenInBatch = new Set<string>();
   const branchFlags: Map<number, { related_account_id: string; related_name: string; related_town: string }> = new Map();
-  const unique: any[] = [];
+  const candidates: any[] = [];
 
   for (const p of classified) {
+    // Drop generic names that survived AI cleaning
+    if (isGenericName(p.name)) continue;
+
     const key = `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`;
     if (seenInBatch.has(key)) continue;
     if (lowerExistingProspects.has(key)) continue;
 
-    // Same name+town as existing retailer → skip; same name different town → flag as branch
-    let blocked = false;
-    let matchedRetailer: any = null;
-    for (const r of existingRetailers) {
-      if (r.name.toLowerCase() === p.name.toLowerCase()) {
-        if ((r.town || "").toLowerCase() === (p.town || "").toLowerCase()) {
-          blocked = true;
-          break;
-        }
-        matchedRetailer = r;
+    // RULE 2: Fuzzy match against current accounts (name + town OR root domain)
+    const matched = matchExistingRetailer(p.name, p.town || "", p.website || null, existingRetailers);
+    if (matched) {
+      const sameTown = normTown(matched.town || "") === normTown(p.town || "");
+      const sameDomain = !!rootDomain(p.website) && rootDomain(p.website) === rootDomain(matched.website);
+      if (sameTown || sameDomain) {
+        // Already a current account → never insert as prospect
+        matchedAccounts.push({
+          retailer_id: matched.id,
+          retailer_name: matched.name,
+          retailer_town: matched.town || "",
+          matched_name: p.name,
+        });
+        continue;
       }
-    }
-    if (blocked) continue;
-    if (matchedRetailer) {
-      branchFlags.set(unique.length, {
-        related_account_id: matchedRetailer.id,
-        related_name: matchedRetailer.name,
-        related_town: matchedRetailer.town,
+      // Same brand, different town → flag as branch
+      branchFlags.set(candidates.length, {
+        related_account_id: matched.id,
+        related_name: matched.name,
+        related_town: matched.town || "",
       });
     }
+
     seenInBatch.add(key);
-    unique.push(p);
+    candidates.push(p);
   }
 
-  // Step 4: Build insert payload — every row is web_verified because Firecrawl returned a URL
+  // RULE 3: Probe every candidate URL — anything that doesn't respond is dropped
+  const probeResults = await Promise.all(candidates.map(c => probeUrl(c.website)));
+  const unique = candidates.filter((_, i) => probeResults[i]);
+
+  if (unique.length === 0) return { inserted: [], matchedAccounts };
+
+  // Step 4: Build insert payload — every row passed URL probe → web_verified
   const toInsert = unique.map((p: any, idx: number) => {
+    const originalIdx = candidates.indexOf(p);
     const factors = {
       estimated_store_quality: p.estimated_store_quality || 50,
       category_alignment: p.category_alignment || "moderate",
@@ -329,7 +448,7 @@ async function discoverBatch(
       price_positioning: p.estimated_price_positioning || "mid_market",
     };
     const breakdown = calculateFitScore(factors);
-    const branch = branchFlags.get(idx);
+    const branch = branchFlags.get(originalIdx);
 
     return {
       user_id: userId,
@@ -353,7 +472,7 @@ async function discoverBatch(
       verification_status: "web_verified",
       verification_data: {
         verified_at: new Date().toISOString(),
-        method: "firecrawl_search",
+        method: "firecrawl_search_url_probed",
         source_url: p.website,
       },
       status: "new",
@@ -366,7 +485,7 @@ async function discoverBatch(
     };
   });
 
-  if (toInsert.length === 0) return [];
+  if (toInsert.length === 0) return { inserted: [], matchedAccounts };
 
   const { data: inserted, error: insertError } = await supabase
     .from("discovered_prospects")
@@ -378,7 +497,7 @@ async function discoverBatch(
     throw new Error("Failed to save prospects");
   }
 
-  return inserted || [];
+  return { inserted: inserted || [], matchedAccounts };
 }
 
 Deno.serve(async (req) => {
@@ -424,9 +543,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town");
+    const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town, website");
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town");
-    const retailerEntries = (existingRetailers || []).map((r: any) => ({ id: r.id, name: r.name, town: r.town }));
+    const retailerEntries: RetailerLite[] = (existingRetailers || []).map((r: any) => ({ id: r.id, name: r.name, town: r.town, website: r.website }));
 
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
     let notFitContext = "";
@@ -444,19 +563,22 @@ Deno.serve(async (req) => {
     }
 
     let allInserted: any[] = [];
+    let allMatched: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> = [];
 
     if (fullScan) {
       for (const c of SOUTH_WEST_COUNTIES) {
         for (const cat of CATEGORIES) {
           try {
-            const inserted = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
-            allInserted = allInserted.concat(inserted);
+            const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+            allInserted = allInserted.concat(result.inserted);
+            allMatched = allMatched.concat(result.matchedAccounts);
           } catch (err: any) {
             console.error(`Batch error for ${c}/${cat}:`, err.message);
             if (err.message.includes("Rate limit") || err.message.includes("credits")) {
               return new Response(JSON.stringify({
                 success: true,
                 prospects: allInserted,
+                matched_current_accounts: allMatched,
                 partial: true,
                 stoppedAt: `${c}/${cat}`,
                 error: err.message,
@@ -469,16 +591,22 @@ Deno.serve(async (req) => {
     } else {
       const targetCounty = county || SOUTH_WEST_COUNTIES[Math.floor(Math.random() * SOUTH_WEST_COUNTIES.length)];
       const targetCategory = category || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
-      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
-      allInserted = inserted;
+      const result = await discoverBatch(supabase, userId, targetCounty, targetCategory, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+      allInserted = result.inserted;
+      allMatched = result.matchedAccounts;
     }
+
+    const matchSummary = allMatched.length > 0
+      ? ` ${allMatched.length} match${allMatched.length === 1 ? '' : 'es'} skipped — already current accounts.`
+      : "";
 
     return new Response(JSON.stringify({
       success: true,
       prospects: allInserted,
-      message: allInserted.length === 0
+      matched_current_accounts: allMatched,
+      message: allInserted.length === 0 && allMatched.length === 0
         ? "No verified businesses found for this county/category combination. Try a different scan."
-        : `Discovered ${allInserted.length} verified real businesses.`,
+        : `Discovered ${allInserted.length} verified real businesses.${matchSummary}`,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield, Trash2 } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield, Trash2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Database } from "@/integrations/supabase/types";
+import { findMatchingRetailer, normaliseAccountName, type RetailerLite } from "@/utils/accountNames";
 
 type DiscoveredProspect = Database["public"]["Tables"]["discovered_prospects"]["Row"];
 
@@ -220,24 +221,23 @@ export default function ProspectDiscovery() {
     return Array.from(set).sort();
   }, [prospects]);
 
-  // Get existing retailer names and towns for dedup and "close to current" filter
+  // Get existing retailers for fuzzy current-account matching
   const [existingTowns, setExistingTowns] = useState<string[]>([]);
-  const [existingRetailerKeys, setExistingRetailerKeys] = useState<Set<string>>(new Set());
+  const [existingRetailers, setExistingRetailers] = useState<RetailerLite[]>([]);
   const [filterNearCurrent, setFilterNearCurrent] = useState(false);
-  useEffect(() => {
-    supabase.from("retailers").select("name, town").then(({ data }) => {
-      if (data) {
-        setExistingTowns(data.map(r => r.town));
-        setExistingRetailerKeys(new Set(data.map(r => `${r.name.toLowerCase().trim()}|${r.town.toLowerCase().trim()}`)));
-      }
-    });
-  }, []);
+  const fetchExistingRetailers = async () => {
+    const { data } = await supabase.from("retailers").select("id, name, town, website");
+    if (data) {
+      setExistingTowns(data.map((r: any) => r.town).filter(Boolean));
+      setExistingRetailers(data as RetailerLite[]);
+    }
+  };
+  useEffect(() => { fetchExistingRetailers(); }, []);
 
   const filtered = useMemo(() => {
     let result = prospects.filter(p => {
-      // Exclude prospects that already exist as current accounts
-      const key = `${p.name.toLowerCase().trim()}|${p.town.toLowerCase().trim()}`;
-      if (existingRetailerKeys.has(key)) return false;
+      // Hide any prospect that fuzzy-matches a current account
+      if (findMatchingRetailer(p.name, p.town, (p as any).website, existingRetailers)) return false;
       if (filter !== 'all' && p.status !== filter) return false;
       if (filterCounty !== 'all' && p.county !== filterCounty) return false;
       if (filterCategory !== 'all' && p.category !== filterCategory) return false;
@@ -271,7 +271,7 @@ export default function ProspectDiscovery() {
       default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
     }
     return result;
-  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, hideUnverified, sortBy, existingTowns, existingRetailerKeys]);
+  }, [prospects, filter, filterCounty, filterCategory, filterSource, filterBrandStockist, filterHasWebsite, filterHasContact, filterFitMin, filterRatingMin, filterNearCurrent, hideUnverified, sortBy, existingTowns, existingRetailers]);
 
   const updateStatus = async (id: string, status: DiscoveredProspect['status']) => {
     const { error } = await supabase.from("discovered_prospects").update({ status }).eq("id", id);
@@ -419,8 +419,21 @@ export default function ProspectDiscovery() {
       const { data, error } = await supabase.functions.invoke("discover-prospects", { body });
       if (error) throw error;
       if (data?.success) {
-        toast.success(`Discovered ${data.prospects?.length || 0} new prospects!`);
+        const matched = data.matched_current_accounts || [];
+        const count = data.prospects?.length || 0;
+        if (matched.length > 0) {
+          toast.success(`Discovered ${count} verified prospects. ${matched.length} already a current account — skipped.`, { duration: 7000 });
+          matched.slice(0, 5).forEach((m: any) => {
+            toast.info(`"${m.matched_name}" is already a stockist (${m.retailer_name}, ${m.retailer_town})`, {
+              duration: 8000,
+              action: { label: "Open account", onClick: () => navigate(`/retailer/${m.retailer_id}`) },
+            });
+          });
+        } else {
+          toast.success(`Discovered ${count} new prospects!`);
+        }
         await fetchProspects();
+        await fetchExistingRetailers();
       } else {
         toast.error(data?.error || "Discovery failed");
       }
@@ -598,6 +611,46 @@ export default function ProspectDiscovery() {
     setProspects(prev => prev.filter(x => x.id !== p.id));
     toast.success(`${p.name} deleted permanently`);
   };
+
+  // Remove all prospects that fuzzy-match an existing current account
+  const removeProspectsMatchingCurrentAccounts = async () => {
+    const matches = prospects
+      .map(p => ({ p, match: findMatchingRetailer(p.name, p.town, (p as any).website, existingRetailers) }))
+      .filter(x => !!x.match);
+    if (matches.length === 0) { toast.info("No prospects match a current account."); return; }
+    if (!confirm(`Remove ${matches.length} prospect${matches.length === 1 ? '' : 's'} that already exist as current accounts?`)) return;
+    const ids = matches.map(m => m.p.id);
+    const { error } = await supabase.from("discovered_prospects").delete().in("id", ids);
+    if (error) { toast.error("Failed to remove"); return; }
+    setProspects(prev => prev.filter(p => !ids.includes(p.id)));
+    toast.success(`Removed ${matches.length} prospect${matches.length === 1 ? '' : 's'} already in current accounts.`);
+  };
+
+  // Manual: mark a prospect as a current account (link → retailer profile, delete prospect row)
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; prospect: DiscoveredProspect | null; query: string }>({ open: false, prospect: null, query: '' });
+  const openLinkDialog = (p: DiscoveredProspect) => setLinkDialog({ open: true, prospect: p, query: p.name });
+  const linkToCurrentAccount = async (retailerId: string) => {
+    const p = linkDialog.prospect;
+    if (!p) return;
+    await supabase.from("discovered_prospects").delete().eq("id", p.id);
+    setProspects(prev => prev.filter(x => x.id !== p.id));
+    setLinkDialog({ open: false, prospect: null, query: '' });
+    toast.success(`Linked to current account.`, {
+      action: { label: "Open account", onClick: () => navigate(`/retailer/${retailerId}`) },
+    });
+  };
+
+  const linkCandidates = useMemo(() => {
+    if (!linkDialog.open) return [];
+    const q = normaliseAccountName(linkDialog.query || '');
+    if (!q) return existingRetailers.slice(0, 8);
+    return existingRetailers
+      .map(r => ({ r, score: normaliseAccountName(r.name).includes(q) || q.includes(normaliseAccountName(r.name)) ? 2 : (normaliseAccountName(r.name).split(' ').some(w => q.includes(w)) ? 1 : 0) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map(x => x.r);
+  }, [linkDialog, existingRetailers]);
 
   const runManualSearch = async () => {
     if (!manualSearchName.trim() || manualSearchName.trim().length < 2) {
@@ -928,6 +981,17 @@ export default function ProspectDiscovery() {
           Purge Unverified
         </Button>
         <Button
+          onClick={removeProspectsMatchingCurrentAccounts}
+          disabled={clearing || prospects.length === 0}
+          variant="outline"
+          size="sm"
+          className="text-[10px] h-8 px-3 border-info/40 text-info hover:bg-info-light"
+          title="Permanently remove prospects that already exist as current accounts"
+        >
+          <Building2 className="w-3.5 h-3.5 mr-1.5" />
+          Remove Current-Account Matches
+        </Button>
+        <Button
           onClick={clearAllProspects}
           disabled={clearing || prospects.length === 0}
           variant="outline"
@@ -1228,6 +1292,9 @@ export default function ProspectDiscovery() {
                     <Button variant="ghost" size="sm" onClick={() => openDismissDialog(p)} className="text-[10px] h-7 px-2 text-muted-foreground/50" title="Dismiss (logs pattern for AI learning)">
                       <XCircle className="w-3 h-3" />
                     </Button>
+                    <Button variant="ghost" size="sm" onClick={() => openLinkDialog(p)} className="text-[10px] h-7 px-2 text-info/70 hover:text-info hover:bg-info-light" title="Mark as a current account">
+                      <Building2 className="w-3 h-3" />
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteProspectPermanently(p)} className="text-[10px] h-7 px-2 text-destructive/60 hover:text-destructive hover:bg-destructive/10" title="Delete permanently">
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -1253,6 +1320,9 @@ export default function ProspectDiscovery() {
                         <TooltipContent className="text-xs">Verify this store exists before adding to pipeline</TooltipContent>
                       )}
                     </Tooltip>
+                    <Button variant="ghost" size="sm" onClick={() => openLinkDialog(p)} className="text-[10px] h-7 px-2 text-info/70 hover:text-info hover:bg-info-light" title="Mark as a current account">
+                      <Building2 className="w-3 h-3" />
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteProspectPermanently(p)} className="text-[10px] h-7 px-2 text-destructive/60 hover:text-destructive hover:bg-destructive/10" title="Delete permanently">
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -1260,6 +1330,9 @@ export default function ProspectDiscovery() {
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>
+                    <Button variant="ghost" size="sm" onClick={() => openLinkDialog(p)} className="text-[10px] h-7 px-2 text-info/70 hover:text-info hover:bg-info-light" title="Mark as a current account">
+                      <Building2 className="w-3 h-3" />
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteProspectPermanently(p)} className="text-[10px] h-7 px-2 text-destructive/60 hover:text-destructive hover:bg-destructive/10" title="Delete permanently">
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -1317,6 +1390,38 @@ export default function ProspectDiscovery() {
                 Dismiss & Log Pattern
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark-as-current-account picker */}
+      <Dialog open={linkDialog.open} onOpenChange={(open) => !open && setLinkDialog({ open: false, prospect: null, query: '' })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-display">Mark as current account</DialogTitle>
+            <DialogDescription className="text-xs">
+              Pick the matching current account. The prospect row will be removed from the discovery list.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={linkDialog.query}
+            onChange={(e) => setLinkDialog(prev => ({ ...prev, query: e.target.value }))}
+            placeholder="Search current accounts…"
+            className="text-xs"
+          />
+          <div className="max-h-[280px] overflow-y-auto space-y-1.5">
+            {linkCandidates.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground py-4 text-center">No matching current accounts.</p>
+            ) : linkCandidates.map(r => (
+              <button
+                key={r.id}
+                onClick={() => linkToCurrentAccount(r.id)}
+                className="w-full text-left p-2.5 rounded-lg border border-border/30 hover:border-info/40 hover:bg-info-light/40 transition-colors"
+              >
+                <p className="text-xs font-medium text-foreground">{r.name}</p>
+                <p className="text-[10px] text-muted-foreground">{r.town || '—'}{r.website ? ` · ${r.website}` : ''}</p>
+              </button>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
