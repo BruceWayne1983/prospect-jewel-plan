@@ -236,9 +236,8 @@ export default function ProspectDiscovery() {
 
   const filtered = useMemo(() => {
     let result = prospects.filter(p => {
-      // Exclude prospects that already exist as current accounts
-      const key = `${p.name.toLowerCase().trim()}|${p.town.toLowerCase().trim()}`;
-      if (existingRetailerKeys.has(key)) return false;
+      // Hide any prospect that fuzzy-matches a current account
+      if (findMatchingRetailer(p.name, p.town, (p as any).website, existingRetailers)) return false;
       if (filter !== 'all' && p.status !== filter) return false;
       if (filterCounty !== 'all' && p.county !== filterCounty) return false;
       if (filterCategory !== 'all' && p.category !== filterCategory) return false;
