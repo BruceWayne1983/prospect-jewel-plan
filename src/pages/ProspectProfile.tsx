@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScoreRing } from "@/components/ScoreIndicators";
 import { toast } from "sonner";
+import { ContactField } from "@/components/contact/ContactField";
 import type { Database } from "@/integrations/supabase/types";
 
 type DiscoveredProspect = Database["public"]["Tables"]["discovered_prospects"]["Row"];
@@ -54,6 +55,36 @@ export default function ProspectProfile() {
       }
     } catch (e: any) {
       toast.error(e.message || 'Enrichment failed');
+    } finally {
+      setEnriching(false);
+    }
+  };
+
+  const runFullVerification = async () => {
+    if (!prospect) return;
+    setEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-contact-details', {
+        body: { prospect_id: prospect.id, name: prospect.name, town: prospect.town, county: prospect.county, website: prospect.website },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+
+      const captured = data?.contact || data || {};
+      const fieldKeys = ['phone', 'email', 'address', 'postcode', 'instagram'];
+      const capturedCount = fieldKeys.filter(k => captured?.[k]).length;
+
+      if (capturedCount > 0) {
+        const { error: crossErr } = await supabase.functions.invoke('cross-validate-contact', {
+          body: { prospect_id: prospect.id },
+        });
+        if (crossErr) console.warn('cross-validate-contact error:', crossErr);
+      }
+
+      await fetchProspect();
+      toast.success(`Verified ${capturedCount} contact field${capturedCount === 1 ? '' : 's'}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Verification failed');
     } finally {
       setEnriching(false);
     }
