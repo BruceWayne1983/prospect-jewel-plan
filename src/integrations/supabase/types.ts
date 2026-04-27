@@ -883,6 +883,7 @@ export type Database = {
         | "web_verified"
         | "manually_verified"
         | "verified_fake"
+        | "needs_review"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1045,6 +1046,7 @@ export const Constants = {
         "web_verified",
         "manually_verified",
         "verified_fake",
+        "needs_review",
       ],
     },
   },
