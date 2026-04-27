@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.verify-social]
 verify_jwt = false
+
+[functions.cross-validate-contact]
+verify_jwt = false

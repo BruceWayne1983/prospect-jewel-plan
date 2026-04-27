@@ -60,14 +60,16 @@ function SourceBadge({ source }: { source: string | null }) {
 function VerificationBadge({ status }: { status: string | null | undefined }) {
   switch (status) {
     case 'web_verified':
-      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" />WEB VERIFIED</span>;
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-success-light text-success flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" />CROSS-CHECKED</span>;
     case 'manually_verified':
       return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-info-light text-info flex items-center gap-1"><Shield className="w-2.5 h-2.5" />MANUALLY VERIFIED</span>;
+    case 'needs_review':
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />NEEDS REVIEW</span>;
     case 'verified_fake':
-      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-destructive/15 text-destructive flex items-center gap-1"><ShieldAlert className="w-2.5 h-2.5" />NOT FOUND ONLINE</span>;
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-destructive/15 text-destructive flex items-center gap-1"><ShieldAlert className="w-2.5 h-2.5" />IDENTITY MISMATCH</span>;
     case 'unverified':
     default:
-      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />AI GENERATED — NOT VERIFIED</span>;
+      return <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-warning-light text-warning flex items-center gap-1"><ShieldQuestion className="w-2.5 h-2.5" />UNVERIFIED</span>;
   }
 }
 
