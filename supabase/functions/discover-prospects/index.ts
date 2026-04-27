@@ -55,7 +55,9 @@ async function discoverBatch(
   count: number,
   existingNames: string[],
   LOVABLE_API_KEY: string,
-  notFitContext: string = ""
+  notFitContext: string = "",
+  existingRetailers: Array<{ id: string; name: string; town: string }> = [],
+  existingProspects: Array<{ name: string; town: string }> = []
 ) {
   const excludeClause = existingNames.length > 0
     ? `\n\nDo NOT include any of these existing stores (already in the system): ${existingNames.join(", ")}`
