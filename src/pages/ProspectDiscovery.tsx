@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -571,6 +571,32 @@ export default function ProspectDiscovery() {
     } finally {
       setClearing(false);
     }
+  };
+
+  const purgeUnverified = async () => {
+    const unverifiedRows = prospects.filter(p => !(p as any).verification_status || (p as any).verification_status === 'unverified' || (p as any).verification_status === 'verified_fake');
+    if (unverifiedRows.length === 0) { toast.info("No unverified prospects to purge"); return; }
+    if (!confirm(`Permanently delete ${unverifiedRows.length} unverified / AI-generated prospects? This cannot be undone.`)) return;
+    setClearing(true);
+    try {
+      const ids = unverifiedRows.map(r => r.id);
+      const { error } = await supabase.from("discovered_prospects").delete().in("id", ids);
+      if (error) throw error;
+      setProspects(prev => prev.filter(p => !ids.includes(p.id)));
+      toast.success(`Purged ${unverifiedRows.length} unverified prospects`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to purge");
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const deleteProspectPermanently = async (p: DiscoveredProspect) => {
+    if (!confirm(`Permanently delete "${p.name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("discovered_prospects").delete().eq("id", p.id);
+    if (error) { toast.error("Delete failed"); return; }
+    setProspects(prev => prev.filter(x => x.id !== p.id));
+    toast.success(`${p.name} deleted permanently`);
   };
 
   const runManualSearch = async () => {
