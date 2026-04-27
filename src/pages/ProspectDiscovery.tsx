@@ -178,6 +178,13 @@ export default function ProspectDiscovery() {
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
   const [hideUnverified, setHideUnverified] = useState(false);
   const [clearing, setClearing] = useState(false);
+  // Discovery mode (route_aligned | gap_led | lookalike | specific)
+  const [discoveryMode, setDiscoveryMode] = useState<'route_aligned' | 'gap_led' | 'lookalike' | 'specific'>(() => {
+    if (typeof window === 'undefined') return 'specific';
+    const saved = window.localStorage.getItem('preferred_discovery_mode');
+    return (saved === 'route_aligned' || saved === 'gap_led' || saved === 'lookalike' || saved === 'specific') ? saved : 'specific';
+  });
+  const [lastScanSummary, setLastScanSummary] = useState<{ mode: string; rationale: string; targets_scanned: Array<{ county: string; category: string }> } | null>(null);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -404,18 +411,36 @@ export default function ProspectDiscovery() {
   };
 
   const runAIScan = async () => {
+    // Persist mode choice
+    try { window.localStorage.setItem('preferred_discovery_mode', discoveryMode); } catch {}
+
+    if (discoveryMode === 'specific' && (selectedCounty === 'all' || selectedCategory === 'all')) {
+      toast.error("Specific mode requires both a county and a category.");
+      return;
+    }
+
     setScanning(true);
     setScanType('ai');
-    setScanProgress("Generating prospects...");
+    const progressMap: Record<string, string> = {
+      route_aligned: 'Aligning prospects with your upcoming routes...',
+      gap_led: 'Finding gaps in priority towns...',
+      lookalike: 'Modelling lookalikes from your top accounts...',
+      specific: 'Scanning chosen county & category...',
+    };
+    setScanProgress(progressMap[discoveryMode]);
+
     try {
       await ensureSession();
-      const body: any = { count: 15 };
-      if (selectedCounty !== "all") body.county = selectedCounty;
-      if (selectedCategory !== "all") body.category = selectedCategory;
+      const body: any = { count: 15, mode: discoveryMode };
+      if (discoveryMode === 'specific') {
+        body.county = selectedCounty;
+        body.category = selectedCategory;
+      }
 
       const { data, error } = await supabase.functions.invoke("discover-prospects", { body });
       if (error) throw error;
       if (data?.success) {
+        if (data.scan_summary) setLastScanSummary(data.scan_summary);
         const matched = data.matched_current_accounts || [];
         const count = data.prospects?.length || 0;
         if (matched.length > 0) {
@@ -713,30 +738,88 @@ export default function ProspectDiscovery() {
       </div>
       <div className="divider-gold" />
 
+      {/* Discovery Mode Picker */}
+      <div className="card-premium p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-foreground">Discovery Mode</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Choose how the AI should pick where to scan next</p>
+          </div>
+          {lastScanSummary && (
+            <span className="text-[10px] text-muted-foreground">
+              Last: <span className="font-medium text-gold-dark">{lastScanSummary.mode.replace(/_/g, ' ')}</span>
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+          {[
+            { id: 'route_aligned', title: 'Route-aligned', desc: 'Find prospects along your planned routes this week' },
+            { id: 'gap_led', title: 'Gap-led', desc: 'Find prospects in priority towns with low coverage' },
+            { id: 'lookalike', title: 'Lookalike', desc: 'Find businesses similar to your top accounts' },
+            { id: 'specific', title: 'Specific', desc: 'Pick a county and category yourself' },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => {
+                setDiscoveryMode(opt.id as any);
+                try { window.localStorage.setItem('preferred_discovery_mode', opt.id); } catch {}
+              }}
+              className={`text-left p-3 rounded-lg border transition-all ${
+                discoveryMode === opt.id
+                  ? 'border-gold/60 bg-champagne/30 shadow-sm'
+                  : 'border-border/30 bg-cream/20 hover:border-gold/30 hover:bg-champagne/10'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-1.5 h-1.5 rounded-full ${discoveryMode === opt.id ? 'bg-gold' : 'bg-muted-foreground/30'}`} />
+                <span className="text-xs font-semibold text-foreground">{opt.title}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+        {lastScanSummary?.rationale && (
+          <div className="p-3 rounded-md bg-gold/5 border border-gold/20">
+            <p className="text-[10px] uppercase tracking-wider text-gold-dark font-semibold mb-1">Last scan rationale</p>
+            <p className="text-xs text-foreground leading-relaxed">{lastScanSummary.rationale}</p>
+            {lastScanSummary.targets_scanned?.length > 0 && (
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Scanned {lastScanSummary.targets_scanned.length} target{lastScanSummary.targets_scanned.length === 1 ? '' : 's'}: {lastScanSummary.targets_scanned.map(t => `${t.category.replace(/_/g, ' ')} in ${t.county}`).join(' · ')}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Scan Controls */}
       <div className="card-premium p-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <Select value={selectedCounty} onValueChange={setSelectedCounty}>
-            <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
-              <SelectValue placeholder="All Counties" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Counties</SelectItem>
-              {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {discoveryMode === 'specific' && (
+            <>
+              <Select value={selectedCounty} onValueChange={setSelectedCounty}>
+                <SelectTrigger className="w-[160px] h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue placeholder="All Counties" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Counties</SelectItem>
+                  {COUNTIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[180px] h-8 text-xs bg-cream/30 border-border/30">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[180px] h-8 text-xs bg-cream/30 border-border/30">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-          <div className="h-6 w-px bg-border/30" />
+              <div className="h-6 w-px bg-border/30" />
+            </>
+          )}
 
           <Button onClick={runAIScan} disabled={scanning} className="gold-gradient text-sidebar-background text-xs h-8 px-4">
             {scanning && scanType === 'ai' ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Radar className="w-3.5 h-3.5 mr-1.5" />}

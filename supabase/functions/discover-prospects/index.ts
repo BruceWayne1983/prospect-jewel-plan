@@ -19,6 +19,26 @@ const CATEGORIES = [
   "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
+// Priority territory towns for gap-led discovery (Emma's South West + South Wales territory)
+const TERRITORY_TOWNS: Array<{ town: string; county: string; priority_score: number }> = [
+  { town: "Cardiff", county: "Cardiff", priority_score: 95 },
+  { town: "Newport", county: "Newport", priority_score: 90 },
+  { town: "Cheltenham", county: "Gloucestershire", priority_score: 90 },
+  { town: "Bath", county: "Somerset", priority_score: 88 },
+  { town: "Exeter", county: "Devon", priority_score: 85 },
+  { town: "Swindon", county: "Wiltshire", priority_score: 80 },
+  { town: "Bristol", county: "Bristol", priority_score: 85 },
+  { town: "Truro", county: "Cornwall", priority_score: 70 },
+  { town: "Cardigan", county: "Ceredigion", priority_score: 65 },
+  { town: "Aberystwyth", county: "Ceredigion", priority_score: 65 },
+  { town: "Monmouth", county: "Monmouthshire", priority_score: 70 },
+  { town: "Abergavenny", county: "Monmouthshire", priority_score: 75 },
+  { town: "Tenby", county: "Pembrokeshire", priority_score: 70 },
+  { town: "Pembroke", county: "Pembrokeshire", priority_score: 65 },
+];
+
+type DiscoveryMode = 'route_aligned' | 'gap_led' | 'lookalike' | 'specific';
+
 const CATEGORY_QUERIES: Record<string, string> = {
   jeweller: "independent jeweller jewellery shop",
   gift_shop: "independent gift shop",
@@ -506,7 +526,15 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const { county, category, fullScan } = await req.json().catch(() => ({}));
+    const { county, category, fullScan, mode } = await req.json().catch(() => ({}));
+    const discoveryMode: DiscoveryMode | undefined = mode;
+
+    // Validation: mode is required unless explicit county/category or fullScan provided
+    if (!discoveryMode && !county && !category && !fullScan) {
+      return new Response(JSON.stringify({
+        error: "Discovery mode required. Choose one of: route_aligned, gap_led, lookalike, specific. Or pass fullScan=true.",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -543,14 +571,25 @@ Deno.serve(async (req) => {
 
     let allInserted: any[] = [];
     let allMatched: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> = [];
+    const targetsScanned: Array<{ county: string; category: string }> = [];
+    let rationale = "";
+    let resolvedMode: DiscoveryMode | 'full_scan' | 'legacy' = discoveryMode || (fullScan ? 'full_scan' : 'legacy');
+
+    const runBatch = async (c: string, cat: string) => {
+      targetsScanned.push({ county: c, category: cat });
+      const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+      allInserted = allInserted.concat(result.inserted);
+      allMatched = allMatched.concat(result.matchedAccounts);
+    };
+
+    const pickCategory = () => CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
 
     if (fullScan) {
+      rationale = `Full territory sweep across ${SOUTH_WEST_COUNTIES.length} counties × ${CATEGORIES.length} categories.`;
       for (const c of SOUTH_WEST_COUNTIES) {
         for (const cat of CATEGORIES) {
           try {
-            const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
-            allInserted = allInserted.concat(result.inserted);
-            allMatched = allMatched.concat(result.matchedAccounts);
+            await runBatch(c, cat);
           } catch (err: any) {
             console.error(`Batch error for ${c}/${cat}:`, err.message);
             if (err.message.includes("Rate limit") || err.message.includes("credits")) {
@@ -561,18 +600,138 @@ Deno.serve(async (req) => {
                 partial: true,
                 stoppedAt: `${c}/${cat}`,
                 error: err.message,
+                scan_summary: { mode: resolvedMode, targets_scanned: targetsScanned, rationale },
               }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
             }
           }
           await new Promise(r => setTimeout(r, 1500));
         }
       }
-    } else {
-      const targetCounty = county || SOUTH_WEST_COUNTIES[Math.floor(Math.random() * SOUTH_WEST_COUNTIES.length)];
-      const targetCategory = category || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
-      const result = await discoverBatch(supabase, userId, targetCounty, targetCategory, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
-      allInserted = result.inserted;
-      allMatched = result.matchedAccounts;
+    } else if (discoveryMode === 'specific' || (!discoveryMode && (county || category))) {
+      // Backwards-compat: explicit county+category falls into specific
+      if (!county || !category) {
+        return new Response(JSON.stringify({
+          error: "Specific mode requires both 'county' and 'category'.",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      resolvedMode = 'specific';
+      rationale = `Targeted scan: ${category.replace(/_/g, ' ')} in ${county}.`;
+      await runBatch(county, category);
+    } else if (discoveryMode === 'route_aligned') {
+      resolvedMode = 'route_aligned';
+      const horizonStart = new Date().toISOString().slice(0, 10);
+      const horizonEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data: events } = await supabase
+        .from('calendar_events')
+        .select('town, retailer_id, date')
+        .eq('user_id', userId)
+        .gte('date', horizonStart)
+        .lte('date', horizonEnd);
+
+      // Resolve county for each event by looking up the linked retailer (calendar_events doesn't store county directly)
+      const retailerIds = Array.from(new Set((events || []).map((e: any) => e.retailer_id).filter(Boolean)));
+      let countyByRetailer: Record<string, string> = {};
+      if (retailerIds.length > 0) {
+        const { data: linkedRetailers } = await supabase
+          .from('retailers')
+          .select('id, county')
+          .in('id', retailerIds);
+        countyByRetailer = Object.fromEntries((linkedRetailers || []).map((r: any) => [r.id, r.county]));
+      }
+
+      const upcomingCounties = Array.from(new Set(
+        (events || [])
+          .map((e: any) => (e.retailer_id ? countyByRetailer[e.retailer_id] : null))
+          .filter((c: string | null): c is string => !!c)
+      ));
+
+      if (upcomingCounties.length === 0) {
+        return new Response(JSON.stringify({
+          error: "No upcoming routes/events found. Plan a route in the Journey Planner first, or pick a different mode.",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      rationale = `Aligned with ${upcomingCounties.length} upcoming route ${upcomingCounties.length === 1 ? 'county' : 'counties'} in the next 14 days: ${upcomingCounties.join(', ')}.`;
+      for (const c of upcomingCounties) {
+        try {
+          await runBatch(c, pickCategory());
+        } catch (err: any) {
+          console.error(`route_aligned batch error for ${c}:`, err.message);
+        }
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    } else if (discoveryMode === 'gap_led') {
+      resolvedMode = 'gap_led';
+      const { data: retailersByTown } = await supabase
+        .from('retailers')
+        .select('town');
+      const { data: prospectsByTown } = await supabase
+        .from('discovered_prospects')
+        .select('town, status');
+
+      const retailerCounts: Record<string, number> = {};
+      (retailersByTown || []).forEach((r: any) => {
+        if (r.town) retailerCounts[r.town] = (retailerCounts[r.town] || 0) + 1;
+      });
+      const prospectCounts: Record<string, number> = {};
+      (prospectsByTown || []).forEach((p: any) => {
+        if (p.town && p.status !== 'dismissed') prospectCounts[p.town] = (prospectCounts[p.town] || 0) + 1;
+      });
+
+      const ranked = TERRITORY_TOWNS
+        .map(t => ({
+          ...t,
+          existing: (retailerCounts[t.town] || 0) + (prospectCounts[t.town] || 0),
+          gap_score: t.priority_score - ((retailerCounts[t.town] || 0) + (prospectCounts[t.town] || 0)) * 5,
+        }))
+        .sort((a, b) => b.gap_score - a.gap_score)
+        .slice(0, 3);
+
+      rationale = `Top 3 priority towns with lowest coverage: ${ranked.map(r => `${r.town} (priority ${r.priority_score}, existing ${r.existing})`).join('; ')}.`;
+      for (const t of ranked) {
+        try {
+          // Alternate between jeweller and gift_shop for breadth
+          const cat = ranked.indexOf(t) % 2 === 0 ? 'jeweller' : 'gift_shop';
+          await runBatch(t.county, cat);
+        } catch (err: any) {
+          console.error(`gap_led batch error for ${t.town}:`, err.message);
+        }
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    } else if (discoveryMode === 'lookalike') {
+      resolvedMode = 'lookalike';
+      const { data: topAccounts } = await supabase
+        .from('retailers')
+        .select('name, town, county, category, billing_2025_full_year')
+        .eq('user_id', userId)
+        .not('billing_2025_full_year', 'is', null)
+        .order('billing_2025_full_year', { ascending: false })
+        .limit(5);
+
+      if (!topAccounts || topAccounts.length === 0) {
+        return new Response(JSON.stringify({
+          error: "No billing data found on your accounts. Import billing history first, or pick a different mode.",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const seen = new Set<string>();
+      const combos: Array<{ county: string; category: string; seedName: string; seedTown: string }> = [];
+      for (const a of topAccounts) {
+        const key = `${a.county}::${a.category}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        combos.push({ county: a.county, category: a.category, seedName: a.name, seedTown: a.town });
+      }
+
+      rationale = `Lookalike seeds from top ${topAccounts.length} accounts by 2025 billing: ${combos.map(c => `${c.seedName} (${c.seedTown}) → ${c.category.replace(/_/g, ' ')} in ${c.county}`).join('; ')}.`;
+      for (const combo of combos) {
+        try {
+          await runBatch(combo.county, combo.category);
+        } catch (err: any) {
+          console.error(`lookalike batch error for ${combo.county}/${combo.category}:`, err.message);
+        }
+        await new Promise(r => setTimeout(r, 1500));
+      }
     }
 
     const matchSummary = allMatched.length > 0
@@ -584,8 +743,13 @@ Deno.serve(async (req) => {
       prospects: allInserted,
       matched_current_accounts: allMatched,
       message: allInserted.length === 0 && allMatched.length === 0
-        ? "No verified businesses found for this county/category combination. Try a different scan."
+        ? "No verified businesses found for this scan. Try a different mode or county/category combination."
         : `Discovered ${allInserted.length} verified real businesses.${matchSummary}`,
+      scan_summary: {
+        mode: resolvedMode,
+        targets_scanned: targetsScanned,
+        rationale,
+      },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
