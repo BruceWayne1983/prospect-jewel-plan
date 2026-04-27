@@ -153,8 +153,8 @@ Store Positioning: ${retailer.store_positioning || 'unknown'}
 Independent: ${retailer.is_independent ? 'Yes' : 'No'}
 Pipeline Stage: ${retailer.pipeline_stage}
 ${billingContext}
-${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: NOT YET KNOWN — please try to find or infer'}
-${retailer.email ? `Email: ${retailer.email}` : 'Email: NOT YET KNOWN — please try to infer from website domain'}
+${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: not yet captured — leave blank in your output, do NOT guess'}
+${retailer.email ? `Email: ${retailer.email}` : 'Email: not yet captured — leave blank in your output, do NOT guess'}
 ${retailer.ai_notes ? `AI Notes: ${retailer.ai_notes}` : ''}
 ${retailer.website ? `Website: ${retailer.website}` : 'Website: NOT YET KNOWN'}
 ${retailer.address ? `Address: ${retailer.address}` : 'Address: NOT YET KNOWN — please try to infer'}
@@ -171,15 +171,15 @@ Category: ${retailer.category}
 Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
 Store Positioning: ${retailer.store_positioning || 'unknown'}
 Independent: ${retailer.is_independent ? 'Yes' : 'No'}
-${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: NOT YET KNOWN — please try to find or infer'}
-${retailer.email ? `Email: ${retailer.email}` : 'Email: NOT YET KNOWN — please try to infer from website domain'}
+${retailer.phone ? `Phone: ${retailer.phone}` : 'Phone: not yet captured — leave blank in your output, do NOT guess'}
+${retailer.email ? `Email: ${retailer.email}` : 'Email: not yet captured — leave blank in your output, do NOT guess'}
 ${retailer.ai_notes ? `AI Notes from discovery: ${retailer.ai_notes}` : ''}
 ${retailer.website ? `Website: ${retailer.website}` : 'Website: NOT YET KNOWN'}
-${retailer.address ? `Address: ${retailer.address}` : 'Address: NOT YET KNOWN — please try to infer'}
+${retailer.address ? `Address: ${retailer.address}` : 'Address: not yet captured — leave blank, do NOT guess'}
 ${retailer.postcode ? `Postcode: ${retailer.postcode}` : ''}
 ${retailer.instagram ? `Instagram: ${retailer.instagram}` : ''}
 
-Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with contact details, qualification assessment, scores, and any risk flags. For contact_enrichment, try to provide plausible contact details even if you need to infer them.`;
+Generate a thorough analysis covering intelligence summary, performance predictions, outreach strategy with contact details, qualification assessment, scores, and any risk flags. For contact_enrichment, ONLY return values you can verify from the website URL provided or other named verifiable source. Return an empty string for any field you cannot verify. NEVER guess or fabricate.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -261,7 +261,7 @@ Generate a thorough analysis covering intelligence summary, performance predicti
                 },
                 contact_enrichment: {
                   type: "object",
-                  description: "Attempt to find or infer contact details",
+                  description: "Verified contact details ONLY — empty string if not verifiable from a named source",
                   properties: {
                     phone: { type: "string" },
                     email: { type: "string" },
@@ -354,13 +354,10 @@ Generate a thorough analysis covering intelligence summary, performance predicti
     const analysis = JSON.parse(toolCall.function.arguments);
     analysis.ai_intelligence.lastAnalysed = new Date().toISOString().split('T')[0];
 
-    const contactUpdates: Record<string, string> = {};
-    const ce = analysis.contact_enrichment || {};
-    if (!retailer.phone && ce.phone) contactUpdates.phone = ce.phone;
-    if (!retailer.email && ce.email) contactUpdates.email = ce.email;
-    if (!retailer.address && ce.address) contactUpdates.address = ce.address;
-    if (!retailer.postcode && ce.postcode) contactUpdates.postcode = ce.postcode;
-    if (!retailer.instagram && ce.instagram) contactUpdates.instagram = ce.instagram;
+    // Contact enrichment from analyse-retailer is treated as UNVERIFIED suggestions only.
+    // We do NOT write these to the retailers table — that requires the cross-validate-contact
+    // or enrich-contact-details functions, which scrape verified sources.
+    const contactSuggestions = analysis.contact_enrichment || {};
 
     const { error: updateErr } = await supabase
       .from("retailers")
@@ -375,7 +372,6 @@ Generate a thorough analysis covering intelligence summary, performance predicti
         commercial_health_score: analysis.scores.commercial_health_score,
         risk_flags: analysis.risk_flags,
         qualification_status: 'qualified',
-        ...contactUpdates,
       })
       .eq("id", retailerId);
 
@@ -386,7 +382,12 @@ Generate a thorough analysis covering intelligence summary, performance predicti
       });
     }
 
-    return new Response(JSON.stringify({ success: true, analysis }), {
+    return new Response(JSON.stringify({
+      success: true,
+      analysis,
+      unverified_contact_suggestions: contactSuggestions,
+      suggestion_notice: "These contact suggestions are unverified AI guesses. Run cross-validate-contact or enrich-contact-details to verify before using."
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
