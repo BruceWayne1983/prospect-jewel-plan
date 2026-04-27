@@ -612,6 +612,46 @@ export default function ProspectDiscovery() {
     toast.success(`${p.name} deleted permanently`);
   };
 
+  // Remove all prospects that fuzzy-match an existing current account
+  const removeProspectsMatchingCurrentAccounts = async () => {
+    const matches = prospects
+      .map(p => ({ p, match: findMatchingRetailer(p.name, p.town, (p as any).website, existingRetailers) }))
+      .filter(x => !!x.match);
+    if (matches.length === 0) { toast.info("No prospects match a current account."); return; }
+    if (!confirm(`Remove ${matches.length} prospect${matches.length === 1 ? '' : 's'} that already exist as current accounts?`)) return;
+    const ids = matches.map(m => m.p.id);
+    const { error } = await supabase.from("discovered_prospects").delete().in("id", ids);
+    if (error) { toast.error("Failed to remove"); return; }
+    setProspects(prev => prev.filter(p => !ids.includes(p.id)));
+    toast.success(`Removed ${matches.length} prospect${matches.length === 1 ? '' : 's'} already in current accounts.`);
+  };
+
+  // Manual: mark a prospect as a current account (link → retailer profile, delete prospect row)
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; prospect: DiscoveredProspect | null; query: string }>({ open: false, prospect: null, query: '' });
+  const openLinkDialog = (p: DiscoveredProspect) => setLinkDialog({ open: true, prospect: p, query: p.name });
+  const linkToCurrentAccount = async (retailerId: string) => {
+    const p = linkDialog.prospect;
+    if (!p) return;
+    await supabase.from("discovered_prospects").delete().eq("id", p.id);
+    setProspects(prev => prev.filter(x => x.id !== p.id));
+    setLinkDialog({ open: false, prospect: null, query: '' });
+    toast.success(`Linked to current account.`, {
+      action: { label: "Open account", onClick: () => navigate(`/retailer/${retailerId}`) },
+    });
+  };
+
+  const linkCandidates = useMemo(() => {
+    if (!linkDialog.open) return [];
+    const q = normaliseAccountName(linkDialog.query || '');
+    if (!q) return existingRetailers.slice(0, 8);
+    return existingRetailers
+      .map(r => ({ r, score: normaliseAccountName(r.name).includes(q) || q.includes(normaliseAccountName(r.name)) ? 2 : (normaliseAccountName(r.name).split(' ').some(w => q.includes(w)) ? 1 : 0) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map(x => x.r);
+  }, [linkDialog, existingRetailers]);
+
   const runManualSearch = async () => {
     if (!manualSearchName.trim() || manualSearchName.trim().length < 2) {
       toast.error("Please enter a store name (at least 2 characters)");
