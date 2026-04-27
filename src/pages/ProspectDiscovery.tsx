@@ -178,6 +178,13 @@ export default function ProspectDiscovery() {
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
   const [hideUnverified, setHideUnverified] = useState(false);
   const [clearing, setClearing] = useState(false);
+  // Discovery mode (route_aligned | gap_led | lookalike | specific)
+  const [discoveryMode, setDiscoveryMode] = useState<'route_aligned' | 'gap_led' | 'lookalike' | 'specific'>(() => {
+    if (typeof window === 'undefined') return 'specific';
+    const saved = window.localStorage.getItem('preferred_discovery_mode');
+    return (saved === 'route_aligned' || saved === 'gap_led' || saved === 'lookalike' || saved === 'specific') ? saved : 'specific';
+  });
+  const [lastScanSummary, setLastScanSummary] = useState<{ mode: string; rationale: string; targets_scanned: Array<{ county: string; category: string }> } | null>(null);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
