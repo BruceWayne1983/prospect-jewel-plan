@@ -221,18 +221,18 @@ export default function ProspectDiscovery() {
     return Array.from(set).sort();
   }, [prospects]);
 
-  // Get existing retailer names and towns for dedup and "close to current" filter
+  // Get existing retailers for fuzzy current-account matching
   const [existingTowns, setExistingTowns] = useState<string[]>([]);
-  const [existingRetailerKeys, setExistingRetailerKeys] = useState<Set<string>>(new Set());
+  const [existingRetailers, setExistingRetailers] = useState<RetailerLite[]>([]);
   const [filterNearCurrent, setFilterNearCurrent] = useState(false);
-  useEffect(() => {
-    supabase.from("retailers").select("name, town").then(({ data }) => {
-      if (data) {
-        setExistingTowns(data.map(r => r.town));
-        setExistingRetailerKeys(new Set(data.map(r => `${r.name.toLowerCase().trim()}|${r.town.toLowerCase().trim()}`)));
-      }
-    });
-  }, []);
+  const fetchExistingRetailers = async () => {
+    const { data } = await supabase.from("retailers").select("id, name, town, website");
+    if (data) {
+      setExistingTowns(data.map((r: any) => r.town).filter(Boolean));
+      setExistingRetailers(data as RetailerLite[]);
+    }
+  };
+  useEffect(() => { fetchExistingRetailers(); }, []);
 
   const filtered = useMemo(() => {
     let result = prospects.filter(p => {
