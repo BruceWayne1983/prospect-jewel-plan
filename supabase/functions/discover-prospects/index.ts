@@ -33,31 +33,34 @@ const CATEGORY_QUERIES: Record<string, string> = {
   multi_brand_retailer: "multi-brand retailer boutique",
 };
 
+// Deterministic fit score — verified facts only. NO AI narrative inputs.
+// Inputs: rating (0-5), review_count, has_website, has_contact, is_independent, category
 function calculateFitScore(factors: any) {
-  const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
-  const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
-  const storeQuality = Math.round(((factors.estimated_store_quality || 50) / 95) * 25);
-  const catScore = CAT_SCORES[factors.category_alignment] || 10;
-  const locScore = LOC_SCORES[factors.town_appeal] || 9;
-  let onlineScore = 0;
-  if (factors.has_website) onlineScore += 10;
-  if (factors.has_social_media) onlineScore += 5;
-  let commercialScore;
-  if (factors.estimated_rating > 0) {
-    commercialScore = Math.round((factors.estimated_rating / 5) * 15);
-  } else {
-    commercialScore = 8;
-  }
-  const indepScore = factors.is_independent ? 9 : 3;
-  const total = Math.round(Math.min(100, Math.max(0, storeQuality + catScore + locScore + onlineScore + commercialScore + indepScore)));
+  // Rating 0-5 → 0-30
+  const ratingScore = factors.rating > 0 ? Math.round((Math.min(factors.rating, 5) / 5) * 30) : 0;
+  // Review count bands → 0-20
+  const rc = factors.review_count || 0;
+  const reviewScore = rc >= 200 ? 20 : rc >= 50 ? 15 : rc >= 10 ? 10 : rc > 0 ? 5 : 0;
+  // Verified website → 15
+  const websiteScore = factors.has_website ? 15 : 0;
+  // Verified phone OR email → 15
+  const contactScore = factors.has_contact ? 15 : 0;
+  // Independent → 10
+  const indepScore = factors.is_independent ? 10 : 0;
+  // Category alignment (verified from listing category, not AI guess) → 10
+  const PRIMARY = new Set(["jeweller", "premium_accessories"]);
+  const STRONG = new Set(["gift_shop", "lifestyle_store", "concept_store", "department_store", "garden_centre_gift_hall", "heritage_tourist_gift", "multi_brand_retailer"]);
+  const catScore = PRIMARY.has(factors.category) ? 10 : STRONG.has(factors.category) ? 7 : 4;
+
+  const total = Math.min(100, Math.max(0, ratingScore + reviewScore + websiteScore + contactScore + indepScore + catScore));
   return {
     total,
-    store_quality: { score: storeQuality, max: 25 },
-    category_alignment: { score: catScore, max: 20, value: factors.category_alignment },
-    location_appeal: { score: locScore, max: 15, value: factors.town_appeal },
-    online_presence: { score: onlineScore, max: 15, website: factors.has_website, social: factors.has_social_media },
-    commercial_health: { score: commercialScore, max: 15, rating: factors.estimated_rating },
-    independence: { score: indepScore, max: 10, value: factors.is_independent },
+    rating: { score: ratingScore, max: 30, value: factors.rating || 0 },
+    reviews: { score: reviewScore, max: 20, value: rc },
+    website: { score: websiteScore, max: 15, value: !!factors.has_website },
+    contact: { score: contactScore, max: 15, value: !!factors.has_contact },
+    independence: { score: indepScore, max: 10, value: !!factors.is_independent },
+    category: { score: catScore, max: 10, value: factors.category },
   };
 }
 
@@ -272,18 +275,9 @@ async function classifyAndScoreWithAI(
                     name: { type: "string", description: "Cleaned business name. Do NOT invent — use the supplied name." },
                     town: { type: "string", description: `Real town in ${county} where the shop is based — leave empty if you cannot determine from the description/url` },
                     category: { type: "string", enum: CATEGORIES },
-                    rating: { type: "number", description: "0 if unknown — do NOT guess" },
-                    review_count: { type: "integer", description: "0 if unknown — do NOT guess" },
-                    estimated_store_quality: { type: "integer", description: "Quality score 40-95 based on description signals" },
-                    category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"] },
-                    town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"] },
-                    has_social_media: { type: "boolean" },
-                    is_independent: { type: "boolean" },
-                    has_website: { type: "boolean", description: "True if a real shop website URL was supplied" },
-                    estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                    ai_reason: { type: "string", description: "1-2 sentence explanation of fit" },
+                    is_independent: { type: "boolean", description: "True if independent (not chain). Use only when clearly evidenced." },
                   },
-                  required: ["index", "keep", "name", "category", "category_alignment", "town_appeal", "is_independent", "has_website", "estimated_price_positioning", "estimated_store_quality"],
+                  required: ["index", "keep", "name", "category", "is_independent"],
                   additionalProperties: false,
                 },
               },
@@ -337,16 +331,8 @@ CRITICAL RULES:
         name: src.name, // ALWAYS use the real name from Firecrawl, never the AI's
         town: c.town || "",
         category: c.category,
-        rating: c.rating || 0,
-        review_count: c.review_count || 0,
-        estimated_store_quality: c.estimated_store_quality,
-        category_alignment: c.category_alignment,
-        town_appeal: c.town_appeal,
-        has_social_media: c.has_social_media || false,
         is_independent: c.is_independent !== false,
         has_website: !!src.url,
-        estimated_price_positioning: c.estimated_price_positioning,
-        ai_reason: c.ai_reason || "",
         website: src.url || "",
         _description: src.description || "",
       };
@@ -435,17 +421,16 @@ async function discoverBatch(
   if (unique.length === 0) return { inserted: [], matchedAccounts };
 
   // Step 4: Build insert payload — every row passed URL probe → web_verified
-  const toInsert = unique.map((p: any, idx: number) => {
+  // Verified facts only — NO AI narrative.
+  const toInsert = unique.map((p: any) => {
     const originalIdx = candidates.indexOf(p);
     const factors = {
-      estimated_store_quality: p.estimated_store_quality || 50,
-      category_alignment: p.category_alignment || "moderate",
-      town_appeal: p.town_appeal || "average",
-      has_social_media: p.has_social_media || false,
-      is_independent: p.is_independent !== false,
-      estimated_rating: p.rating || 0,
+      rating: 0, // unknown at discovery; populated later by enrichment
+      review_count: 0,
       has_website: true,
-      price_positioning: p.estimated_price_positioning || "mid_market",
+      has_contact: false,
+      is_independent: p.is_independent !== false,
+      category: p.category,
     };
     const breakdown = calculateFitScore(factors);
     const branch = branchFlags.get(originalIdx);
@@ -456,14 +441,9 @@ async function discoverBatch(
       town: p.town || county,
       county,
       category: p.category,
-      rating: p.rating,
-      review_count: p.review_count,
-      estimated_store_quality: p.estimated_store_quality,
+      rating: 0,
+      review_count: 0,
       predicted_fit_score: breakdown.total,
-      ai_reason: branch
-        ? `⚡ Potential branch of existing account "${branch.related_name}" in ${branch.related_town}. ${p.ai_reason}`
-        : p.ai_reason,
-      estimated_price_positioning: p.estimated_price_positioning,
       website: p.website,
       address: null,
       phone: null,
@@ -479,7 +459,6 @@ async function discoverBatch(
       raw_data: {
         fit_score_factors: factors,
         fit_score_breakdown: breakdown,
-        firecrawl_description: p._description,
         ...(branch ? { related_account_id: branch.related_account_id, related_account_name: branch.related_name, related_account_town: branch.related_town, is_potential_branch: true } : {}),
       },
     };

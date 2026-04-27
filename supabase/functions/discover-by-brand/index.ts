@@ -19,31 +19,26 @@ const CATEGORIES = [
   "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
+// Deterministic fit score — verified facts only. NO AI narrative inputs.
 function calculateFitScore(factors: any) {
-  const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
-  const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
-  const storeQuality = Math.round(((factors.estimated_store_quality || 50) / 95) * 25);
-  const catScore = CAT_SCORES[factors.category_alignment] || 10;
-  const locScore = LOC_SCORES[factors.town_appeal] || 9;
-  let onlineScore = 0;
-  if (factors.has_website) onlineScore += 10;
-  if (factors.has_social_media) onlineScore += 5;
-  let commercialScore;
-  if (factors.estimated_rating > 0) {
-    commercialScore = Math.round((factors.estimated_rating / 5) * 15);
-  } else {
-    commercialScore = 8;
-  }
-  const indepScore = factors.is_independent ? 9 : 3;
-  const total = Math.round(Math.min(100, Math.max(0, storeQuality + catScore + locScore + onlineScore + commercialScore + indepScore)));
+  const ratingScore = factors.rating > 0 ? Math.round((Math.min(factors.rating, 5) / 5) * 30) : 0;
+  const rc = factors.review_count || 0;
+  const reviewScore = rc >= 200 ? 20 : rc >= 50 ? 15 : rc >= 10 ? 10 : rc > 0 ? 5 : 0;
+  const websiteScore = factors.has_website ? 15 : 0;
+  const contactScore = factors.has_contact ? 15 : 0;
+  const indepScore = factors.is_independent ? 10 : 0;
+  const PRIMARY = new Set(["jeweller", "premium_accessories"]);
+  const STRONG = new Set(["gift_shop", "lifestyle_store", "concept_store", "department_store", "garden_centre_gift_hall", "heritage_tourist_gift", "multi_brand_retailer"]);
+  const catScore = PRIMARY.has(factors.category) ? 10 : STRONG.has(factors.category) ? 7 : 4;
+  const total = Math.min(100, Math.max(0, ratingScore + reviewScore + websiteScore + contactScore + indepScore + catScore));
   return {
     total,
-    store_quality: { score: storeQuality, max: 25 },
-    category_alignment: { score: catScore, max: 20, value: factors.category_alignment },
-    location_appeal: { score: locScore, max: 15, value: factors.town_appeal },
-    online_presence: { score: onlineScore, max: 15, website: factors.has_website, social: factors.has_social_media },
-    commercial_health: { score: commercialScore, max: 15, rating: factors.estimated_rating },
-    independence: { score: indepScore, max: 10, value: factors.is_independent },
+    rating: { score: ratingScore, max: 30, value: factors.rating || 0 },
+    reviews: { score: reviewScore, max: 20, value: rc },
+    website: { score: websiteScore, max: 15, value: !!factors.has_website },
+    contact: { score: contactScore, max: 15, value: !!factors.has_contact },
+    independence: { score: indepScore, max: 10, value: !!factors.is_independent },
+    category: { score: catScore, max: 10, value: factors.category },
   };
 }
 
@@ -146,27 +141,14 @@ Deno.serve(async (req) => {
                   items: {
                     type: "object",
                     properties: {
-                      name: { type: "string", description: "Realistic shop name" },
+                      name: { type: "string", description: "Real shop name — only if you can name a verifiable independent retailer" },
                       town: { type: "string", description: "Real town in the South West" },
                       county: { type: "string", enum: SOUTH_WEST_COUNTIES },
                       category: { type: "string", enum: CATEGORIES },
-                      rating: { type: "number", description: "Google rating 3.5-5.0, or 0 if unknown" },
-                      review_count: { type: "integer", description: "Number of reviews, or 0 if unknown" },
-                      estimated_store_quality: { type: "integer", description: "Quality score 40-95" },
-                      category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"], description: "How well the store category aligns with Nomination Italy" },
-                      town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"], description: "Town retail appeal level" },
-                      has_social_media: { type: "boolean", description: "ONLY true if verified. Default false." },
-                      is_independent: { type: "boolean", description: "Whether independent (not a chain)" },
-                      has_website: { type: "boolean", description: "ONLY true if verified. Default false." },
-                      brands_stocked: { type: "array", items: { type: "string" }, description: `Brands this store likely stocks` },
-                      ai_reason: { type: "string", description: "2-sentence explanation focusing on brand connection" },
-                      estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                      website: { type: "string", description: "Leave EMPTY." },
-                      address: { type: "string", description: "Leave EMPTY." },
-                      phone: { type: "string", description: "Leave EMPTY." },
-                      email: { type: "string", description: "Leave EMPTY." },
+                      is_independent: { type: "boolean", description: "Whether independent (not a chain). Only true when clearly evidenced." },
+                      brands_stocked: { type: "array", items: { type: "string" }, description: "Brands this store likely stocks" },
                     },
-                    required: ["name", "town", "county", "category", "rating", "review_count", "estimated_store_quality", "category_alignment", "town_appeal", "has_social_media", "is_independent", "has_website", "brands_stocked", "ai_reason", "estimated_price_positioning"],
+                    required: ["name", "town", "county", "category", "is_independent", "brands_stocked"],
                     additionalProperties: false,
                   },
                 },
@@ -186,15 +168,12 @@ CRITICAL EXCLUSION RULES:
 - Do NOT include toy stores, children's shops, chain stores, or online-only stores.
 - ONLY independent physical retail stores.
 
-GARDEN CENTRE RULE: Include garden centres with substantial gift halls as "garden_centre_gift_hall" with verification note.
+GARDEN CENTRE RULE: Include garden centres with substantial gift halls as "garden_centre_gift_hall".
 
-SCORING FACTORS — Return RAW FACTOR VALUES:
-- category_alignment: "perfect" for jewellers/premium accessories, "strong" for gift shops/lifestyle, "moderate" for fashion/concept/bridal, "weak" for other
-- town_appeal: "prime" for major retail destinations, "good" for strong market towns, "average" for smaller towns, "poor" for rural
-- has_social_media: ONLY true if verified. Default false if uncertain.
-- has_website: ONLY true if verified. Default false if uncertain.
-
-CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fields empty.${notFitContext}`,
+VERIFIED-DATA-ONLY RULES:
+- Do NOT generate phone, email, address, website, rating, review counts, or fit narrative.
+- Do NOT estimate quality or price positioning.
+- Only output facts you can defend (name, town, county, category, brands stocked, independence).${notFitContext}`,
           },
           {
             role: "user",
@@ -268,14 +247,12 @@ CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fie
 
     const toInsert = unique.map((p: any, idx: number) => {
       const factors = {
-        estimated_store_quality: p.estimated_store_quality || 50,
-        category_alignment: p.category_alignment || 'moderate',
-        town_appeal: p.town_appeal || 'average',
-        has_social_media: p.has_social_media || false,
+        rating: 0,
+        review_count: 0,
+        has_website: false,
+        has_contact: false,
         is_independent: p.is_independent !== false,
-        estimated_rating: p.rating || 0,
-        has_website: p.has_website || false,
-        price_positioning: p.estimated_price_positioning || 'mid_market',
+        category: p.category,
       };
       const breakdown = calculateFitScore(factors);
       const branch = branchFlags.get(idx);
@@ -286,24 +263,20 @@ CONTACT DETAILS RULE: Do NOT generate any contact details. Leave all contact fie
         town: p.town,
         county: p.county,
         category: p.category,
-        rating: p.rating,
-        review_count: p.review_count,
-        estimated_store_quality: p.estimated_store_quality,
+        rating: 0,
+        review_count: 0,
         predicted_fit_score: breakdown.total,
-        ai_reason: branch
-          ? `⚡ Potential branch of existing account "${branch.related_name}" in ${branch.related_town}. [Stocks: ${(p.brands_stocked || []).join(", ")}] ${p.ai_reason}`
-          : `[Stocks: ${(p.brands_stocked || []).join(", ")}] ${p.ai_reason}`,
-        estimated_price_positioning: p.estimated_price_positioning,
-        website: p.website || null,
-        address: p.address || null,
-        phone: p.phone || null,
-        email: p.email || null,
+        website: null,
+        address: null,
+        phone: null,
+        email: null,
         discovery_source: `Brand: ${brand}`,
         verification_status: "unverified",
         status: "new",
         raw_data: {
           fit_score_factors: factors,
           fit_score_breakdown: breakdown,
+          brands_stocked: p.brands_stocked || [],
           ...(branch ? { related_account_id: branch.related_account_id, related_account_name: branch.related_name, related_account_town: branch.related_town, is_potential_branch: true } : {}),
         },
       };

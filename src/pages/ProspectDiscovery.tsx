@@ -79,24 +79,24 @@ function ScoreBreakdownTooltip({ prospect }: { prospect: DiscoveredProspect }) {
   const breakdown = rawData?.fit_score_breakdown;
   const scoreFactors = rawData?.fit_score_factors;
 
-  // Use actual breakdown if available, otherwise approximate
+  // New deterministic breakdown shape (rating, reviews, website, contact, independence, category)
   const factors = breakdown ? [
-    { label: 'Store Quality', score: breakdown.store_quality?.score ?? 0, max: 25, detail: `${scoreFactors?.estimated_store_quality ?? '?'}/95` },
-    { label: 'Category Fit', score: breakdown.category_alignment?.score ?? 0, max: 20, detail: breakdown.category_alignment?.value ?? 'unknown' },
-    { label: 'Location Appeal', score: breakdown.location_appeal?.score ?? 0, max: 15, detail: breakdown.location_appeal?.value ?? 'unknown' },
-    { label: 'Online Presence', score: breakdown.online_presence?.score ?? 0, max: 15, detail: `${breakdown.online_presence?.website ? '✓ Website' : '✗ No site'} · ${breakdown.online_presence?.social ? '✓ Socials' : '✗ No socials'}` },
-    { label: 'Commercial Health', score: breakdown.commercial_health?.score ?? 0, max: 15, detail: `★${breakdown.commercial_health?.rating ?? 0}` },
-    { label: 'Independence', score: breakdown.independence?.score ?? 0, max: 10, detail: breakdown.independence?.value ? 'Independent' : 'Chain/Franchise' },
+    { label: 'Rating', score: breakdown.rating?.score ?? 0, max: 30, detail: `★${breakdown.rating?.value ?? 0}` },
+    { label: 'Reviews', score: breakdown.reviews?.score ?? 0, max: 20, detail: `${breakdown.reviews?.value ?? 0} reviews` },
+    { label: 'Website', score: breakdown.website?.score ?? 0, max: 15, detail: breakdown.website?.value ? '✓ Verified' : '✗ None' },
+    { label: 'Contact', score: breakdown.contact?.score ?? 0, max: 15, detail: breakdown.contact?.value ? '✓ Verified' : '✗ None' },
+    { label: 'Independence', score: breakdown.independence?.score ?? 0, max: 10, detail: breakdown.independence?.value ? 'Independent' : 'Chain' },
+    { label: 'Category', score: breakdown.category?.score ?? 0, max: 10, detail: breakdown.category?.value ?? p.category },
   ] : [
-    { label: 'Store Quality', score: Math.round(((p.estimated_store_quality ?? 50) / 95) * 25), max: 25, detail: `${p.estimated_store_quality ?? 50}/95` },
-    { label: 'Category Fit', score: 12, max: 20, detail: 'estimated' },
-    { label: 'Location Appeal', score: 9, max: 15, detail: `${p.town}` },
-    { label: 'Online Presence', score: (p.website ? 8 : 0) + ((p.instagram || p.facebook || p.tiktok || p.twitter) ? 7 : 0), max: 15, detail: 'estimated' },
-    { label: 'Commercial Health', score: p.rating ? Math.round((Number(p.rating) / 5) * 15) : 8, max: 15, detail: `★${p.rating ?? '?'}` },
-    { label: 'Independence', score: 9, max: 10, detail: 'assumed' },
+    { label: 'Rating', score: p.rating ? Math.round((Number(p.rating) / 5) * 30) : 0, max: 30, detail: `★${p.rating ?? '?'}` },
+    { label: 'Reviews', score: 0, max: 20, detail: `${p.review_count ?? 0}` },
+    { label: 'Website', score: p.website ? 15 : 0, max: 15, detail: p.website ? '✓' : '✗' },
+    { label: 'Contact', score: (p.phone || p.email) ? 15 : 0, max: 15, detail: (p.phone || p.email) ? '✓' : '✗' },
+    { label: 'Independence', score: 10, max: 10, detail: 'assumed' },
+    { label: 'Category', score: 7, max: 10, detail: p.category },
   ];
 
-  const hasSocials = breakdown ? breakdown.online_presence?.social : !!(p.instagram || p.facebook || p.tiktok || p.twitter || p.linkedin);
+  const hasSocials = !!(p.instagram || p.facebook || p.tiktok || p.twitter || p.linkedin);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -265,7 +265,7 @@ export default function ProspectDiscovery() {
       case 'fit_low': result.sort((a, b) => (a.predicted_fit_score ?? 0) - (b.predicted_fit_score ?? 0)); break;
       case 'rating': result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)); break;
       case 'reviews': result.sort((a, b) => (b.review_count ?? 0) - (a.review_count ?? 0)); break;
-      case 'quality': result.sort((a, b) => (b.estimated_store_quality ?? 0) - (a.estimated_store_quality ?? 0)); break;
+      case 'quality': result.sort((a, b) => (b.predicted_fit_score ?? 0) - (a.predicted_fit_score ?? 0)); break;
       case 'county': result.sort((a, b) => a.county.localeCompare(b.county)); break;
       case 'name': result.sort((a, b) => a.name.localeCompare(b.name)); break;
       case 'oldest': result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()); break;
@@ -313,7 +313,6 @@ export default function ProspectDiscovery() {
           discovery_source: prospect.discovery_source,
           rating: prospect.rating,
           predicted_fit_score: prospect.predicted_fit_score,
-          ai_reason: prospect.ai_reason,
         },
       } as any);
     }
@@ -330,18 +329,14 @@ export default function ProspectDiscovery() {
     const { error } = await supabase.from("retailers").insert({
       user_id: user.id, name: p.name, town: p.town, county: p.county,
       category: p.category, rating: p.rating, review_count: p.review_count,
-      store_positioning: p.estimated_price_positioning, fit_score: p.predicted_fit_score,
+      fit_score: p.predicted_fit_score,
       address: p.address, website: p.website, lat: p.lat, lng: p.lng,
       phone: p.phone || null, email: p.email || null,
       instagram: (p as any).instagram || null, facebook: (p as any).facebook || null,
       tiktok: (p as any).tiktok || null, twitter: (p as any).twitter || null,
       linkedin: (p as any).linkedin || null, social_verified: (p as any).social_verified || false,
-      pipeline_stage: 'new_lead', ai_notes: p.ai_reason,
+      pipeline_stage: 'new_lead',
       store_images: (p as any).store_images || [],
-      follower_counts: (p as any).follower_counts || {},
-      estimated_monthly_traffic: (p as any).estimated_monthly_traffic || null,
-      google_review_summary: (p as any).google_review_summary || null,
-      google_review_highlights: (p as any).google_review_highlights || [],
     });
 
     if (error) { toast.error("Failed to promote prospect"); console.error(error); return; }
@@ -891,7 +886,6 @@ export default function ProspectDiscovery() {
                     )}
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground">{manualResult.store?.ai_reason}</p>
                 <div className="flex items-center gap-4 flex-wrap text-[10px] text-muted-foreground">
                   {manualResult.store?.website && <span className="flex items-center gap-1"><Globe className="w-3 h-3" />{manualResult.store.website}</span>}
                   {manualResult.store?.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{manualResult.store.phone}</span>}
@@ -901,7 +895,6 @@ export default function ProspectDiscovery() {
                 </div>
                 <div className="flex items-center gap-3 text-[10px]">
                   <span>Fit: <strong>{manualResult.store?.predicted_fit_score}</strong>/100</span>
-                  <span>Quality: <strong>{manualResult.store?.estimated_store_quality}</strong>/100</span>
                   {manualResult.store?.rating > 0 && <span>★ {manualResult.store?.rating} ({manualResult.store?.review_count} reviews)</span>}
                 </div>
                 {manualResult.store?.data_sources?.length > 0 && (
@@ -1220,48 +1213,19 @@ export default function ProspectDiscovery() {
                     {(p as any).social_verified && <span className="text-[9px] px-2 py-0.5 rounded-full bg-success-light text-success font-medium">✓ Verified</span>}
                   </div>
                 )}
-                {/* Follower counts & traffic */}
-                {((p as any).follower_counts && Object.values((p as any).follower_counts as Record<string, number>).some(v => v > 0)) || (p as any).estimated_monthly_traffic ? (
+                {/* Store images count (verified upload, not AI) */}
+                {(p as any).store_images?.length > 0 && (
                   <div className="flex items-center gap-3 mb-3 flex-wrap">
-                    {(p as any).follower_counts && (() => {
-                      const fc = (p as any).follower_counts as Record<string, number>;
-                      const total = Object.values(fc).reduce((s, v) => s + (v || 0), 0);
-                      return total > 0 ? (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-champagne/30 text-gold-dark border border-gold/10">
-                          👥 {total.toLocaleString()} total followers
-                        </span>
-                      ) : null;
-                    })()}
-                    {(p as any).estimated_monthly_traffic > 0 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-info-light text-info border border-info/10">
-                        🌐 ~{((p as any).estimated_monthly_traffic as number).toLocaleString()}/mo visitors
-                      </span>
-                    )}
-                    {(p as any).google_review_summary && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning-light text-warning border border-warning/10" title={(p as any).google_review_summary}>
-                        ⭐ Reviews analysed
-                      </span>
-                    )}
-                    {(p as any).store_images?.length > 0 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-foreground border border-border/20">
-                        📸 {(p as any).store_images.length} images
-                      </span>
-                    )}
-                  </div>
-                ) : null}
-                {p.ai_reason && (
-                  <div className="bg-champagne/15 rounded-lg p-3 border border-gold/10">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-gold mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                      <p className="text-xs text-foreground leading-relaxed italic font-display">{p.ai_reason}</p>
-                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-foreground border border-border/20">
+                      📸 {(p as any).store_images.length} images
+                    </span>
                   </div>
                 )}
               </div>
               <div className="flex flex-col items-end gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
                 <ScoreBreakdownTooltip prospect={p} />
                 <div className="text-[10px] text-muted-foreground capitalize">
-                  Est. quality: {p.estimated_store_quality}/100
+                  {p.review_count ? `${p.review_count} reviews` : 'No reviews yet'}
                 </div>
                 {/* Verify buttons */}
                 <div className="flex gap-1.5">

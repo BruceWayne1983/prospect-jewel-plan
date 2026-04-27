@@ -11,31 +11,26 @@ const CATEGORIES = [
   "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
+// Deterministic fit score — verified facts only. NO AI narrative inputs.
 function calculateFitScore(factors: any) {
-  const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
-  const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
-  const storeQuality = Math.round(((factors.estimated_store_quality || 50) / 95) * 25);
-  const catScore = CAT_SCORES[factors.category_alignment] || 10;
-  const locScore = LOC_SCORES[factors.town_appeal] || 9;
-  let onlineScore = 0;
-  if (factors.has_website) onlineScore += 10;
-  if (factors.has_social_media) onlineScore += 5;
-  let commercialScore;
-  if (factors.estimated_rating > 0) {
-    commercialScore = Math.round((factors.estimated_rating / 5) * 15);
-  } else {
-    commercialScore = 8;
-  }
-  const indepScore = factors.is_independent ? 9 : 3;
-  const total = Math.round(Math.min(100, Math.max(0, storeQuality + catScore + locScore + onlineScore + commercialScore + indepScore)));
+  const ratingScore = factors.rating > 0 ? Math.round((Math.min(factors.rating, 5) / 5) * 30) : 0;
+  const rc = factors.review_count || 0;
+  const reviewScore = rc >= 200 ? 20 : rc >= 50 ? 15 : rc >= 10 ? 10 : rc > 0 ? 5 : 0;
+  const websiteScore = factors.has_website ? 15 : 0;
+  const contactScore = factors.has_contact ? 15 : 0;
+  const indepScore = factors.is_independent ? 10 : 0;
+  const PRIMARY = new Set(["jeweller", "premium_accessories"]);
+  const STRONG = new Set(["gift_shop", "lifestyle_store", "concept_store", "department_store", "garden_centre_gift_hall", "heritage_tourist_gift", "multi_brand_retailer"]);
+  const catScore = PRIMARY.has(factors.category) ? 10 : STRONG.has(factors.category) ? 7 : 4;
+  const total = Math.min(100, Math.max(0, ratingScore + reviewScore + websiteScore + contactScore + indepScore + catScore));
   return {
     total,
-    store_quality: { score: storeQuality, max: 25 },
-    category_alignment: { score: catScore, max: 20, value: factors.category_alignment },
-    location_appeal: { score: locScore, max: 15, value: factors.town_appeal },
-    online_presence: { score: onlineScore, max: 15, website: factors.has_website, social: factors.has_social_media },
-    commercial_health: { score: commercialScore, max: 15, rating: factors.estimated_rating },
-    independence: { score: indepScore, max: 10, value: factors.is_independent },
+    rating: { score: ratingScore, max: 30, value: factors.rating || 0 },
+    reviews: { score: reviewScore, max: 20, value: rc },
+    website: { score: websiteScore, max: 15, value: !!factors.has_website },
+    contact: { score: contactScore, max: 15, value: !!factors.has_contact },
+    independence: { score: indepScore, max: 10, value: !!factors.is_independent },
+    category: { score: catScore, max: 10, value: factors.category },
   };
 }
 
@@ -141,37 +136,31 @@ Deno.serve(async (req) => {
           type: "function",
           function: {
             name: "extract_store_data",
-            description: "Extract verified data about a specific retail store from web search results with scoring factors",
+            description: "Extract verified data about a specific retail store from web search results — verbatim only, no guessing.",
             parameters: {
               type: "object",
               properties: {
-                found: { type: "boolean", description: "Whether the specific store was found" },
-                name: { type: "string", description: "Confirmed store name" },
-                town: { type: "string", description: "Town or city" },
-                county: { type: "string", description: "County" },
+                found: { type: "boolean", description: "Whether the specific store was found in the scraped content" },
+                name: { type: "string", description: "Confirmed store name verbatim from content" },
+                town: { type: "string", description: "Town or city verbatim from content" },
+                county: { type: "string", description: "County verbatim from content" },
                 category: { type: "string", enum: CATEGORIES },
-                address: { type: "string", description: "Full address — ONLY if found. Empty if not." },
-                phone: { type: "string", description: "Phone — ONLY if found. Empty if not." },
-                email: { type: "string", description: "Email — ONLY if found. Empty if not." },
-                website: { type: "string", description: "Own website URL — ONLY if found. Empty if not." },
-                instagram: { type: "string", description: "Instagram — ONLY if found. Empty if not." },
-                facebook: { type: "string", description: "Facebook — ONLY if found. Empty if not." },
-                tiktok: { type: "string", description: "TikTok — ONLY if found. Empty if not." },
-                twitter: { type: "string", description: "Twitter — ONLY if found. Empty if not." },
-                rating: { type: "number", description: "Google rating if found, 0 if not" },
-                review_count: { type: "integer", description: "Review count if found, 0 if not" },
-                estimated_store_quality: { type: "integer", description: "Quality estimate 40-95" },
-                category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"], description: "Category fit for Nomination" },
-                town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"], description: "Town retail appeal" },
-                has_social_media: { type: "boolean", description: "true ONLY if social media found in scraped content" },
-                is_independent: { type: "boolean", description: "Whether independent" },
+                address: { type: "string", description: "Full address — verbatim from content. Empty if not found." },
+                phone: { type: "string", description: "Phone — verbatim from content. Empty if not found." },
+                email: { type: "string", description: "Email — verbatim from content. Empty if not found." },
+                website: { type: "string", description: "Own website URL — verbatim. Empty if not found." },
+                instagram: { type: "string", description: "Instagram — verbatim. Empty if not found." },
+                facebook: { type: "string", description: "Facebook — verbatim. Empty if not found." },
+                tiktok: { type: "string", description: "TikTok — verbatim. Empty if not found." },
+                twitter: { type: "string", description: "Twitter — verbatim. Empty if not found." },
+                rating: { type: "number", description: "Google rating verbatim from content, 0 if not found" },
+                review_count: { type: "integer", description: "Review count verbatim from content, 0 if not found" },
+                is_independent: { type: "boolean", description: "Whether independent — only true when clearly evidenced" },
                 has_website: { type: "boolean", description: "true ONLY if own website found" },
-                estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                ai_reason: { type: "string", description: "3-4 sentence analysis citing sources" },
                 data_sources: { type: "array", items: { type: "string" }, description: "URLs where data was found" },
                 confidence: { type: "string", enum: ["high", "medium", "low"] },
               },
-              required: ["found", "name", "town", "county", "category", "address", "phone", "email", "website", "instagram", "facebook", "tiktok", "twitter", "rating", "review_count", "estimated_store_quality", "category_alignment", "town_appeal", "has_social_media", "is_independent", "has_website", "estimated_price_positioning", "ai_reason", "data_sources", "confidence"],
+              required: ["found", "name", "town", "county", "category", "address", "phone", "email", "website", "instagram", "facebook", "tiktok", "twitter", "rating", "review_count", "is_independent", "has_website", "data_sources", "confidence"],
               additionalProperties: false,
             },
           },
@@ -183,22 +172,17 @@ Deno.serve(async (req) => {
             content: `You are a UK retail intelligence researcher for Nomination Italy. Extract ONLY verified data from the scraped content.
 
 CRITICAL RULES:
-1. ONLY include contact details that appear in the scraped content. Do NOT guess.
+1. Every field must come VERBATIM from the scraped content. Do NOT guess, infer, or estimate ANY value.
 2. For website: Only the store's OWN website, not directories.
 3. For social media: Only handles/URLs that appear in the content.
 4. If store NOT found, set found=false.
-
-SCORING FACTORS — Return RAW FACTOR VALUES:
-- category_alignment: "perfect" for jewellers/premium accessories, "strong" for gift shops/lifestyle, "moderate" for fashion/concept/bridal, "weak" for other
-- town_appeal: "prime" for major retail destinations, "good" for strong market towns, "average" for smaller towns, "poor" for rural
-- has_social_media: true ONLY if social media found in scraped content
-- has_website: true ONLY if own website found in scraped content
+5. Do NOT write narrative, summaries, fit reasons, or quality estimates.
 
 STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores, dept stores, garden centre gift halls, wedding/bridal, heritage/tourist gifts, multi-brand retailers.${category ? `\n- Expected type: "${category.replace("_", " ")}" — verify this matches.` : ""}`,
           },
           {
             role: "user",
-            content: `Search for "${searchName}"${town ? ` in or near ${town}` : ' in the UK'}.${category ? ` Expected type: ${category.replace("_", " ")}.` : ''} Extract VERIFIED data only.\n\n${scrapedContent || "No search results found."}`,
+            content: `Search for "${searchName}"${town ? ` in or near ${town}` : ' in the UK'}.${category ? ` Expected type: ${category.replace("_", " ")}.` : ''} Extract VERIFIED data only — verbatim from sources.\n\n${scrapedContent || "No search results found."}`,
           },
         ],
       }),
@@ -224,7 +208,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
     if (!result.found) {
       return new Response(JSON.stringify({
         success: true, found: false,
-        message: `Could not find "${searchName}" in web results. ${result.ai_reason || ''}`,
+        message: `Could not find "${searchName}" in web results.`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -254,16 +238,14 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
     // If name matches a retailer in a different town, flag as potential branch
     const branchOf = differentTownRetailer || null;
 
-    // Calculate deterministic fit score
+    // Deterministic fit score from verified facts only
     const factors = {
-      estimated_store_quality: result.estimated_store_quality || 50,
-      category_alignment: result.category_alignment || 'moderate',
-      town_appeal: result.town_appeal || 'average',
-      has_social_media: result.has_social_media || !!(result.instagram || result.facebook || result.tiktok || result.twitter),
+      rating: result.rating || 0,
+      review_count: result.review_count || 0,
+      has_website: !!(result.website),
+      has_contact: !!(result.phone || result.email),
       is_independent: result.is_independent !== false,
-      estimated_rating: result.rating || 0,
-      has_website: result.has_website || !!(result.website),
-      price_positioning: result.estimated_price_positioning || 'mid_market',
+      category: result.category,
     };
     const breakdown = calculateFitScore(factors);
 
@@ -275,12 +257,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
       category: result.category,
       rating: result.rating || null,
       review_count: result.review_count || null,
-      estimated_store_quality: result.estimated_store_quality,
       predicted_fit_score: breakdown.total,
-      ai_reason: branchOf
-        ? `⚡ Potential branch of existing account "${branchOf.name}" in ${branchOf.town}. ${result.ai_reason}`
-        : result.ai_reason,
-      estimated_price_positioning: result.estimated_price_positioning,
       website: result.website || null,
       address: result.address || null,
       phone: result.phone || null,

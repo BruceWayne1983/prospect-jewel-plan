@@ -1,179 +1,92 @@
-# Plan: Cross-Validated Contact Verification
+# Verified-Data-Only Prospect Policy
 
-Make sure every prospect's **name + website + phone + email + address** all belong to the **same business** — not a coincidental match, not a directory listing, not a different shop with a similar name.
+## Goal
+Prospect records and the prospect UI must contain **only high-level verified data** sourced from real signals (Google Maps listing, website scrape, Companies House, postcode validators, social handles found verbatim). All AI-generated narrative — fit reasons, review summaries, traffic estimates, store-quality guesses, qualitative location context — is removed.
 
----
+## What counts as "verified" (kept)
+- Name, address, town, county, postcode (from Google Places / Maps result)
+- Lat / lng (from Maps)
+- Phone, email, website (only when scraped verbatim from the official site or Maps listing — already enforced by `contact-verification-provenance`)
+- Social handles (only when found verbatim on the site)
+- Google rating + review count (numeric, from Maps)
+- Companies House registration data
+- Identity Score + 8 cross-validation check results (deterministic)
+- Verification status badge
 
-## The problem with what we have today
+## What counts as "AI-generated" (removed)
+- `ai_reason` — AI's free-text fit explanation
+- `google_review_summary` + `google_review_highlights` — AI summarisation of reviews
+- `location_context` — AI narrative about the town
+- `estimated_monthly_traffic` — AI guess
+- `follower_counts` — AI guess (not scraped)
+- `estimated_store_quality` — AI guess (0–95 number)
+- `estimated_price_positioning` — AI guess
+- `ai_notes`, `ai_intelligence` blobs on the retailer record
 
-`enrich-contact-details` already scrapes phone/email/address from the official site, but it does **not prove** they belong to the named business. Failure cases that slip through:
+## Changes
 
-- Site found is a **different shop with the same name** in a different town
-- Phone number scraped is a **supplier/partner** mentioned on the page, not the shop
-- Email is a generic Wix/Squarespace **template placeholder**
-- Address is from a **footer of a sister site** or a wholesale partner
-- Google Maps listing scraped is the **wrong branch** of a chain
+### 1. Discovery edge functions — stop generating these fields
+Files: `discover-prospects`, `discover-web`, `discover-by-brand`, `discover-locations`, `search-store`
 
-We need a **cross-validation layer** that scores each field against multiple independent sources and refuses to mark a prospect verified unless they corroborate.
+- Remove from AI tool schemas: `ai_reason`, `estimated_store_quality`, `estimated_price_positioning`, `google_review_summary`, `google_review_highlights`, `location_context`, `estimated_monthly_traffic`, `follower_counts`.
+- Replace `predicted_fit_score` calculation: instead of weighting AI's `estimated_store_quality`, derive a deterministic score from verified inputs only:
+  - Google rating (0–5) → 30 pts
+  - Review count bands (10/50/200+) → 20 pts
+  - Has website (verified) → 15 pts
+  - Has verified phone OR email → 15 pts
+  - Independent (Companies House / not chain) → 10 pts
+  - Category alignment (jeweller/gift/fashion) → 10 pts
+- Insert prospects with the AI-narrative columns set to `null` / `[]` / `{}`.
 
----
+### 2. Promote-to-retailer flow (`ProspectDiscovery.tsx`, `ProspectProfile.tsx`)
+- Stop copying `ai_reason → ai_notes`.
+- Stop copying `google_review_summary`, `google_review_highlights`, `estimated_monthly_traffic`, `follower_counts`, `location_context` onto the new retailer row. Pass `null` / empty.
 
-## New verification pipeline
+### 3. Prospect UI — remove narrative blocks
+`src/pages/ProspectDiscovery.tsx` (list cards) and `src/pages/ProspectProfile.tsx`:
+- Remove the "AI Reason" / italic narrative card.
+- Remove the Google review summary + highlights block.
+- Remove the follower-count badges and the `~X/mo visitors` traffic badge.
+- Remove the location-context paragraph.
+- Keep: Identity Confidence Panel, verified contact rows (with provenance badges), rating/review-count chip, address, Companies House info, deterministic fit score with its factor breakdown.
 
-```text
-        ┌────────────────────────┐
-        │  enrich-contact-details │  (existing — scrapes raw values)
-        └───────────┬─────────────┘
-                    │ raw candidates
-                    ▼
-        ┌────────────────────────┐
-        │  cross-validate-contact │  (NEW — proves they belong together)
-        └───────────┬─────────────┘
-                    │
-   ┌────────────────┼────────────────┐
-   ▼                ▼                ▼
-Name match      Location        Cross-source
- on site        match           agreement
-   │                │                │
-   └────────────────┼────────────────┘
-                    ▼
-            Identity score 0–100
-                    │
-        ┌───────────┼────────────┐
-        ▼           ▼            ▼
-      ≥80         50–79         <50
-   web_verified  needs_review  rejected
+### 4. Database hygiene (one-time backfill migration)
+On `discovered_prospects` and `retailers`, null out the AI-narrative columns for existing rows so the UI is consistent immediately:
+```sql
+UPDATE discovered_prospects SET
+  ai_reason = NULL,
+  google_review_summary = NULL,
+  google_review_highlights = '[]'::jsonb,
+  location_context = NULL,
+  estimated_monthly_traffic = NULL,
+  follower_counts = '{}'::jsonb;
+
+UPDATE retailers SET
+  ai_notes = NULL,
+  google_review_summary = NULL,
+  google_review_highlights = '[]'::jsonb,
+  location_context = NULL,
+  estimated_monthly_traffic = NULL,
+  follower_counts = '{}'::jsonb,
+  ai_intelligence = '{}'::jsonb
+WHERE pipeline_stage IN ('new_lead','researching','qualifying');
 ```
+(Columns themselves are kept — AI summaries on **approved retailers** for briefings/pitches are still allowed; this only blanks unverified prospect-stage rows.)
 
----
+### 5. Memory update
+Save a new constraint memory: `mem://features/no-ai-prospect-details` — "Prospect records show verified facts only. No AI narrative, review summaries, traffic estimates, store-quality guesses, or fit prose. Fit score is deterministic from rating, reviews, verified contacts, independence, category."
 
-## The 8 cross-validation checks (all run, all logged)
+## Out of scope
+- AI use elsewhere (Pre-visit briefings, pitch personaliser, follow-up drafter, voice-to-CRM) — these run on **approved current accounts** with verified data, and remain unchanged.
+- Identity cross-validation pipeline — already deterministic, stays as-is.
 
-For each candidate field, the new function runs every check that applies and stores the result in `verification_data.cross_checks`:
-
-### 1. **Business name appears on the website**
-Fetch the official site's homepage + `/contact`. Confirm the business name (case-insensitive, fuzzy ≥85%) appears in `<title>`, `<h1>`, or page body. **Fails if** the site title is for a different business.
-
-### 2. **Town/postcode appears on the website**
-The prospect's town must appear on the contact page or in a postcode within 10 miles. **Fails if** the address on the site is in a different region.
-
-### 3. **Email domain matches website domain**
-`info@brightonjewels.co.uk` on `brightonjewels.co.uk` = ✅ high confidence. Generic Gmail/Hotmail = medium. Mismatch with another business's domain = ❌ rejected.
-
-### 4. **Phone reverse lookup**
-Search the scraped phone in Google (`"01273 123456" jewellery`) and confirm at least one result links it to the business name. Catches phone numbers that actually belong to a different listed business.
-
-### 5. **Google Maps name + address agreement**
-Pull the Maps listing for `name + town`. Confirm the Maps name fuzzy-matches the prospect name AND the Maps address is within 200m of the website's stated address (or postcodes match).
-
-### 6. **Companies House lineage** (UK only)
-For limited companies, check the trading address on file matches the scraped address. Flag if the company is dissolved.
-
-### 7. **Postcode validity**
-Use the free **postcodes.io** API (no key needed) to confirm the scraped UK postcode is real and resolves to the stated town/county.
-
-### 8. **Social handle ownership**
-If we have an Instagram/Facebook handle, confirm the bio on that page mentions the same town or website domain.
-
----
-
-## Identity Score (0–100)
-
-Weighted sum of passed checks:
-
-| Check | Weight | Required for "web_verified"? |
-|---|---|---|
-| Name on website | 25 | **Yes** (hard gate) |
-| Town/postcode on website | 15 | **Yes** (hard gate) |
-| Email domain matches | 15 | No |
-| Phone reverse lookup | 15 | No |
-| Maps name + address agree | 15 | No |
-| Companies House match | 5 | No |
-| Postcode valid via postcodes.io | 5 | No |
-| Social handle owns the business | 5 | No |
-
-**Outcomes:**
-- **≥ 80** → `verification_status = 'web_verified'`, badge: "✓ Cross-checked"
-- **50–79** → `verification_status = 'needs_review'` (NEW), shown in amber with the failed checks listed
-- **< 50** → `verification_status = 'verified_fake'`, hidden from main list
-
-If either hard gate (name or town on website) fails, the prospect is **automatically downgraded** regardless of other scores.
-
----
-
-## What gets shown in the UI
-
-On every prospect card and profile page, a new **"Identity Confidence"** panel:
-
-```text
-✓ Identity Confidence: 92/100
-  ✓ Name "Brighton Jewels" found on brightonjewels.co.uk
-  ✓ Town "Brighton" matches contact page address
-  ✓ Email info@brightonjewels.co.uk matches website domain
-  ✓ Phone 01273 ... reverse-lookup confirms business
-  ✓ Google Maps listing matches (BN1 1AA)
-  ✗ Not registered at Companies House (sole trader — OK)
-```
-
-Each check links to the source URL it was verified against (provenance preserved).
-
----
-
-## Files & changes
-
-### New
-- `supabase/functions/cross-validate-contact/index.ts` — runs the 8 checks, computes identity score, writes to `verification_data.identity_check`
-- `supabase/config.toml` — register the new function with `verify_jwt = false`
-
-### Modified
-- `supabase/functions/enrich-contact-details/index.ts` — at the end, invoke `cross-validate-contact` automatically and let it set the final `verification_status`
-- `supabase/functions/discover-prospects/index.ts`, `discover-web/index.ts`, `discover-by-brand/index.ts` — chain the new validator after insert so every newly discovered prospect is scored on creation
-- `src/pages/ProspectProfile.tsx` — add `IdentityConfidencePanel` showing the 8 checks with pass/fail icons + source links
-- `src/pages/ProspectDiscovery.tsx` — add a "Confidence" column with the score, sort by it, and a filter "Hide < 80"
-
-### Database (no schema change)
-All cross-check results store inside the existing `verification_data` jsonb column under a new key:
-
-```json
-{
-  "identity_check": {
-    "score": 92,
-    "ran_at": "2026-04-27T...",
-    "checks": {
-      "name_on_site": { "pass": true, "source_url": "..." },
-      "town_on_site": { "pass": true, "source_url": "..." },
-      "email_domain_matches": { "pass": true },
-      "phone_reverse_lookup": { "pass": true, "source_url": "..." },
-      "maps_agreement": { "pass": true, "source_url": "..." },
-      "companies_house_match": { "pass": false, "reason": "not_registered" },
-      "postcode_valid": { "pass": true, "source": "postcodes.io" },
-      "social_ownership": { "pass": null, "reason": "no_handle_provided" }
-    }
-  }
-}
-```
-
-A new enum value `needs_review` is added to `verification_status` via migration.
-
----
-
-## External APIs used
-
-- **Firecrawl** — already wired (search + scrape)
-- **postcodes.io** — `https://api.postcodes.io/postcodes/{pc}` — free, no key, validates UK postcodes
-- **Google Maps via Firecrawl** — already wired
-- **Companies House** — already wired via existing `companies-house` function
-
-No new secrets required.
-
----
-
-## What this prevents
-
-- ❌ "Smith Jewellers, Bristol" being verified using `smith-jewellers-london.co.uk`
-- ❌ Phone numbers belonging to a competitor cited on the page
-- ❌ Generic `hello@wixsite.com` placeholders being treated as real emails
-- ❌ A dissolved limited company appearing as an active prospect
-- ❌ Wrong-branch Google Maps listings polluting addresses
-
-Every "web_verified" prospect from now on will have **provable, cross-referenced evidence** that name, address, phone, email and website all belong to the same physical business.
+## Files touched
+- `supabase/functions/discover-prospects/index.ts`
+- `supabase/functions/discover-web/index.ts`
+- `supabase/functions/discover-by-brand/index.ts`
+- `supabase/functions/discover-locations/index.ts`
+- `supabase/functions/search-store/index.ts`
+- `src/pages/ProspectDiscovery.tsx`
+- `src/pages/ProspectProfile.tsx`
+- New migration: blank AI-narrative columns on prospect rows
+- New memory file
