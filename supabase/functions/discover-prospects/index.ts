@@ -19,6 +19,26 @@ const CATEGORIES = [
   "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
+// Priority territory towns for gap-led discovery (Emma's South West + South Wales territory)
+const TERRITORY_TOWNS: Array<{ town: string; county: string; priority_score: number }> = [
+  { town: "Cardiff", county: "Cardiff", priority_score: 95 },
+  { town: "Newport", county: "Newport", priority_score: 90 },
+  { town: "Cheltenham", county: "Gloucestershire", priority_score: 90 },
+  { town: "Bath", county: "Somerset", priority_score: 88 },
+  { town: "Exeter", county: "Devon", priority_score: 85 },
+  { town: "Swindon", county: "Wiltshire", priority_score: 80 },
+  { town: "Bristol", county: "Bristol", priority_score: 85 },
+  { town: "Truro", county: "Cornwall", priority_score: 70 },
+  { town: "Cardigan", county: "Ceredigion", priority_score: 65 },
+  { town: "Aberystwyth", county: "Ceredigion", priority_score: 65 },
+  { town: "Monmouth", county: "Monmouthshire", priority_score: 70 },
+  { town: "Abergavenny", county: "Monmouthshire", priority_score: 75 },
+  { town: "Tenby", county: "Pembrokeshire", priority_score: 70 },
+  { town: "Pembroke", county: "Pembrokeshire", priority_score: 65 },
+];
+
+type DiscoveryMode = 'route_aligned' | 'gap_led' | 'lookalike' | 'specific';
+
 const CATEGORY_QUERIES: Record<string, string> = {
   jeweller: "independent jeweller jewellery shop",
   gift_shop: "independent gift shop",
