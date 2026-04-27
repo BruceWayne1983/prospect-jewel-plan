@@ -421,17 +421,16 @@ async function discoverBatch(
   if (unique.length === 0) return { inserted: [], matchedAccounts };
 
   // Step 4: Build insert payload — every row passed URL probe → web_verified
-  const toInsert = unique.map((p: any, idx: number) => {
+  // Verified facts only — NO AI narrative.
+  const toInsert = unique.map((p: any) => {
     const originalIdx = candidates.indexOf(p);
     const factors = {
-      estimated_store_quality: p.estimated_store_quality || 50,
-      category_alignment: p.category_alignment || "moderate",
-      town_appeal: p.town_appeal || "average",
-      has_social_media: p.has_social_media || false,
-      is_independent: p.is_independent !== false,
-      estimated_rating: p.rating || 0,
+      rating: 0, // unknown at discovery; populated later by enrichment
+      review_count: 0,
       has_website: true,
-      price_positioning: p.estimated_price_positioning || "mid_market",
+      has_contact: false,
+      is_independent: p.is_independent !== false,
+      category: p.category,
     };
     const breakdown = calculateFitScore(factors);
     const branch = branchFlags.get(originalIdx);
@@ -442,14 +441,9 @@ async function discoverBatch(
       town: p.town || county,
       county,
       category: p.category,
-      rating: p.rating,
-      review_count: p.review_count,
-      estimated_store_quality: p.estimated_store_quality,
+      rating: 0,
+      review_count: 0,
       predicted_fit_score: breakdown.total,
-      ai_reason: branch
-        ? `⚡ Potential branch of existing account "${branch.related_name}" in ${branch.related_town}. ${p.ai_reason}`
-        : p.ai_reason,
-      estimated_price_positioning: p.estimated_price_positioning,
       website: p.website,
       address: null,
       phone: null,
@@ -465,7 +459,6 @@ async function discoverBatch(
       raw_data: {
         fit_score_factors: factors,
         fit_score_breakdown: breakdown,
-        firecrawl_description: p._description,
         ...(branch ? { related_account_id: branch.related_account_id, related_account_name: branch.related_name, related_account_town: branch.related_town, is_potential_branch: true } : {}),
       },
     };
