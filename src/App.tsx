@@ -44,15 +44,16 @@ function AppRoutes() {
     );
   }
 
-  // Auth temporarily disabled — dashboard accessible without login
-  // if (!user) {
-  //   return (
-  //     <Routes>
-  //       <Route path="/reset-password" element={<ResetPassword />} />
-  //       <Route path="*" element={<Auth />} />
-  //     </Routes>
-  //   );
-  // }
+  // Demo mode auto-logs in as Emma in useAuth; this gate is a fallback
+  // that only shows if auto-login fails.
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="*" element={<Auth />} />
+      </Routes>
+    );
+  }
 
   // Authenticated routes
   return (
