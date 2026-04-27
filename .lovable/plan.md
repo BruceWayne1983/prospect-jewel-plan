@@ -1,42 +1,45 @@
-# Demo Mode — Silent Auto-Login as Emma
+## Plan
 
-## Why auto-login (not "no login")
+The issue is not stale UI state: the discovery page is successfully loading real rows from the backend, and the current snapshot shows 68 prospects still present. The screenshot also shows **Hide unverified** enabled, which can make the visible list appear empty even while the counters still show data.
 
-The app's features are tightly coupled to a real authenticated user:
-- ~15 edge functions (Discovery, Emma Assistant, Companies House, Voice-to-CRM, Reports analysis, Geocoding, etc.) reject calls without a valid JWT.
-- Pages like Current Accounts, Prospect Discovery, Dashboard, Data Hub, My Reports, Brand Hub all read `user.id` and run `ensureSession()`.
-- RLS policies on every table key off `auth.uid()`.
+### What I’ll implement
 
-Simply hiding the login screen (current state) will leave the dashboard visible but every action — discovery, AI, voice notes, billing, reports, retailer profiles — will fail silently with 401s or empty data.
+1. **Clear the existing prospect dataset**
+   - Remove existing rows from the prospect discovery data so the demo starts fresh.
+   - Clear both:
+     - discovered prospects
+     - learned disqualification patterns
+   - If you want a total reset, I’ll also verify no related demo-only prospect state remains elsewhere.
 
-The proper demo solution: **auto-sign-in as Emma in the background** whenever no session exists. The user never sees a login screen, and every feature works exactly as it does in production.
+2. **Fix the confusing empty-list state on `/discovery`**
+   - Change the default behavior of the **Hide unverified** toggle so it does not hide everything on first load.
+   - Add a clear empty-state message when filters are hiding all loaded prospects, e.g. “68 prospects loaded, but hidden by current filters.”
+   - Make the stats and visible list behavior feel consistent.
 
-## What changes
+3. **Add a proper demo reset control**
+   - Add a visible **Clear all prospects** action on the discovery page for quick demo resets.
+   - This will clear prospect discovery data without needing manual backend intervention each time.
+   - Include confirmation to prevent accidental wipes.
 
-### 1. `src/hooks/useAuth.tsx` — silent auto-login
-- After `getSession()` returns no session, call `supabase.auth.signInWithPassword()` using Emma's credentials baked in for demo mode.
-- Show the loader until either the existing session resolves or the auto-login completes.
-- If auto-login fails (e.g. wrong password), surface a small toast but still render the app so the cause is visible.
+4. **Verify end-to-end behavior**
+   - Confirm the discovery request returns zero rows after reset.
+   - Confirm cards update to zero.
+   - Confirm the page no longer looks blank/misleading because of the verification filter.
+   - Confirm a new scan repopulates the list correctly.
 
-Credentials used for the silent sign-in:
-- Email: `emmalouisegregory@yahoo.com`
-- Password: `JuneMum43` (the password set earlier this session)
+## Technical details
 
-### 2. `src/App.tsx` — re-enable the auth gate
-- Restore the `if (!user)` block so the app waits for a real session before rendering routes.
-- Because `useAuth` now auto-logs-in, the gate effectively never shows the Auth page during demo.
-- `/reset-password` stays public.
+- Files likely involved:
+  - `src/pages/ProspectDiscovery.tsx`
+  - backend data reset via migration or permitted delete action
+- Root cause confirmed:
+  - `/discovery` fetches directly from `discovered_prospects`
+  - current network snapshot returned real prospect rows for Emma’s session
+  - `Hide unverified` is currently defaulted to `true`, which can hide most/all freshly discovered records
+- Data to clear:
+  - `public.discovered_prospects`
+  - `public.disqualification_patterns`
 
-### 3. Keep `Auth.tsx` as-is
-- Login form still exists as a fallback if auto-login ever fails or the demo creds change.
-- Sign-up remains removed.
+## Expected result
 
-## Result
-
-- Open the app → brief loader → fully signed-in as Emma → every page, edge function, AI feature, and RLS-protected query works normally.
-- No login screen, no manual step.
-- Easy to switch back to real login later: remove the auto-sign-in block in `useAuth.tsx`.
-
-## Security note
-
-The demo password will live in the client bundle. That's acceptable here because (per earlier message) the app is already private to your circle and not publicly linked. When you're ready to ship publicly, we remove the auto-login block and the credentials go with it.
+After this change, the demo will open with a genuinely clean prospect list, the page won’t appear empty for confusing reasons, and you’ll have a quick way to reset prospects again before demos.
