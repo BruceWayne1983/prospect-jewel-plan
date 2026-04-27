@@ -12,6 +12,7 @@ import { CompaniesHouseCheck } from "@/components/retailer/CompaniesHouseCheck";
 import { BillingPanel } from "@/components/retailer/BillingPanel";
 import { GroupAccounts } from "@/components/retailer/GroupAccounts";
 import { NearbyProspects } from "@/components/retailer/NearbyProspects";
+import { ContactProvenancePanel } from "@/components/retailer/ContactProvenancePanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
@@ -485,6 +486,16 @@ export default function RetailerProfile() {
               <InfoRow label="Positioning" value={r.store_positioning?.replace('_', ' ')} />
             </div>
           </div>
+          <ContactProvenancePanel
+            provenance={(r as any).contact_provenance}
+            values={{
+              phone: r.phone,
+              email: r.email,
+              address: r.address,
+              postcode: r.postcode,
+              instagram: r.instagram,
+            }}
+          />
         </TabsContent>
 
         {/* QUALIFICATION */}
