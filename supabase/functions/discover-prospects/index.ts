@@ -55,7 +55,9 @@ async function discoverBatch(
   count: number,
   existingNames: string[],
   LOVABLE_API_KEY: string,
-  notFitContext: string = ""
+  notFitContext: string = "",
+  existingRetailers: Array<{ id: string; name: string; town: string }> = [],
+  existingProspects: Array<{ name: string; town: string }> = []
 ) {
   const excludeClause = existingNames.length > 0
     ? `\n\nDo NOT include any of these existing stores (already in the system): ${existingNames.join(", ")}`
@@ -320,7 +322,7 @@ Deno.serve(async (req) => {
             const inserted = await discoverBatch(supabase, userId, c, cat, batchSize, [
               ...existingNames,
               ...allInserted.map((p: any) => p.name),
-            ], LOVABLE_API_KEY, notFitContext);
+            ], LOVABLE_API_KEY, notFitContext, retailerEntries, existingProspects || []);
             allInserted = allInserted.concat(inserted);
           } catch (err: any) {
             console.error(`Batch error for ${c}/${cat}:`, err.message);
@@ -342,7 +344,7 @@ Deno.serve(async (req) => {
       const targetCategory = category || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
       const targetCount = Math.min(count || 15, 20);
 
-      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, targetCount, existingNames, LOVABLE_API_KEY, notFitContext);
+      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, targetCount, existingNames, LOVABLE_API_KEY, notFitContext, retailerEntries, existingProspects || []);
       allInserted = inserted;
     }
 
