@@ -44,15 +44,15 @@ function AppRoutes() {
     );
   }
 
-  // Public routes — accessible without auth
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="*" element={<Auth />} />
-      </Routes>
-    );
-  }
+  // Auth temporarily disabled — dashboard accessible without login
+  // if (!user) {
+  //   return (
+  //     <Routes>
+  //       <Route path="/reset-password" element={<ResetPassword />} />
+  //       <Route path="*" element={<Auth />} />
+  //     </Routes>
+  //   );
+  // }
 
   // Authenticated routes
   return (
