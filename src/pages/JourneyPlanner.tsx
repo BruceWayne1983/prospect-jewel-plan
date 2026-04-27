@@ -766,6 +766,13 @@ export default function JourneyPlanner() {
                                 onBooked={() => {}}
                               />
                             )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeStopFromRoute(activeRoute.name, r.id); }}
+                              className="ml-1 p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Remove this stop from the route"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
                         </div>
                         </div>
