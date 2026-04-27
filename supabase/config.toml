@@ -1,31 +1,25 @@
 project_id = "eaofahkmbxlfpyoqgypa"
 
-[functions.discover-prospects]
-verify_jwt = false
-
-[functions.analyse-retailer]
-verify_jwt = false
-
-[functions.generate-briefing]
-verify_jwt = false
-
-[functions.generate-followup]
-verify_jwt = false
-
-[functions.generate-pitch]
-verify_jwt = false
-
-[functions.voice-to-crm]
-verify_jwt = false
-
-[functions.companies-house]
-verify_jwt = false
-
-[functions.verify-social]
-verify_jwt = false
-
-[functions.cross-validate-contact]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = true
+[functions]
+  [functions.analyse-retailer]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.companies-house]
+    verify_jwt = false
+  [functions.cross-validate-contact]
+    verify_jwt = false
+  [functions.discover-prospects]
+    verify_jwt = false
+  [functions.generate-briefing]
+    verify_jwt = false
+  [functions.generate-followup]
+    verify_jwt = false
+  [functions.generate-pitch]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.verify-social]
+    verify_jwt = false
+  [functions.voice-to-crm]
+    verify_jwt = false
