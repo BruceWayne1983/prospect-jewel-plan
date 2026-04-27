@@ -1225,8 +1225,11 @@ export default function ProspectDiscovery() {
                     <Button variant="outline" size="sm" onClick={() => updateStatus(p.id, 'accepted')} className="text-[10px] h-7 px-2 border-success/40 text-success hover:bg-success-light">
                       <CheckCircle className="w-3 h-3 mr-1" /> Accept
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => openDismissDialog(p)} className="text-[10px] h-7 px-2 text-muted-foreground/50">
+                    <Button variant="ghost" size="sm" onClick={() => openDismissDialog(p)} className="text-[10px] h-7 px-2 text-muted-foreground/50" title="Dismiss (logs pattern for AI learning)">
                       <XCircle className="w-3 h-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteProspectPermanently(p)} className="text-[10px] h-7 px-2 text-destructive/60 hover:text-destructive hover:bg-destructive/10" title="Delete permanently">
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
                 ) : p.status === 'accepted' ? (
@@ -1250,9 +1253,17 @@ export default function ProspectDiscovery() {
                         <TooltipContent className="text-xs">Verify this store exists before adding to pipeline</TooltipContent>
                       )}
                     </Tooltip>
+                    <Button variant="ghost" size="sm" onClick={() => deleteProspectPermanently(p)} className="text-[10px] h-7 px-2 text-destructive/60 hover:text-destructive hover:bg-destructive/10" title="Delete permanently">
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 ) : (
-                  <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>
+                    <Button variant="ghost" size="sm" onClick={() => deleteProspectPermanently(p)} className="text-[10px] h-7 px-2 text-destructive/60 hover:text-destructive hover:bg-destructive/10" title="Delete permanently">
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
