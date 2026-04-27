@@ -19,7 +19,7 @@ export const PIPELINE_STAGES: { key: PipelineStage; label: string }[] = [
 ];
 
 export const COUNTIES = [
-  'Somerset', 'Devon', 'Cornwall', 'Dorset', 'Wiltshire', 'Gloucestershire', 'Bristol', 'Avon',
+  'Somerset', 'Devon', 'Cornwall', 'Wiltshire', 'Gloucestershire', 'Bristol', 'Avon',
   'Herefordshire', 'Worcestershire',
   'Cardiff', 'Swansea', 'Newport', 'Vale of Glamorgan', 'Bridgend', 'Neath Port Talbot',
   'Carmarthenshire', 'Pembrokeshire', 'Monmouthshire', 'Rhondda Cynon Taf', 'Merthyr Tydfil',
@@ -67,8 +67,6 @@ export const territoryOpportunities = [
   { town: 'Bath', county: 'Somerset', opportunityScore: 98, currentProspects: 2, predictedValue: '£38,000–£60,000', characteristics: 'UNESCO heritage, 6M+ tourists, affluent locals, premium retail', similarTo: ['York', 'Edinburgh', 'Canterbury'] },
   { town: 'Cheltenham', county: 'Gloucestershire', opportunityScore: 92, currentProspects: 2, predictedValue: '£20,000–£32,000', characteristics: 'Affluent spa town, racing season, premium retail, festivals', similarTo: ['Harrogate', 'Tunbridge Wells'] },
   { town: 'Bristol', county: 'Avon', opportunityScore: 90, currentProspects: 2, predictedValue: '£20,000–£32,000', characteristics: 'Major city, affluent suburbs, young professional, strong independent retail', similarTo: ['Brighton', 'Edinburgh'] },
-  { town: 'Bournemouth', county: 'Dorset', opportunityScore: 85, currentProspects: 1, predictedValue: '£12,000–£18,000', characteristics: 'Coastal resort, affluent Westbourne, growing professional demographic', similarTo: ['Brighton', 'Worthing'] },
-  { town: 'Poole', county: 'Dorset', opportunityScore: 88, currentProspects: 1, predictedValue: '£14,000–£22,000', characteristics: 'Sandbanks affluence, harbour lifestyle, premium retail', similarTo: ['Salcombe', 'Aldeburgh'] },
   { town: 'Truro', county: 'Cornwall', opportunityScore: 75, currentProspects: 1, predictedValue: '£5,000–£9,000', characteristics: 'Cornwall capital, cathedral city, seasonal tourist trade', similarTo: ['Canterbury (smaller)'] },
   { town: 'Exeter', county: 'Devon', opportunityScore: 72, currentProspects: 2, predictedValue: '£9,000–£15,000', characteristics: 'University city, cathedral, regional hub', similarTo: ['Norwich'] },
   { town: 'Salisbury', county: 'Wiltshire', opportunityScore: 70, currentProspects: 1, predictedValue: '£5,000–£9,000', characteristics: 'Cathedral city, Stonehenge tourism, artisan retail', similarTo: ['Wells', 'Chichester'] },
@@ -76,7 +74,7 @@ export const territoryOpportunities = [
   { town: 'Dartmouth', county: 'Devon', opportunityScore: 74, currentProspects: 0, predictedValue: '£5,000–£10,000', characteristics: 'Premium harbour town, sailing community, seasonal tourist peak', similarTo: ['Salcombe', 'Fowey'] },
   { town: 'Marlborough', county: 'Wiltshire', opportunityScore: 76, currentProspects: 0, predictedValue: '£5,000–£10,000', characteristics: 'Affluent market town, wide high street, premium independent retail', similarTo: ['Hungerford', 'Tetbury'] },
   { town: 'Cardiff', county: 'Cardiff', opportunityScore: 93, currentProspects: 0, predictedValue: '£25,000–£40,000', characteristics: 'Capital city, Victorian arcades, affluent suburbs, strong independent retail scene', similarTo: ['Bristol', 'Bath'] },
-  { town: 'Swansea', county: 'Swansea', opportunityScore: 78, currentProspects: 0, predictedValue: '£10,000–£18,000', characteristics: 'Coastal city, Mumbles village premium retail, growing independent scene', similarTo: ['Bournemouth', 'Plymouth'] },
+  { town: 'Swansea', county: 'Swansea', opportunityScore: 78, currentProspects: 0, predictedValue: '£10,000–£18,000', characteristics: 'Coastal city, Mumbles village premium retail, growing independent scene', similarTo: ['Cardiff', 'Plymouth'] },
   { town: 'Cowbridge', county: 'Vale of Glamorgan', opportunityScore: 85, currentProspects: 0, predictedValue: '£8,000–£14,000', characteristics: 'Affluent market town, strong independent boutiques, premium demographic', similarTo: ['Marlborough', 'Tetbury'] },
   { town: 'Abergavenny', county: 'Monmouthshire', opportunityScore: 74, currentProspects: 0, predictedValue: '£5,000–£9,000', characteristics: 'Food capital of Wales, growing artisan retail, affluent market town', similarTo: ['Stow-on-the-Wold', 'Ludlow'] },
   { town: 'Tenby', county: 'Pembrokeshire', opportunityScore: 72, currentProspects: 0, predictedValue: '£5,000–£10,000', characteristics: 'Premium coastal resort, strong seasonal tourist trade, gift-buying visitors', similarTo: ['Dartmouth', 'Fowey'] },
