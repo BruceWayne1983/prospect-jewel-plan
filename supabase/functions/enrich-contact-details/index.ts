@@ -250,6 +250,23 @@ Deno.serve(async (req) => {
       }).eq("id", retailer_id).eq("user_id", user.id);
     }
 
+    // ---- 5. Cross-validate (NEW): proves name+phone+email+address all belong to the same business ----
+    // This may DOWNGRADE verification_status to 'needs_review' or 'verified_fake' if checks fail.
+    try {
+      await supabase.functions.invoke("cross-validate-contact", {
+        body: {
+          prospect_id, retailer_id,
+          name, town, county,
+          website: provenance.website.value || officialUrl,
+          phone: updates.phone || null,
+          email: updates.email || null,
+          address: updates.address || null,
+        },
+      });
+    } catch (e) {
+      console.error("cross-validate chain failed (non-fatal):", e);
+    }
+
     return new Response(JSON.stringify({
       success: true,
       official_website: officialUrl,
