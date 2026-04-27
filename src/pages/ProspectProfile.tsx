@@ -247,8 +247,8 @@ export default function ProspectProfile() {
         {/* Scores */}
         <div className="flex items-center justify-center gap-10">
           <ScoreRing score={p.predicted_fit_score ?? 0} label="Predicted Fit" size={80} />
-          <ScoreRing score={p.estimated_store_quality ?? 0} label="Store Quality" size={80} />
-          <ScoreRing score={p.rating ? Math.round((p.rating / 5) * 100) : 0} label="Rating" size={80} />
+          <ScoreRing score={p.rating ? Math.round((Number(p.rating) / 5) * 100) : 0} label="Rating" size={80} />
+          <ScoreRing score={p.review_count ? Math.min(100, Math.round((p.review_count / 200) * 100)) : 0} label="Reviews" size={80} />
         </div>
       </div>
 

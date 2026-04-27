@@ -79,24 +79,24 @@ function ScoreBreakdownTooltip({ prospect }: { prospect: DiscoveredProspect }) {
   const breakdown = rawData?.fit_score_breakdown;
   const scoreFactors = rawData?.fit_score_factors;
 
-  // Use actual breakdown if available, otherwise approximate
+  // New deterministic breakdown shape (rating, reviews, website, contact, independence, category)
   const factors = breakdown ? [
-    { label: 'Store Quality', score: breakdown.store_quality?.score ?? 0, max: 25, detail: `${scoreFactors?.estimated_store_quality ?? '?'}/95` },
-    { label: 'Category Fit', score: breakdown.category_alignment?.score ?? 0, max: 20, detail: breakdown.category_alignment?.value ?? 'unknown' },
-    { label: 'Location Appeal', score: breakdown.location_appeal?.score ?? 0, max: 15, detail: breakdown.location_appeal?.value ?? 'unknown' },
-    { label: 'Online Presence', score: breakdown.online_presence?.score ?? 0, max: 15, detail: `${breakdown.online_presence?.website ? '✓ Website' : '✗ No site'} · ${breakdown.online_presence?.social ? '✓ Socials' : '✗ No socials'}` },
-    { label: 'Commercial Health', score: breakdown.commercial_health?.score ?? 0, max: 15, detail: `★${breakdown.commercial_health?.rating ?? 0}` },
-    { label: 'Independence', score: breakdown.independence?.score ?? 0, max: 10, detail: breakdown.independence?.value ? 'Independent' : 'Chain/Franchise' },
+    { label: 'Rating', score: breakdown.rating?.score ?? 0, max: 30, detail: `★${breakdown.rating?.value ?? 0}` },
+    { label: 'Reviews', score: breakdown.reviews?.score ?? 0, max: 20, detail: `${breakdown.reviews?.value ?? 0} reviews` },
+    { label: 'Website', score: breakdown.website?.score ?? 0, max: 15, detail: breakdown.website?.value ? '✓ Verified' : '✗ None' },
+    { label: 'Contact', score: breakdown.contact?.score ?? 0, max: 15, detail: breakdown.contact?.value ? '✓ Verified' : '✗ None' },
+    { label: 'Independence', score: breakdown.independence?.score ?? 0, max: 10, detail: breakdown.independence?.value ? 'Independent' : 'Chain' },
+    { label: 'Category', score: breakdown.category?.score ?? 0, max: 10, detail: breakdown.category?.value ?? p.category },
   ] : [
-    { label: 'Store Quality', score: Math.round(((p.estimated_store_quality ?? 50) / 95) * 25), max: 25, detail: `${p.estimated_store_quality ?? 50}/95` },
-    { label: 'Category Fit', score: 12, max: 20, detail: 'estimated' },
-    { label: 'Location Appeal', score: 9, max: 15, detail: `${p.town}` },
-    { label: 'Online Presence', score: (p.website ? 8 : 0) + ((p.instagram || p.facebook || p.tiktok || p.twitter) ? 7 : 0), max: 15, detail: 'estimated' },
-    { label: 'Commercial Health', score: p.rating ? Math.round((Number(p.rating) / 5) * 15) : 8, max: 15, detail: `★${p.rating ?? '?'}` },
-    { label: 'Independence', score: 9, max: 10, detail: 'assumed' },
+    { label: 'Rating', score: p.rating ? Math.round((Number(p.rating) / 5) * 30) : 0, max: 30, detail: `★${p.rating ?? '?'}` },
+    { label: 'Reviews', score: 0, max: 20, detail: `${p.review_count ?? 0}` },
+    { label: 'Website', score: p.website ? 15 : 0, max: 15, detail: p.website ? '✓' : '✗' },
+    { label: 'Contact', score: (p.phone || p.email) ? 15 : 0, max: 15, detail: (p.phone || p.email) ? '✓' : '✗' },
+    { label: 'Independence', score: 10, max: 10, detail: 'assumed' },
+    { label: 'Category', score: 7, max: 10, detail: p.category },
   ];
 
-  const hasSocials = breakdown ? breakdown.online_presence?.social : !!(p.instagram || p.facebook || p.tiktok || p.twitter || p.linkedin);
+  const hasSocials = !!(p.instagram || p.facebook || p.tiktok || p.twitter || p.linkedin);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -265,7 +265,7 @@ export default function ProspectDiscovery() {
       case 'fit_low': result.sort((a, b) => (a.predicted_fit_score ?? 0) - (b.predicted_fit_score ?? 0)); break;
       case 'rating': result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)); break;
       case 'reviews': result.sort((a, b) => (b.review_count ?? 0) - (a.review_count ?? 0)); break;
-      case 'quality': result.sort((a, b) => (b.estimated_store_quality ?? 0) - (a.estimated_store_quality ?? 0)); break;
+      case 'quality': result.sort((a, b) => (b.predicted_fit_score ?? 0) - (a.predicted_fit_score ?? 0)); break;
       case 'county': result.sort((a, b) => a.county.localeCompare(b.county)); break;
       case 'name': result.sort((a, b) => a.name.localeCompare(b.name)); break;
       case 'oldest': result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()); break;
@@ -1225,7 +1225,7 @@ export default function ProspectDiscovery() {
               <div className="flex flex-col items-end gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
                 <ScoreBreakdownTooltip prospect={p} />
                 <div className="text-[10px] text-muted-foreground capitalize">
-                  Est. quality: {p.estimated_store_quality}/100
+                  {p.review_count ? `${p.review_count} reviews` : 'No reviews yet'}
                 </div>
                 {/* Verify buttons */}
                 <div className="flex gap-1.5">
