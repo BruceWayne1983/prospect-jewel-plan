@@ -1330,6 +1330,9 @@ export default function ProspectDiscovery() {
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">{p.status}</span>
+                    <Button variant="ghost" size="sm" onClick={() => openLinkDialog(p)} className="text-[10px] h-7 px-2 text-info/70 hover:text-info hover:bg-info-light" title="Mark as a current account">
+                      <Building2 className="w-3 h-3" />
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteProspectPermanently(p)} className="text-[10px] h-7 px-2 text-destructive/60 hover:text-destructive hover:bg-destructive/10" title="Delete permanently">
                       <Trash2 className="w-3 h-3" />
                     </Button>
