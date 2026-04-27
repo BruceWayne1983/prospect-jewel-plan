@@ -13,6 +13,7 @@ import { BillingPanel } from "@/components/retailer/BillingPanel";
 import { GroupAccounts } from "@/components/retailer/GroupAccounts";
 import { NearbyProspects } from "@/components/retailer/NearbyProspects";
 import { ContactProvenancePanel } from "@/components/retailer/ContactProvenancePanel";
+import { ContactField } from "@/components/contact/ContactField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
@@ -57,6 +58,9 @@ export default function RetailerProfile() {
   const [linkedInResults, setLinkedInResults] = useState<any[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [contactForm, setContactForm] = useState({ phone: '', email: '', website: '', instagram: '', facebook: '', tiktok: '', twitter: '', linkedin: '', address: '', postcode: '' });
+  const [verifyingContacts, setVerifyingContacts] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, string> | null>(null);
+  const [savingSuggestion, setSavingSuggestion] = useState<string | null>(null);
 
   const fetchRetailer = () => {
     if (!id) return;
@@ -162,7 +166,14 @@ export default function RetailerProfile() {
       if (error) throw error;
       if (data?.success) {
         toast.success("AI analysis complete!");
-        fetchRetailer(); // reload with new data
+        // Surface unverified contact suggestions (AI guesses that were NOT persisted)
+        const suggestions = data.unverified_contact_suggestions;
+        if (suggestions && Object.values(suggestions).some(v => !!v)) {
+          setAiSuggestions(suggestions);
+        } else {
+          setAiSuggestions(null);
+        }
+        fetchRetailer();
       } else {
         toast.error(data?.error || "Analysis failed");
       }
@@ -172,6 +183,92 @@ export default function RetailerProfile() {
     } finally {
       setAnalysing(false);
     }
+  };
+
+  const triggerEnrichContactDetails = async () => {
+    if (!id || !r) return;
+    setVerifyingContacts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("enrich-contact-details", {
+        body: { retailer_id: id, name: r.name, town: r.town, county: r.county, website: r.website },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      await fetchRetailer();
+      toast.success("Contact details refreshed from official sources");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to verify contact details");
+    } finally {
+      setVerifyingContacts(false);
+    }
+  };
+
+  const runFullVerification = async () => {
+    if (!id || !r) return;
+    setVerifyingContacts(true);
+    try {
+      // Step 1: scrape website + Google Maps
+      const { data: enrich, error: enrichErr } = await supabase.functions.invoke("enrich-contact-details", {
+        body: { retailer_id: id, name: r.name, town: r.town, county: r.county, website: r.website },
+      });
+      if (enrichErr) throw enrichErr;
+
+      const captured = enrich?.contact || enrich || {};
+      const fieldKeys = ['phone', 'email', 'address', 'postcode', 'instagram'];
+      const capturedCount = fieldKeys.filter(k => captured?.[k]).length;
+
+      // Step 2: cross-validate if we got at least one value
+      if (capturedCount > 0) {
+        const { error: crossErr } = await supabase.functions.invoke("cross-validate-contact", {
+          body: { retailer_id: id },
+        });
+        if (crossErr) console.warn("cross-validate-contact error:", crossErr);
+      }
+
+      await fetchRetailer();
+      toast.success(`Verified ${capturedCount} contact field${capturedCount === 1 ? '' : 's'}`);
+    } catch (err: any) {
+      toast.error(err.message || "Verification failed");
+    } finally {
+      setVerifyingContacts(false);
+    }
+  };
+
+  const saveSuggestion = async (field: string, value: string) => {
+    if (!id) return;
+    setSavingSuggestion(field);
+    try {
+      // Cross-validate the suggested value before saving
+      const { data: cross, error: crossErr } = await supabase.functions.invoke("cross-validate-contact", {
+        body: { retailer_id: id, candidate: { [field]: value } },
+      });
+      if (crossErr) throw crossErr;
+      if (cross?.passed === false) {
+        toast.error(`Could not verify the suggested ${field}. Not saved.`);
+        return;
+      }
+      await fetchRetailer();
+      setAiSuggestions(prev => {
+        if (!prev) return prev;
+        const next = { ...prev };
+        delete next[field];
+        return Object.keys(next).length === 0 ? null : next;
+      });
+      toast.success(`Verified and saved ${field}`);
+    } catch (err: any) {
+      toast.error(err.message || "Verification failed");
+    } finally {
+      setSavingSuggestion(null);
+    }
+  };
+
+  const discardSuggestion = (field: string) => {
+    setAiSuggestions(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return Object.keys(next).length === 0 ? null : next;
+    });
   };
 
   if (loading) return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
@@ -435,9 +532,13 @@ export default function RetailerProfile() {
         <TabsContent value="research" className="space-y-5 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card-premium p-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-base font-display font-semibold text-foreground">Contact & Location</h3>
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={runFullVerification} disabled={verifyingContacts} className="text-[10px] h-7 px-2 border-gold/30 text-gold-dark hover:bg-champagne/30">
+                    {verifyingContacts ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                    Verify contact details
+                  </Button>
                   <Button variant="outline" size="sm" onClick={verifySocial} disabled={verifyingSocial} className="text-[10px] h-7 px-2 border-gold/30 text-gold-dark hover:bg-champagne/30">
                     {verifyingSocial ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
                     {verifyingSocial ? 'Verifying...' : 'AI Verify Social'}
@@ -465,17 +566,22 @@ export default function RetailerProfile() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {r.phone ? <div className="flex items-center gap-3"><Phone className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.phone}</span></div> : <div className="flex items-center gap-3"><Phone className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No phone — click Edit or run AI Analysis</span></div>}
-                  {r.email ? <div className="flex items-center gap-3"><Mail className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.email}</span></div> : <div className="flex items-center gap-3"><Mail className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No email — click Edit or run AI Analysis</span></div>}
-                  {r.website ? <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">{r.website.replace('https://', '')}</a></div> : <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/50 italic">No website</span></div>}
-                  {r.instagram && <div className="flex items-center gap-3"><Instagram className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://instagram.com/${r.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">{r.instagram}</a></div>}
-                  {(r as any).facebook && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={(r as any).facebook.startsWith('http') ? (r as any).facebook : `https://facebook.com/${(r as any).facebook}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">Facebook</a></div>}
-                  {(r as any).tiktok && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://tiktok.com/@${(r as any).tiktok.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">TikTok: {(r as any).tiktok}</a></div>}
-                  {(r as any).twitter && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://x.com/${(r as any).twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">X: {(r as any).twitter}</a></div>}
-                  {(r as any).linkedin && <div className="flex items-center gap-3"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={(r as any).linkedin.startsWith('http') ? (r as any).linkedin : `https://linkedin.com/company/${(r as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">LinkedIn</a></div>}
+                <div className="space-y-1.5">
+                  <ContactField field="phone" value={r.phone} provenanceData={(r as any).contact_provenance} onVerifyClick={triggerEnrichContactDetails} verifyBusy={verifyingContacts} />
+                  <ContactField field="email" value={r.email} provenanceData={(r as any).contact_provenance} onVerifyClick={triggerEnrichContactDetails} verifyBusy={verifyingContacts} />
+                  {r.website ? (
+                    <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-foreground" strokeWidth={1.5} /><a href={r.website.startsWith('http') ? r.website : `https://${r.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark truncate">{r.website.replace('https://', '')}</a></div>
+                  ) : (
+                    <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-muted-foreground/30" strokeWidth={1.5} /><span className="text-xs text-muted-foreground/60 italic">No website on file</span></div>
+                  )}
+                  <ContactField field="instagram" value={r.instagram} provenanceData={(r as any).contact_provenance} onVerifyClick={triggerEnrichContactDetails} verifyBusy={verifyingContacts} />
+                  {(r as any).facebook && <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={(r as any).facebook.startsWith('http') ? (r as any).facebook : `https://facebook.com/${(r as any).facebook}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">Facebook</a></div>}
+                  {(r as any).tiktok && <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://tiktok.com/@${(r as any).tiktok.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">TikTok: {(r as any).tiktok}</a></div>}
+                  {(r as any).twitter && <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={`https://x.com/${(r as any).twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">X: {(r as any).twitter}</a></div>}
+                  {(r as any).linkedin && <div className="flex items-center gap-3 py-1"><Globe className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><a href={(r as any).linkedin.startsWith('http') ? (r as any).linkedin : `https://linkedin.com/company/${(r as any).linkedin}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gold hover:text-gold-dark">LinkedIn</a></div>}
                   {(r as any).social_verified && <div className="flex items-center gap-2 mt-2"><CheckCircle className="w-3.5 h-3.5 text-success" strokeWidth={1.5} /><span className="text-[10px] text-success font-medium">Social accounts verified by AI</span></div>}
-                  {r.address && <div className="flex items-center gap-3"><MapPin className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /><span className="text-sm text-foreground">{r.address}{r.postcode ? `, ${r.postcode}` : ''}</span></div>}
+                  <ContactField field="address" value={r.address} provenanceData={(r as any).contact_provenance} onVerifyClick={triggerEnrichContactDetails} verifyBusy={verifyingContacts} />
+                  <ContactField field="postcode" value={r.postcode} provenanceData={(r as any).contact_provenance} onVerifyClick={triggerEnrichContactDetails} verifyBusy={verifyingContacts} />
                 </div>
               )}
             </div>
@@ -496,6 +602,47 @@ export default function RetailerProfile() {
               instagram: r.instagram,
             }}
           />
+          {aiSuggestions && Object.entries(aiSuggestions).filter(([, v]) => !!v).length > 0 && (
+            <div className="card-premium p-6 space-y-3 border-amber-500/30 bg-amber-500/5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" strokeWidth={1.75} />
+                <div className="flex-1">
+                  <h3 className="text-sm font-display font-semibold text-foreground">AI suggested these contacts — not yet verified</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    These were inferred during analysis but not saved to the record. Verify each before they go live.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(aiSuggestions).filter(([, v]) => !!v).map(([field, value]) => (
+                  <div key={field} className="flex items-center gap-3 p-2.5 rounded-md border border-border/30 bg-card">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{field}</p>
+                      <p className="text-sm text-foreground truncate">{value}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => saveSuggestion(field, value as string)}
+                      disabled={savingSuggestion === field}
+                      className="h-7 text-[10px] gold-gradient text-sidebar-background"
+                    >
+                      {savingSuggestion === field ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                      Verify and save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => discardSuggestion(field)}
+                      disabled={savingSuggestion === field}
+                      className="h-7 text-[10px] text-muted-foreground hover:text-destructive"
+                    >
+                      Discard
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* QUALIFICATION */}
