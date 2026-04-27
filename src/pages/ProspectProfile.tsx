@@ -445,6 +445,75 @@ export default function ProspectProfile() {
         </div>
       </div>
 
+      {/* Identity Confidence — cross-validation results */}
+      {(() => {
+        const ic = ((p as any).verification_data || {}).identity_check;
+        if (!ic) {
+          return (
+            <div className="card-premium p-6 border-warning/30">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-display font-semibold text-foreground flex items-center gap-2"><ShieldQuestion className="w-4 h-4 text-warning" /> Identity Confidence</h3>
+                  <p className="text-xs text-muted-foreground mt-1">No cross-validation has run yet. Click "Verify contacts" above — it will scrape the official site, then run 8 identity checks to prove every contact field belongs to this exact business.</p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        const score = ic.score ?? 0;
+        const tone = score >= 80 ? 'success' : score >= 50 ? 'warning' : 'destructive';
+        const labels: Record<string, string> = {
+          name_on_site: 'Business name appears on its website',
+          town_on_site: 'Town/postcode appears on the website',
+          email_domain_matches: 'Email domain matches website',
+          phone_reverse_lookup: 'Phone reverse-lookup links to business',
+          maps_agreement: 'Google Maps name + postcode agree',
+          companies_house_match: 'Companies House registration matches',
+          postcode_valid: 'Postcode resolves correctly (postcodes.io)',
+          social_ownership: 'Social bio mentions town or website',
+        };
+        return (
+          <div className={`card-premium p-6 border-${tone}/30`}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-sm font-display font-semibold text-foreground flex items-center gap-2">
+                  {tone === 'success' ? <ShieldCheck className="w-4 h-4 text-success" /> : tone === 'warning' ? <ShieldQuestion className="w-4 h-4 text-warning" /> : <ShieldAlert className="w-4 h-4 text-destructive" />}
+                  Identity Confidence
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-1">Last checked {ic.ran_at ? new Date(ic.ran_at).toLocaleString('en-GB') : '—'}</p>
+              </div>
+              <div className="text-right">
+                <p className={`text-3xl font-display font-bold ${tone === 'success' ? 'text-success' : tone === 'warning' ? 'text-warning' : 'text-destructive'}`}>{score}<span className="text-base text-muted-foreground">/100</span></p>
+                {ic.hard_gate_failed && <p className="text-[10px] text-destructive font-medium mt-0.5">⚠ Name or location mismatch</p>}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              {Object.entries(ic.checks || {}).map(([key, c]: [string, any]) => {
+                const label = labels[key] || key;
+                const isHard = c.hard_gate;
+                const icon = c.pass === true ? '✓' : c.pass === false ? '✗' : '–';
+                const color = c.pass === true ? 'text-success' : c.pass === false ? 'text-destructive' : 'text-muted-foreground';
+                return (
+                  <div key={key} className="flex items-start gap-2 text-xs py-1 border-b border-border/10 last:border-0">
+                    <span className={`${color} font-bold w-4 flex-shrink-0`}>{icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-foreground">{label}</span>
+                        {isHard && <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">required</span>}
+                        {c.source_url && <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="text-info hover:underline text-[10px] truncate">source ↗</a>}
+                      </div>
+                      {c.reason && <p className="text-[10px] text-muted-foreground">{c.reason.replace(/_/g, ' ')}</p>}
+                      {c.email_domain && c.website_domain && c.pass === false && <p className="text-[10px] text-destructive">{c.email_domain} vs {c.website_domain}</p>}
+                      {c.maps_postcode && c.site_postcode && c.maps_postcode !== c.site_postcode && <p className="text-[10px] text-warning">Maps: {c.maps_postcode} · Site: {c.site_postcode}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* AI Analysis & Discovery Details */}
       <div className="card-premium p-6 border-gold/20">
         <div className="flex items-center gap-2.5 mb-4">
