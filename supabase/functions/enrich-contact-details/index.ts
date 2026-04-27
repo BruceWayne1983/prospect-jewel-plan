@@ -227,26 +227,44 @@ Deno.serve(async (req) => {
     if (provenance.email.value && provenance.email.confidence !== "low") updates.email = provenance.email.value;
     if (provenance.address.value && provenance.address.confidence === "high") updates.address = provenance.address.value;
 
+    // Build per-field contact_provenance entries for the new column.
+    // Only fields we just verified from a real source get a fresh trusted entry.
+    const nowIso = new Date().toISOString();
+    const fieldProvenance: Record<string, { source: string; verified_at: string; verified_by: string; needs_review: boolean }> = {};
+    if (updates.phone) {
+      fieldProvenance.phone = { source: provenance.phone.source === "google_maps" ? "google_maps" : "website", verified_at: nowIso, verified_by: "system", needs_review: false };
+    }
+    if (updates.email) {
+      fieldProvenance.email = { source: "website", verified_at: nowIso, verified_by: "system", needs_review: false };
+    }
+    if (updates.address) {
+      fieldProvenance.address = { source: provenance.address.source === "google_maps" ? "google_maps" : "website", verified_at: nowIso, verified_by: "system", needs_review: false };
+    }
+
     const verification_data = {
-      verified_at: new Date().toISOString(),
+      verified_at: nowIso,
       method: "enrich-contact-details",
       contact_provenance: provenance,
     };
 
     if (prospect_id) {
-      const { data: existing } = await supabase.from("discovered_prospects").select("verification_data").eq("id", prospect_id).single();
+      const { data: existing } = await supabase.from("discovered_prospects").select("verification_data, contact_provenance").eq("id", prospect_id).single();
       const merged = { ...(existing?.verification_data as any || {}), ...verification_data };
+      const mergedProvenance = { ...((existing?.contact_provenance as any) || {}), ...fieldProvenance };
       await supabase.from("discovered_prospects").update({
         ...updates,
         verification_status: "web_verified",
         verification_data: merged,
+        contact_provenance: mergedProvenance,
       }).eq("id", prospect_id).eq("user_id", user.id);
     } else if (retailer_id) {
-      const { data: existing } = await supabase.from("retailers").select("ai_intelligence").eq("id", retailer_id).single();
+      const { data: existing } = await supabase.from("retailers").select("ai_intelligence, contact_provenance").eq("id", retailer_id).single();
       const aiInt = (existing?.ai_intelligence as any) || {};
+      const mergedProvenance = { ...((existing?.contact_provenance as any) || {}), ...fieldProvenance };
       await supabase.from("retailers").update({
         ...updates,
-        ai_intelligence: { ...aiInt, contact_provenance: provenance, contact_verified_at: new Date().toISOString() },
+        ai_intelligence: { ...aiInt, contact_provenance: provenance, contact_verified_at: nowIso },
+        contact_provenance: mergedProvenance,
       }).eq("id", retailer_id).eq("user_id", user.id);
     }
 

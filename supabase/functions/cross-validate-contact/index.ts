@@ -328,18 +328,46 @@ Deno.serve(async (req) => {
     };
 
     // ---- Persist ----
+    // If validation succeeded, mark each present contact field as verified (trusted source).
+    // If it failed, flip needs_review=true on each existing entry without overwriting source.
+    const validationPassed = !hardGateFailed && score >= 80;
+    const nowIso = new Date().toISOString();
+    const presentFields: Array<['phone' | 'email' | 'address', string | null | undefined, string]> = [
+      ['phone', phone, 'website'],
+      ['email', email, 'website'],
+      ['address', address, 'website'],
+    ];
+
+    function buildProvenanceUpdate(existingProvenance: Record<string, any>): Record<string, any> {
+      const next: Record<string, any> = { ...(existingProvenance || {}) };
+      for (const [field, value, sourceWhenVerified] of presentFields) {
+        if (!value) continue;
+        if (validationPassed) {
+          next[field] = { source: sourceWhenVerified, verified_at: nowIso, verified_by: 'system', needs_review: false };
+        } else {
+          const prev = next[field] || { source: 'unknown', verified_at: null, verified_by: null };
+          next[field] = { ...prev, needs_review: true };
+        }
+      }
+      return next;
+    }
+
     if (prospect_id) {
-      const { data: existing } = await supabase.from("discovered_prospects").select("verification_data").eq("id", prospect_id).single();
+      const { data: existing } = await supabase.from("discovered_prospects").select("verification_data, contact_provenance").eq("id", prospect_id).single();
       const merged = { ...((existing?.verification_data as any) || {}), identity_check };
+      const mergedProvenance = buildProvenanceUpdate((existing?.contact_provenance as any) || {});
       await supabase.from("discovered_prospects").update({
         verification_status,
         verification_data: merged,
+        contact_provenance: mergedProvenance,
       }).eq("id", prospect_id).eq("user_id", user.id);
     } else if (retailer_id) {
-      const { data: existing } = await supabase.from("retailers").select("ai_intelligence").eq("id", retailer_id).single();
+      const { data: existing } = await supabase.from("retailers").select("ai_intelligence, contact_provenance").eq("id", retailer_id).single();
       const aiInt = (existing?.ai_intelligence as any) || {};
+      const mergedProvenance = buildProvenanceUpdate((existing?.contact_provenance as any) || {});
       await supabase.from("retailers").update({
         ai_intelligence: { ...aiInt, identity_check },
+        contact_provenance: mergedProvenance,
       }).eq("id", retailer_id).eq("user_id", user.id);
     }
 
