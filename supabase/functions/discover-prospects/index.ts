@@ -322,7 +322,7 @@ Deno.serve(async (req) => {
             const inserted = await discoverBatch(supabase, userId, c, cat, batchSize, [
               ...existingNames,
               ...allInserted.map((p: any) => p.name),
-            ], LOVABLE_API_KEY, notFitContext);
+            ], LOVABLE_API_KEY, notFitContext, retailerEntries, existingProspects || []);
             allInserted = allInserted.concat(inserted);
           } catch (err: any) {
             console.error(`Batch error for ${c}/${cat}:`, err.message);
@@ -344,7 +344,7 @@ Deno.serve(async (req) => {
       const targetCategory = category || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
       const targetCount = Math.min(count || 15, 20);
 
-      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, targetCount, existingNames, LOVABLE_API_KEY, notFitContext);
+      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, targetCount, existingNames, LOVABLE_API_KEY, notFitContext, retailerEntries, existingProspects || []);
       allInserted = inserted;
     }
 
