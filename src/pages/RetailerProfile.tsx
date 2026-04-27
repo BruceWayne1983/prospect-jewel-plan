@@ -602,6 +602,47 @@ export default function RetailerProfile() {
               instagram: r.instagram,
             }}
           />
+          {aiSuggestions && Object.entries(aiSuggestions).filter(([, v]) => !!v).length > 0 && (
+            <div className="card-premium p-6 space-y-3 border-amber-500/30 bg-amber-500/5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" strokeWidth={1.75} />
+                <div className="flex-1">
+                  <h3 className="text-sm font-display font-semibold text-foreground">AI suggested these contacts — not yet verified</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    These were inferred during analysis but not saved to the record. Verify each before they go live.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(aiSuggestions).filter(([, v]) => !!v).map(([field, value]) => (
+                  <div key={field} className="flex items-center gap-3 p-2.5 rounded-md border border-border/30 bg-card">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{field}</p>
+                      <p className="text-sm text-foreground truncate">{value}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => saveSuggestion(field, value as string)}
+                      disabled={savingSuggestion === field}
+                      className="h-7 text-[10px] gold-gradient text-sidebar-background"
+                    >
+                      {savingSuggestion === field ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                      Verify and save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => discardSuggestion(field)}
+                      disabled={savingSuggestion === field}
+                      className="h-7 text-[10px] text-muted-foreground hover:text-destructive"
+                    >
+                      Discard
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* QUALIFICATION */}
