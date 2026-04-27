@@ -25,31 +25,26 @@ const SEARCH_QUERIES: Record<string, string[]> = {
   multi_brand_retailer: ["multi brand retailer", "multi brand boutique", "brand stockist"],
 };
 
+// Deterministic fit score — verified facts only. NO AI narrative inputs.
 function calculateFitScore(factors: any) {
-  const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
-  const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
-  const storeQuality = Math.round(((factors.estimated_store_quality || 50) / 95) * 25);
-  const catScore = CAT_SCORES[factors.category_alignment] || 10;
-  const locScore = LOC_SCORES[factors.town_appeal] || 9;
-  let onlineScore = 0;
-  if (factors.has_website) onlineScore += 10;
-  if (factors.has_social_media) onlineScore += 5;
-  let commercialScore;
-  if (factors.estimated_rating > 0) {
-    commercialScore = Math.round((factors.estimated_rating / 5) * 15);
-  } else {
-    commercialScore = 8;
-  }
-  const indepScore = factors.is_independent ? 9 : 3;
-  const total = Math.round(Math.min(100, Math.max(0, storeQuality + catScore + locScore + onlineScore + commercialScore + indepScore)));
+  const ratingScore = factors.rating > 0 ? Math.round((Math.min(factors.rating, 5) / 5) * 30) : 0;
+  const rc = factors.review_count || 0;
+  const reviewScore = rc >= 200 ? 20 : rc >= 50 ? 15 : rc >= 10 ? 10 : rc > 0 ? 5 : 0;
+  const websiteScore = factors.has_website ? 15 : 0;
+  const contactScore = factors.has_contact ? 15 : 0;
+  const indepScore = factors.is_independent ? 10 : 0;
+  const PRIMARY = new Set(["jeweller", "premium_accessories"]);
+  const STRONG = new Set(["gift_shop", "lifestyle_store", "concept_store", "department_store", "garden_centre_gift_hall", "heritage_tourist_gift", "multi_brand_retailer"]);
+  const catScore = PRIMARY.has(factors.category) ? 10 : STRONG.has(factors.category) ? 7 : 4;
+  const total = Math.min(100, Math.max(0, ratingScore + reviewScore + websiteScore + contactScore + indepScore + catScore));
   return {
     total,
-    store_quality: { score: storeQuality, max: 25 },
-    category_alignment: { score: catScore, max: 20, value: factors.category_alignment },
-    location_appeal: { score: locScore, max: 15, value: factors.town_appeal },
-    online_presence: { score: onlineScore, max: 15, website: factors.has_website, social: factors.has_social_media },
-    commercial_health: { score: commercialScore, max: 15, rating: factors.estimated_rating },
-    independence: { score: indepScore, max: 10, value: factors.is_independent },
+    rating: { score: ratingScore, max: 30, value: factors.rating || 0 },
+    reviews: { score: reviewScore, max: 20, value: rc },
+    website: { score: websiteScore, max: 15, value: !!factors.has_website },
+    contact: { score: contactScore, max: 15, value: !!factors.has_contact },
+    independence: { score: indepScore, max: 10, value: !!factors.is_independent },
+    category: { score: catScore, max: 10, value: factors.category },
   };
 }
 
@@ -180,22 +175,16 @@ Deno.serve(async (req) => {
                       name: { type: "string", description: "Actual shop/business name" },
                       town: { type: "string", description: "Town or city" },
                       category: { type: "string", enum: CATEGORIES },
-                      rating: { type: "number", description: "Rating if found, 0 if not" },
-                      review_count: { type: "integer", description: "Review count if found, 0 if not" },
-                      estimated_store_quality: { type: "integer", description: "Quality estimate 40-95" },
-                      category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"], description: "Category fit for Nomination" },
-                      town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"], description: "Town retail appeal" },
-                      has_social_media: { type: "boolean", description: "true ONLY if social media found in scraped content" },
-                      is_independent: { type: "boolean", description: "Whether independent" },
+                      rating: { type: "number", description: "Rating if found verbatim, 0 if not" },
+                      review_count: { type: "integer", description: "Review count if found verbatim, 0 if not" },
+                      is_independent: { type: "boolean", description: "Whether independent — only when clearly evidenced" },
                       has_website: { type: "boolean", description: "true ONLY if own website found in scraped content" },
-                      ai_reason: { type: "string", description: "2-sentence explanation from what was found online" },
-                      estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                      website: { type: "string", description: "Website URL if found" },
-                      address: { type: "string", description: "Full address if found" },
-                      phone: { type: "string", description: "Phone if found" },
-                      email: { type: "string", description: "Email if found" },
+                      website: { type: "string", description: "Website URL — verbatim from content, empty if not found" },
+                      address: { type: "string", description: "Full address — verbatim from content, empty if not found" },
+                      phone: { type: "string", description: "Phone — verbatim from content, empty if not found" },
+                      email: { type: "string", description: "Email — verbatim from content, empty if not found" },
                     },
-                    required: ["name", "town", "category", "rating", "review_count", "estimated_store_quality", "category_alignment", "town_appeal", "has_social_media", "is_independent", "has_website", "ai_reason", "estimated_price_positioning"],
+                    required: ["name", "town", "category", "rating", "review_count", "is_independent", "has_website"],
                     additionalProperties: false,
                   },
                 },
@@ -211,14 +200,11 @@ Deno.serve(async (req) => {
             role: "system",
             content: `You are a retail analyst. Extract REAL independent retail businesses from the scraped web data. Only include actual named businesses — skip directories, aggregator sites, and chains.
 
-SCORING FACTORS — Return RAW FACTOR VALUES:
-- category_alignment: "perfect" for jewellers/premium accessories, "strong" for gift shops/lifestyle, "moderate" for fashion/concept/bridal, "weak" for other
-- town_appeal: "prime" for major retail destinations, "good" for strong market towns, "average" for smaller towns, "poor" for rural
-- has_social_media: true ONLY if social media links/handles found in the scraped content
+VERIFIED-DATA-ONLY RULES:
 - has_website: true ONLY if the store's own website (not directory listing) found in content
-- is_independent: true for independent stores
-
-Extract phone numbers, email addresses, full addresses, and website URLs whenever they appear in the scraped content.`,
+- is_independent: true only for clearly independent stores
+- Do NOT generate or guess phone, email, address, website, rating, or review counts. Only include them if they appear verbatim in the scraped content. Empty/zero is the correct answer when unknown.
+- Do NOT write any narrative, fit reasons, or summaries.`,
           },
           {
             role: "user",
@@ -291,14 +277,12 @@ Extract phone numbers, email addresses, full addresses, and website URLs wheneve
 
     const toInsert = prospects.map((p: any, idx: number) => {
       const factors = {
-        estimated_store_quality: p.estimated_store_quality || 50,
-        category_alignment: p.category_alignment || 'moderate',
-        town_appeal: p.town_appeal || 'average',
-        has_social_media: p.has_social_media || false,
+        rating: p.rating || 0,
+        review_count: p.review_count || 0,
+        has_website: !!(p.website),
+        has_contact: !!(p.phone || p.email),
         is_independent: p.is_independent !== false,
-        estimated_rating: p.rating || 0,
-        has_website: p.has_website || !!(p.website),
-        price_positioning: p.estimated_price_positioning || 'mid_market',
+        category: p.category,
       };
       const breakdown = calculateFitScore(factors);
       const branch = branchFlags.get(idx);
@@ -309,14 +293,9 @@ Extract phone numbers, email addresses, full addresses, and website URLs wheneve
         town: p.town,
         county,
         category: p.category,
-        rating: p.rating,
-        review_count: p.review_count,
-        estimated_store_quality: p.estimated_store_quality,
+        rating: p.rating || 0,
+        review_count: p.review_count || 0,
         predicted_fit_score: breakdown.total,
-        ai_reason: branch
-          ? `⚡ Potential branch of existing account "${branch.related_name}" in ${branch.related_town}. ${p.ai_reason}`
-          : p.ai_reason,
-        estimated_price_positioning: p.estimated_price_positioning,
         website: p.website || null,
         address: p.address || null,
         phone: p.phone || null,
