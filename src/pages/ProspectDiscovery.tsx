@@ -411,18 +411,36 @@ export default function ProspectDiscovery() {
   };
 
   const runAIScan = async () => {
+    // Persist mode choice
+    try { window.localStorage.setItem('preferred_discovery_mode', discoveryMode); } catch {}
+
+    if (discoveryMode === 'specific' && (selectedCounty === 'all' || selectedCategory === 'all')) {
+      toast.error("Specific mode requires both a county and a category.");
+      return;
+    }
+
     setScanning(true);
     setScanType('ai');
-    setScanProgress("Generating prospects...");
+    const progressMap: Record<string, string> = {
+      route_aligned: 'Aligning prospects with your upcoming routes...',
+      gap_led: 'Finding gaps in priority towns...',
+      lookalike: 'Modelling lookalikes from your top accounts...',
+      specific: 'Scanning chosen county & category...',
+    };
+    setScanProgress(progressMap[discoveryMode]);
+
     try {
       await ensureSession();
-      const body: any = { count: 15 };
-      if (selectedCounty !== "all") body.county = selectedCounty;
-      if (selectedCategory !== "all") body.category = selectedCategory;
+      const body: any = { count: 15, mode: discoveryMode };
+      if (discoveryMode === 'specific') {
+        body.county = selectedCounty;
+        body.category = selectedCategory;
+      }
 
       const { data, error } = await supabase.functions.invoke("discover-prospects", { body });
       if (error) throw error;
       if (data?.success) {
+        if (data.scan_summary) setLastScanSummary(data.scan_summary);
         const matched = data.matched_current_accounts || [];
         const count = data.prospects?.length || 0;
         if (matched.length > 0) {
