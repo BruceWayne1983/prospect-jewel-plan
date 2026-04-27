@@ -981,6 +981,17 @@ export default function ProspectDiscovery() {
           Purge Unverified
         </Button>
         <Button
+          onClick={removeProspectsMatchingCurrentAccounts}
+          disabled={clearing || prospects.length === 0}
+          variant="outline"
+          size="sm"
+          className="text-[10px] h-8 px-3 border-info/40 text-info hover:bg-info-light"
+          title="Permanently remove prospects that already exist as current accounts"
+        >
+          <Building2 className="w-3.5 h-3.5 mr-1.5" />
+          Remove Current-Account Matches
+        </Button>
+        <Button
           onClick={clearAllProspects}
           disabled={clearing || prospects.length === 0}
           variant="outline"
