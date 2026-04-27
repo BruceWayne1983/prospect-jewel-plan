@@ -1393,6 +1393,38 @@ export default function ProspectDiscovery() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Mark-as-current-account picker */}
+      <Dialog open={linkDialog.open} onOpenChange={(open) => !open && setLinkDialog({ open: false, prospect: null, query: '' })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-display">Mark as current account</DialogTitle>
+            <DialogDescription className="text-xs">
+              Pick the matching current account. The prospect row will be removed from the discovery list.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={linkDialog.query}
+            onChange={(e) => setLinkDialog(prev => ({ ...prev, query: e.target.value }))}
+            placeholder="Search current accounts…"
+            className="text-xs"
+          />
+          <div className="max-h-[280px] overflow-y-auto space-y-1.5">
+            {linkCandidates.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground py-4 text-center">No matching current accounts.</p>
+            ) : linkCandidates.map(r => (
+              <button
+                key={r.id}
+                onClick={() => linkToCurrentAccount(r.id)}
+                className="w-full text-left p-2.5 rounded-lg border border-border/30 hover:border-info/40 hover:bg-info-light/40 transition-colors"
+              >
+                <p className="text-xs font-medium text-foreground">{r.name}</p>
+                <p className="text-[10px] text-muted-foreground">{r.town || '—'}{r.website ? ` · ${r.website}` : ''}</p>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
