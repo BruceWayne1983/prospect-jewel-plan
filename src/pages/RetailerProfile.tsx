@@ -13,6 +13,7 @@ import { BillingPanel } from "@/components/retailer/BillingPanel";
 import { GroupAccounts } from "@/components/retailer/GroupAccounts";
 import { NearbyProspects } from "@/components/retailer/NearbyProspects";
 import { ContactProvenancePanel } from "@/components/retailer/ContactProvenancePanel";
+import { ContactField } from "@/components/contact/ContactField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreRing, ScoreBar } from "@/components/ScoreIndicators";
