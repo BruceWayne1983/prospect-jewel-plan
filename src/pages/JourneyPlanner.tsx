@@ -713,7 +713,7 @@ export default function JourneyPlanner() {
                     </div>
 
                     <div className="ml-3 border-l-2 border-border/30 pl-6 space-y-1 pb-3">
-                      {cluster.retailers.sort((a, b) => b.priority_score - a.priority_score).map((r, ri) => {
+                      {cluster.retailers.filter(r => !removedForRoute.includes(r.id)).sort((a, b) => b.priority_score - a.priority_score).map((r, ri) => {
                         // Estimate arrival time for this stop
                         const visitIndex = activeRoute.clusters.slice(0, ci).reduce((s, c) => s + c.retailers.length, 0) + ri;
                         const baseMinutes = activeRoute.driveFromHomeMinutes + visitIndex * 30;
@@ -923,7 +923,8 @@ export default function JourneyPlanner() {
                 />
               )}
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>
