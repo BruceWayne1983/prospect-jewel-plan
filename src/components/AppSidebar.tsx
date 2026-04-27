@@ -1,9 +1,11 @@
 import {
-  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store, Route, Gem, MapPinned, ClipboardCheck, FileText
+  LayoutDashboard, Search, Kanban, Map, CalendarDays, BarChart3, Settings, Brain, Radar, FlaskConical, Calendar, TrendingUp, FolderOpen, Store, Route, Gem, MapPinned, ClipboardCheck, FileText, LogOut
 } from "lucide-react";
 import nominationLogo from "@/assets/nomination-logo.webp";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
@@ -33,6 +35,18 @@ const navItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({ title: "Signed out", description: "You've been logged out successfully." });
+      navigate("/auth", { replace: true });
+    } catch (e) {
+      toast({ title: "Sign out failed", description: "Please try again.", variant: "destructive" });
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -95,21 +109,41 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-2">
         {!collapsed ? (
-          <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent/40">
-            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center shadow-sm">
+          <>
+            <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent/40">
+              <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center shadow-sm">
+                <span className="text-[10px] font-semibold text-sidebar-background">EG</span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-sidebar-accent-foreground truncate">Emma-Louise Gregory</p>
+                <p className="text-[10px] text-sidebar-foreground">Emma Louise Lux · South West & Wales</p>
+              </div>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-sidebar-border/40 text-sidebar-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5 transition-all duration-200 text-[12px] font-medium"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>Sign out</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center mx-auto shadow-sm">
               <span className="text-[10px] font-semibold text-sidebar-background">EG</span>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">Emma-Louise Gregory</p>
-              <p className="text-[10px] text-sidebar-foreground">Emma Louise Lux · South West & Wales</p>
-            </div>
-          </div>
-        ) : (
-          <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center mx-auto shadow-sm">
-            <span className="text-[10px] font-semibold text-sidebar-background">EG</span>
-          </div>
+            <button
+              onClick={handleSignOut}
+              className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto text-sidebar-foreground hover:text-destructive hover:bg-destructive/5 transition-all"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+          </>
         )}
       </SidebarFooter>
     </Sidebar>
