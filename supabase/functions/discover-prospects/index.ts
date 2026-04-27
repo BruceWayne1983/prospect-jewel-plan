@@ -526,7 +526,15 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const { county, category, fullScan } = await req.json().catch(() => ({}));
+    const { county, category, fullScan, mode } = await req.json().catch(() => ({}));
+    const discoveryMode: DiscoveryMode | undefined = mode;
+
+    // Validation: mode is required unless explicit county/category or fullScan provided
+    if (!discoveryMode && !county && !category && !fullScan) {
+      return new Response(JSON.stringify({
+        error: "Discovery mode required. Choose one of: route_aligned, gap_led, lookalike, specific. Or pass fullScan=true.",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
