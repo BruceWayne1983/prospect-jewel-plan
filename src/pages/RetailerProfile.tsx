@@ -166,7 +166,14 @@ export default function RetailerProfile() {
       if (error) throw error;
       if (data?.success) {
         toast.success("AI analysis complete!");
-        fetchRetailer(); // reload with new data
+        // Surface unverified contact suggestions (AI guesses that were NOT persisted)
+        const suggestions = data.unverified_contact_suggestions;
+        if (suggestions && Object.values(suggestions).some(v => !!v)) {
+          setAiSuggestions(suggestions);
+        } else {
+          setAiSuggestions(null);
+        }
+        fetchRetailer();
       } else {
         toast.error(data?.error || "Analysis failed");
       }
@@ -176,6 +183,92 @@ export default function RetailerProfile() {
     } finally {
       setAnalysing(false);
     }
+  };
+
+  const triggerEnrichContactDetails = async () => {
+    if (!id || !r) return;
+    setVerifyingContacts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("enrich-contact-details", {
+        body: { retailer_id: id, name: r.name, town: r.town, county: r.county, website: r.website },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      await fetchRetailer();
+      toast.success("Contact details refreshed from official sources");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to verify contact details");
+    } finally {
+      setVerifyingContacts(false);
+    }
+  };
+
+  const runFullVerification = async () => {
+    if (!id || !r) return;
+    setVerifyingContacts(true);
+    try {
+      // Step 1: scrape website + Google Maps
+      const { data: enrich, error: enrichErr } = await supabase.functions.invoke("enrich-contact-details", {
+        body: { retailer_id: id, name: r.name, town: r.town, county: r.county, website: r.website },
+      });
+      if (enrichErr) throw enrichErr;
+
+      const captured = enrich?.contact || enrich || {};
+      const fieldKeys = ['phone', 'email', 'address', 'postcode', 'instagram'];
+      const capturedCount = fieldKeys.filter(k => captured?.[k]).length;
+
+      // Step 2: cross-validate if we got at least one value
+      if (capturedCount > 0) {
+        const { error: crossErr } = await supabase.functions.invoke("cross-validate-contact", {
+          body: { retailer_id: id },
+        });
+        if (crossErr) console.warn("cross-validate-contact error:", crossErr);
+      }
+
+      await fetchRetailer();
+      toast.success(`Verified ${capturedCount} contact field${capturedCount === 1 ? '' : 's'}`);
+    } catch (err: any) {
+      toast.error(err.message || "Verification failed");
+    } finally {
+      setVerifyingContacts(false);
+    }
+  };
+
+  const saveSuggestion = async (field: string, value: string) => {
+    if (!id) return;
+    setSavingSuggestion(field);
+    try {
+      // Cross-validate the suggested value before saving
+      const { data: cross, error: crossErr } = await supabase.functions.invoke("cross-validate-contact", {
+        body: { retailer_id: id, candidate: { [field]: value } },
+      });
+      if (crossErr) throw crossErr;
+      if (cross?.passed === false) {
+        toast.error(`Could not verify the suggested ${field}. Not saved.`);
+        return;
+      }
+      await fetchRetailer();
+      setAiSuggestions(prev => {
+        if (!prev) return prev;
+        const next = { ...prev };
+        delete next[field];
+        return Object.keys(next).length === 0 ? null : next;
+      });
+      toast.success(`Verified and saved ${field}`);
+    } catch (err: any) {
+      toast.error(err.message || "Verification failed");
+    } finally {
+      setSavingSuggestion(null);
+    }
+  };
+
+  const discardSuggestion = (field: string) => {
+    setAiSuggestions(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return Object.keys(next).length === 0 ? null : next;
+    });
   };
 
   if (loading) return <div className="page-container flex items-center justify-center min-h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-gold" /></div>;
