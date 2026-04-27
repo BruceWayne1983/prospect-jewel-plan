@@ -179,6 +179,32 @@ export default function JourneyPlanner() {
     } catch { return new Set(); }
   });
 
+  // Per-route removed stop IDs (persisted)
+  const [removedStops, setRemovedStops] = useState<Record<string, string[]>>(() => {
+    try { return JSON.parse(localStorage.getItem('journey_removed_stops') || '{}'); }
+    catch { return {}; }
+  });
+
+  const isStopRemoved = (routeName: string, retailerId: string) =>
+    (removedStops[routeName] || []).includes(retailerId);
+
+  const removeStopFromRoute = (routeName: string, retailerId: string) => {
+    setRemovedStops(prev => {
+      const next = { ...prev, [routeName]: [...(prev[routeName] || []), retailerId] };
+      localStorage.setItem('journey_removed_stops', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const restoreStopsForRoute = (routeName: string) => {
+    setRemovedStops(prev => {
+      const next = { ...prev };
+      delete next[routeName];
+      localStorage.setItem('journey_removed_stops', JSON.stringify(next));
+      return next;
+    });
+  };
+
   // Fetch nearby prospects for route stops
   const [nearbyProspects, setNearbyProspects] = useState<any[]>([]);
   useEffect(() => {
