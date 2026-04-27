@@ -173,7 +173,8 @@ export default function ProspectDiscovery() {
   const [manualResult, setManualResult] = useState<any>(null);
   // Verification
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
-  const [hideUnverified, setHideUnverified] = useState(true);
+  const [hideUnverified, setHideUnverified] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const fetchProspects = async () => {
     const { data, error } = await supabase
@@ -554,6 +555,22 @@ export default function ProspectDiscovery() {
     await fetchProspects();
     setEnriching(false);
     setEnrichProgress({ done: 0, total: 0 });
+  };
+
+  const clearAllProspects = async () => {
+    if (!confirm(`Delete all ${prospects.length} prospects and learned patterns? This cannot be undone.`)) return;
+    setClearing(true);
+    try {
+      const { error: e1 } = await supabase.from("discovered_prospects").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (e1) throw e1;
+      await supabase.from("disqualification_patterns").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      setProspects([]);
+      toast.success("All prospects cleared — ready for fresh demo");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to clear prospects");
+    } finally {
+      setClearing(false);
+    }
   };
 
   const runManualSearch = async () => {
