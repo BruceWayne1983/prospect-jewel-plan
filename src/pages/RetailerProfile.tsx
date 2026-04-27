@@ -532,9 +532,13 @@ export default function RetailerProfile() {
         <TabsContent value="research" className="space-y-5 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="card-premium p-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-base font-display font-semibold text-foreground">Contact & Location</h3>
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={runFullVerification} disabled={verifyingContacts} className="text-[10px] h-7 px-2 border-gold/30 text-gold-dark hover:bg-champagne/30">
+                    {verifyingContacts ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                    Verify contact details
+                  </Button>
                   <Button variant="outline" size="sm" onClick={verifySocial} disabled={verifyingSocial} className="text-[10px] h-7 px-2 border-gold/30 text-gold-dark hover:bg-champagne/30">
                     {verifyingSocial ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
                     {verifyingSocial ? 'Verifying...' : 'AI Verify Social'}
