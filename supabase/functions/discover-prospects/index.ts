@@ -543,9 +543,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town");
+    const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town, website");
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town");
-    const retailerEntries = (existingRetailers || []).map((r: any) => ({ id: r.id, name: r.name, town: r.town }));
+    const retailerEntries: RetailerLite[] = (existingRetailers || []).map((r: any) => ({ id: r.id, name: r.name, town: r.town, website: r.website }));
 
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
     let notFitContext = "";
@@ -563,19 +563,22 @@ Deno.serve(async (req) => {
     }
 
     let allInserted: any[] = [];
+    let allMatched: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> = [];
 
     if (fullScan) {
       for (const c of SOUTH_WEST_COUNTIES) {
         for (const cat of CATEGORIES) {
           try {
-            const inserted = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
-            allInserted = allInserted.concat(inserted);
+            const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+            allInserted = allInserted.concat(result.inserted);
+            allMatched = allMatched.concat(result.matchedAccounts);
           } catch (err: any) {
             console.error(`Batch error for ${c}/${cat}:`, err.message);
             if (err.message.includes("Rate limit") || err.message.includes("credits")) {
               return new Response(JSON.stringify({
                 success: true,
                 prospects: allInserted,
+                matched_current_accounts: allMatched,
                 partial: true,
                 stoppedAt: `${c}/${cat}`,
                 error: err.message,
@@ -588,23 +591,22 @@ Deno.serve(async (req) => {
     } else {
       const targetCounty = county || SOUTH_WEST_COUNTIES[Math.floor(Math.random() * SOUTH_WEST_COUNTIES.length)];
       const targetCategory = category || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
-      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
-      allInserted = inserted;
+      const result = await discoverBatch(supabase, userId, targetCounty, targetCategory, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+      allInserted = result.inserted;
+      allMatched = result.matchedAccounts;
     }
+
+    const matchSummary = allMatched.length > 0
+      ? ` ${allMatched.length} match${allMatched.length === 1 ? '' : 'es'} skipped — already current accounts.`
+      : "";
 
     return new Response(JSON.stringify({
       success: true,
       prospects: allInserted,
-      message: allInserted.length === 0
+      matched_current_accounts: allMatched,
+      message: allInserted.length === 0 && allMatched.length === 0
         ? "No verified businesses found for this county/category combination. Try a different scan."
-        : `Discovered ${allInserted.length} verified real businesses.`,
+        : `Discovered ${allInserted.length} verified real businesses.${matchSummary}`,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : "Unknown error",
-    }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
-});
