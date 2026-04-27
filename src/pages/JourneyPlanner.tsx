@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRetailers, getOutreach, getActivity } from "@/hooks/useRetailers";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight, Home, Plus, X, Search, Radar, ExternalLink } from "lucide-react";
+import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight, Home, Plus, X, Search, Radar, ExternalLink, Trash2, Map as MapIcon } from "lucide-react";
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/components/journey/DiaryWeekView";
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
@@ -178,6 +178,32 @@ export default function JourneyPlanner() {
       return new Set(saved);
     } catch { return new Set(); }
   });
+
+  // Per-route removed stop IDs (persisted)
+  const [removedStops, setRemovedStops] = useState<Record<string, string[]>>(() => {
+    try { return JSON.parse(localStorage.getItem('journey_removed_stops') || '{}'); }
+    catch { return {}; }
+  });
+
+  const isStopRemoved = (routeName: string, retailerId: string) =>
+    (removedStops[routeName] || []).includes(retailerId);
+
+  const removeStopFromRoute = (routeName: string, retailerId: string) => {
+    setRemovedStops(prev => {
+      const next = { ...prev, [routeName]: [...(prev[routeName] || []), retailerId] };
+      localStorage.setItem('journey_removed_stops', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const restoreStopsForRoute = (routeName: string) => {
+    setRemovedStops(prev => {
+      const next = { ...prev };
+      delete next[routeName];
+      localStorage.setItem('journey_removed_stops', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Fetch nearby prospects for route stops
   const [nearbyProspects, setNearbyProspects] = useState<any[]>([]);
@@ -575,14 +601,49 @@ export default function JourneyPlanner() {
           </div>
 
           {/* Route detail + scheduler */}
-          {activeRoute && (
+          {activeRoute && (() => {
+            const removedForRoute = removedStops[activeRoute.name] || [];
+            // Build ordered list of remaining stops (with coords) for navigation
+            const orderedStops = activeRoute.clusters.flatMap(c =>
+              c.retailers
+                .filter(r => !removedForRoute.includes(r.id))
+                .sort((a, b) => b.priority_score - a.priority_score)
+            );
+            const navStops = orderedStops.filter(r => r.lat != null && r.lng != null);
+
+            const buildGoogleMapsUrl = (stops: typeof navStops) => {
+              if (stops.length === 0) return null;
+              const origin = `${home.lat},${home.lng}`;
+              const destination = origin; // round-trip back home
+              const waypoints = stops.map(s => `${s.lat},${s.lng}`).join('|');
+              return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+            };
+
+            // Google Maps caps at ~9 waypoints — split into legs of 8
+            const MAX_WAYPOINTS = 8;
+            const legs: Array<{ url: string; label: string }> = [];
+            if (navStops.length > 0) {
+              if (navStops.length <= MAX_WAYPOINTS) {
+                legs.push({ url: buildGoogleMapsUrl(navStops)!, label: 'Open in Google Maps' });
+              } else {
+                for (let i = 0; i < navStops.length; i += MAX_WAYPOINTS) {
+                  const slice = navStops.slice(i, i + MAX_WAYPOINTS);
+                  legs.push({
+                    url: buildGoogleMapsUrl(slice)!,
+                    label: `Leg ${legs.length + 1} (${slice.length} stops)`,
+                  });
+                }
+              }
+            }
+
+            return (
             <div className="card-premium p-6 lg:col-span-2">
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="text-lg font-display font-semibold text-foreground">{activeRoute.name}</h3>
                   <div className="flex items-center gap-4 mt-1 flex-wrap">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" />{activeRoute.totalStops} accounts
+                      <MapPin className="w-3.5 h-3.5" />{orderedStops.length} accounts{removedForRoute.length > 0 && <span className="text-warning"> ({removedForRoute.length} removed)</span>}
                     </span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Car className="w-3.5 h-3.5" />~{activeRoute.estimatedDriveMinutes}m between stops
@@ -596,6 +657,34 @@ export default function JourneyPlanner() {
                   ${activeRoute.priority === 'high' ? 'bg-success-light text-success' : activeRoute.priority === 'medium' ? 'bg-warning-light text-warning' : 'bg-muted text-muted-foreground'}`}>
                   {activeRoute.priority} priority
                 </span>
+              </div>
+
+              {/* Navigation actions */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {legs.length > 0 ? (
+                  legs.map(leg => (
+                    <a
+                      key={leg.url}
+                      href={leg.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg gold-gradient text-card text-xs font-medium hover:opacity-90 transition-opacity"
+                    >
+                      <MapIcon className="w-3.5 h-3.5" />
+                      {leg.label}
+                    </a>
+                  ))
+                ) : (
+                  <span className="text-[10px] text-muted-foreground italic">No stops with coordinates — add lat/lng on retailer profiles to enable navigation</span>
+                )}
+                {removedForRoute.length > 0 && (
+                  <button
+                    onClick={() => restoreStopsForRoute(activeRoute.name)}
+                    className="text-[10px] text-primary hover:text-accent underline ml-auto"
+                  >
+                    Restore {removedForRoute.length} removed stop{removedForRoute.length === 1 ? '' : 's'}
+                  </button>
+                )}
               </div>
 
               {/* Home → First stop */}
@@ -624,7 +713,7 @@ export default function JourneyPlanner() {
                     </div>
 
                     <div className="ml-3 border-l-2 border-border/30 pl-6 space-y-1 pb-3">
-                      {cluster.retailers.sort((a, b) => b.priority_score - a.priority_score).map((r, ri) => {
+                      {cluster.retailers.filter(r => !removedForRoute.includes(r.id)).sort((a, b) => b.priority_score - a.priority_score).map((r, ri) => {
                         // Estimate arrival time for this stop
                         const visitIndex = activeRoute.clusters.slice(0, ci).reduce((s, c) => s + c.retailers.length, 0) + ri;
                         const baseMinutes = activeRoute.driveFromHomeMinutes + visitIndex * 30;
@@ -677,6 +766,13 @@ export default function JourneyPlanner() {
                                 onBooked={() => {}}
                               />
                             )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeStopFromRoute(activeRoute.name, r.id); }}
+                              className="ml-1 p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Remove this stop from the route"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
                         </div>
                         </div>
@@ -834,7 +930,8 @@ export default function JourneyPlanner() {
                 />
               )}
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>

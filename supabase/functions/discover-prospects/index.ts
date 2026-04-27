@@ -19,6 +19,20 @@ const CATEGORIES = [
   "department_store", "garden_centre_gift_hall", "wedding_bridal", "heritage_tourist_gift", "multi_brand_retailer",
 ];
 
+const CATEGORY_QUERIES: Record<string, string> = {
+  jeweller: "independent jeweller jewellery shop",
+  gift_shop: "independent gift shop",
+  fashion_boutique: "independent fashion boutique womenswear",
+  lifestyle_store: "independent lifestyle store homeware gifts",
+  premium_accessories: "premium accessories shop handbags scarves",
+  concept_store: "independent concept store",
+  department_store: "independent department store",
+  garden_centre_gift_hall: "garden centre with gift hall",
+  wedding_bridal: "bridal boutique wedding shop",
+  heritage_tourist_gift: "heritage gift shop tourist gift",
+  multi_brand_retailer: "multi-brand retailer boutique",
+};
+
 function calculateFitScore(factors: any) {
   const CAT_SCORES: Record<string, number> = { perfect: 20, strong: 16, moderate: 12, weak: 6 };
   const LOC_SCORES: Record<string, number> = { prime: 15, good: 12, average: 9, poor: 5 };
@@ -47,21 +61,84 @@ function calculateFitScore(factors: any) {
   };
 }
 
-async function discoverBatch(
-  supabase: any,
-  userId: string,
+// ----- Firecrawl-backed real-business discovery -----
+async function firecrawlSearchBusinesses(
   county: string,
   category: string,
-  count: number,
-  existingNames: string[],
+  FIRECRAWL_API_KEY: string,
+): Promise<Array<{ name: string; url?: string; town?: string; description?: string }>> {
+  const queryBase = CATEGORY_QUERIES[category] || category.replace(/_/g, " ");
+  const query = `${queryBase} in ${county} UK independent shop`;
+
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v2/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, limit: 15, country: "gb", lang: "en" }),
+    });
+
+    if (!res.ok) {
+      console.error(`Firecrawl search failed [${res.status}] for ${county}/${category}`);
+      return [];
+    }
+
+    const data = await res.json();
+    const results = data?.data?.web || data?.data || data?.web || [];
+    if (!Array.isArray(results)) return [];
+
+    return results.map((r: any) => {
+      const url = r.url || r.link;
+      let host = "";
+      try { host = new URL(url).hostname.replace(/^www\./, ""); } catch {}
+      // Extract a sensible business name: prefer page title minus filler
+      const rawTitle = (r.title || r.name || host || "").toString();
+      const cleanTitle = rawTitle
+        .split(/\s*[\|\-–—·•]\s*/)[0]
+        .replace(/\s*\(.*?\)\s*/g, " ")
+        .trim();
+      return {
+        name: cleanTitle || host,
+        url,
+        description: (r.description || r.snippet || "").toString(),
+      };
+    }).filter((x: any) => x.name && x.name.length > 2 && x.url);
+  } catch (err) {
+    console.error("Firecrawl search error:", err);
+    return [];
+  }
+}
+
+const DIRECTORY_BLOCKLIST = [
+  "google.", "facebook.com", "instagram.com", "tripadvisor.", "yelp.", "yell.com",
+  "thomsonlocal.", "scoot.co.uk", "wikipedia.org", "reddit.com", "tiktok.com",
+  "youtube.com", "linkedin.com", "twitter.com", "x.com", "pinterest.",
+  "bing.com", "duckduckgo.", "amazon.", "ebay.", "etsy.", "notonthehighstreet.",
+  "gumtree.", "rightmove.", "zoopla.", "checkatrade.", "trustpilot.",
+  "yp.com", "192.com", "thomsondirectories.", "cylex-uk.", "freeindex.",
+  "chamberofcommerce.", "ukbusiness.", "businessmagnet.", "bdaily.",
+];
+
+function isDirectoryUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return DIRECTORY_BLOCKLIST.some(b => lower.includes(b));
+}
+
+async function classifyAndScoreWithAI(
+  businesses: Array<{ name: string; url?: string; description?: string }>,
+  county: string,
+  category: string,
   LOVABLE_API_KEY: string,
-  notFitContext: string = "",
-  existingRetailers: Array<{ id: string; name: string; town: string }> = [],
-  existingProspects: Array<{ name: string; town: string }> = []
-) {
-  const excludeClause = existingNames.length > 0
-    ? `\n\nDo NOT include any of these existing stores (already in the system): ${existingNames.join(", ")}`
-    : "";
+  notFitContext: string,
+): Promise<any[]> {
+  if (businesses.length === 0) return [];
+
+  const businessList = businesses.map((b, i) =>
+    `${i + 1}. ${b.name} — ${b.url || "no url"} — ${(b.description || "").slice(0, 200)}`
+  ).join("\n");
 
   const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -70,12 +147,12 @@ async function discoverBatch(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash",
       tools: [{
         type: "function",
         function: {
-          name: "generate_prospects",
-          description: `Generate ${count} realistic UK independent retail prospects for Nomination Italy in ${county}.`,
+          name: "classify_prospects",
+          description: `Classify, score and enrich the supplied REAL businesses for Nomination Italy fit in ${county}.`,
           parameters: {
             type: "object",
             properties: {
@@ -83,26 +160,24 @@ async function discoverBatch(
                 type: "array",
                 items: {
                   type: "object",
-                    properties: {
-                      name: { type: "string", description: "Realistic shop name" },
-                      town: { type: "string", description: `Real town in ${county}` },
-                      category: { type: "string", enum: CATEGORIES },
-                      rating: { type: "number", description: "Google rating 3.5-5.0, or 0 if unknown" },
-                      review_count: { type: "integer", description: "Number of reviews 10-500, or 0 if unknown" },
-                      estimated_store_quality: { type: "integer", description: "Quality score 40-95 based on store type, location, and positioning" },
-                      category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"], description: "How well the store category aligns with Nomination Italy. perfect=jeweller/premium accessories, strong=gift shop/lifestyle, moderate=fashion boutique/concept store, weak=other" },
-                      town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"], description: "Town retail appeal. prime=Bath/Exeter/Cardiff city centre, good=Cheltenham/Truro/Wells, average=smaller market towns, poor=rural/low footfall" },
-                      has_social_media: { type: "boolean", description: "ONLY set true if you can VERIFY the store has social media. If uncertain, set false." },
-                      is_independent: { type: "boolean", description: "Whether this is an independent store (not a chain)" },
-                      has_website: { type: "boolean", description: "ONLY set true if you can VERIFY the store has a website. If uncertain, set false." },
-                      estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
-                      ai_reason: { type: "string", description: "2-sentence explanation of why this is a good prospect" },
-                      website: { type: "string", description: "Leave EMPTY. Do NOT generate or guess URLs." },
-                      address: { type: "string", description: "Leave EMPTY. Do NOT generate or guess addresses." },
-                      phone: { type: "string", description: "Leave EMPTY. Do NOT generate or guess phone numbers." },
-                      email: { type: "string", description: "Leave EMPTY. Do NOT generate or guess email addresses." },
-                    },
-                    required: ["name", "town", "category", "rating", "review_count", "estimated_store_quality", "category_alignment", "town_appeal", "has_social_media", "is_independent", "has_website", "estimated_price_positioning", "ai_reason"],
+                  properties: {
+                    index: { type: "integer", description: "1-based index from the list provided" },
+                    keep: { type: "boolean", description: "Keep this business as a prospect (false to skip — eg directory page, online-only, chain, irrelevant)" },
+                    name: { type: "string", description: "Cleaned business name. Do NOT invent — use the supplied name." },
+                    town: { type: "string", description: `Real town in ${county} where the shop is based — leave empty if you cannot determine from the description/url` },
+                    category: { type: "string", enum: CATEGORIES },
+                    rating: { type: "number", description: "0 if unknown — do NOT guess" },
+                    review_count: { type: "integer", description: "0 if unknown — do NOT guess" },
+                    estimated_store_quality: { type: "integer", description: "Quality score 40-95 based on description signals" },
+                    category_alignment: { type: "string", enum: ["perfect", "strong", "moderate", "weak"] },
+                    town_appeal: { type: "string", enum: ["prime", "good", "average", "poor"] },
+                    has_social_media: { type: "boolean" },
+                    is_independent: { type: "boolean" },
+                    has_website: { type: "boolean", description: "True if a real shop website URL was supplied" },
+                    estimated_price_positioning: { type: "string", enum: ["premium", "mid_market", "budget"] },
+                    ai_reason: { type: "string", description: "1-2 sentence explanation of fit" },
+                  },
+                  required: ["index", "keep", "name", "category", "category_alignment", "town_appeal", "is_independent", "has_website", "estimated_price_positioning", "estimated_store_quality"],
                   additionalProperties: false,
                 },
               },
@@ -112,28 +187,21 @@ async function discoverBatch(
           },
         },
       }],
-      tool_choice: { type: "function", function: { name: "generate_prospects" } },
+      tool_choice: { type: "function", function: { name: "classify_prospects" } },
       messages: [
         {
-            role: "system",
-            content: `You are a UK retail market analyst specialising in independent jewellers, gift shops, and boutiques in the South West of England and South Wales. Generate realistic prospect data for Nomination Italy, a premium Italian charm jewellery brand. Use real town names. Every shop name must be unique and not duplicate any existing names provided.
+          role: "system",
+          content: `You are a UK retail analyst classifying REAL businesses found via web search for Nomination Italy (premium charm jewellery brand).
 
-CRITICAL: Do NOT include toy stores, children's shops, chain stores (like Debenhams, John Lewis, H&M), or online-only retailers. Only suggest independent physical retail stores in categories: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores, small independent department stores, wedding & bridal shops, heritage/tourist gift shops, and multi-brand retailers.
-
-GARDEN CENTRE RULE: When evaluating garden centres, check if they have a substantial gift hall or jewellery department. Many garden centres in South West England have gift retail sections turning over £1m+. Include these as "garden_centre_gift_hall" category with a note in ai_reason about "Requires manual verification of gift hall suitability". Exclude garden centres that are purely plants/outdoor/hardware.
-
-CONTACT DETAILS RULE (CRITICAL): Do NOT generate, guess, or fabricate ANY contact details — no websites, phone numbers, email addresses, or street addresses. Leave ALL contact fields as empty strings.
-
-SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
-- category_alignment: "perfect" for jewellers/premium accessories (core Nomination fit), "strong" for gift shops/lifestyle stores, "moderate" for fashion boutiques/concept stores/bridal, "weak" for other categories
-- town_appeal: "prime" for major retail destinations (Bath, Exeter, Cardiff, Bristol city centre, Cheltenham), "good" for strong market towns (Truro, Wells, Taunton, Barnstaple), "average" for smaller towns, "poor" for rural/low footfall areas
-- has_social_media: ONLY true if you can verify from your knowledge. Default to false if uncertain.
-- has_website: ONLY true if you can verify from your knowledge. Default to false if uncertain.
-- is_independent: true for independent stores, false for chains/franchises.${notFitContext}`,
+CRITICAL RULES:
+- Use ONLY the names and URLs provided. NEVER invent or rename a business.
+- Set keep=false for: directory pages, online-only retailers, supermarkets, chain stores (Pandora, H Samuel, Ernest Jones, John Lewis, Debenhams, M&S, Boots), toy shops, pharmacies, news pages, blog posts, irrelevant categories.
+- Set keep=true ONLY for genuine independent physical retail shops in: jewellers, gift shops, fashion boutiques, lifestyle stores, premium accessories, concept stores, small department stores, wedding/bridal, heritage gift shops, multi-brand boutiques, garden centres with substantial gift halls.
+- Do NOT generate phone, email, or address. Leave town empty if unsure.${notFitContext}`,
         },
         {
           role: "user",
-          content: `Generate ${count} realistic independent retail prospects in ${county} that would be good candidates for stocking Nomination charm jewellery. Focus on ${category.replace("_", " ")} stores. Use real town names from ${county}.${excludeClause}`,
+          content: `Classify these REAL businesses found in ${county} for the "${category.replace(/_/g, " ")}" category:\n\n${businessList}`,
         },
       ],
     }),
@@ -144,69 +212,121 @@ SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
     await aiResponse.text();
     if (status === 429) throw new Error("Rate limit exceeded");
     if (status === 402) throw new Error("AI credits exhausted");
-    throw new Error("AI generation failed");
+    throw new Error("AI classification failed");
   }
 
   const aiData = await aiResponse.json();
   const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall) throw new Error("AI did not return structured data");
+  if (!toolCall) return [];
 
-  const generated = JSON.parse(toolCall.function.arguments);
-  const prospects = generated.prospects || [];
+  const parsed = JSON.parse(toolCall.function.arguments);
+  const classified = parsed.prospects || [];
 
-  // Filter out exact name+town duplicates but allow same name in different towns (branch detection)
-  const lowerExisting = new Set(existingNames.map(n => n.toLowerCase()));
-  const unique: any[] = [];
+  return classified
+    .filter((c: any) => c.keep)
+    .map((c: any) => {
+      const src = businesses[c.index - 1];
+      if (!src) return null;
+      return {
+        name: src.name, // ALWAYS use the real name from Firecrawl, never the AI's
+        town: c.town || "",
+        category: c.category,
+        rating: c.rating || 0,
+        review_count: c.review_count || 0,
+        estimated_store_quality: c.estimated_store_quality,
+        category_alignment: c.category_alignment,
+        town_appeal: c.town_appeal,
+        has_social_media: c.has_social_media || false,
+        is_independent: c.is_independent !== false,
+        has_website: !!src.url,
+        estimated_price_positioning: c.estimated_price_positioning,
+        ai_reason: c.ai_reason || "",
+        website: src.url || "",
+        _description: src.description || "",
+      };
+    })
+    .filter(Boolean);
+}
+
+async function discoverBatch(
+  supabase: any,
+  userId: string,
+  county: string,
+  category: string,
+  LOVABLE_API_KEY: string,
+  FIRECRAWL_API_KEY: string,
+  notFitContext: string = "",
+  existingRetailers: Array<{ id: string; name: string; town: string }> = [],
+  existingProspects: Array<{ name: string; town: string }> = [],
+) {
+  // Step 1: Real-business discovery via Firecrawl
+  const rawBusinesses = await firecrawlSearchBusinesses(county, category, FIRECRAWL_API_KEY);
+
+  // Filter out directory/listing URLs before sending to AI
+  const realBusinesses = rawBusinesses.filter(b => b.url && !isDirectoryUrl(b.url));
+
+  if (realBusinesses.length === 0) {
+    console.log(`No real businesses found via Firecrawl for ${county}/${category}`);
+    return [];
+  }
+
+  // Step 2: AI classification & scoring (no name invention)
+  const classified = await classifyAndScoreWithAI(realBusinesses, county, category, LOVABLE_API_KEY, notFitContext);
+
+  if (classified.length === 0) return [];
+
+  // Step 3: Dedup against existing retailers/prospects
+  const lowerExistingRetailers = new Map(
+    existingRetailers.map(r => [`${r.name.toLowerCase()}|${(r.town || "").toLowerCase()}`, r])
+  );
+  const lowerExistingProspects = new Set(
+    existingProspects.map(p => `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`)
+  );
+
+  const seenInBatch = new Set<string>();
   const branchFlags: Map<number, { related_account_id: string; related_name: string; related_town: string }> = new Map();
+  const unique: any[] = [];
 
-  prospects.forEach((p: any, idx: number) => {
-    const pLower = p.name.toLowerCase();
-    const pTown = (p.town || '').toLowerCase();
-    const pNorm = pLower.replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
+  for (const p of classified) {
+    const key = `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`;
+    if (seenInBatch.has(key)) continue;
+    if (lowerExistingProspects.has(key)) continue;
 
-    // Check for exact name+town duplicate in prospects already being inserted
-    const isDupInBatch = unique.some(u => u.name.toLowerCase() === pLower && (u.town || '').toLowerCase() === pTown);
-    if (isDupInBatch) return;
-
-    // Check against existing retailers — allow different town (branch), block same town
+    // Same name+town as existing retailer → skip; same name different town → flag as branch
     let blocked = false;
     let matchedRetailer: any = null;
-
-    // Check retailer entries (have id + town)
-    for (const r of (existingRetailers || [])) {
-      const rNorm = r.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
-      const nameMatch = pLower === r.name.toLowerCase() || (pNorm.length > 3 && rNorm.length > 3 && (pNorm.includes(rNorm) || rNorm.includes(pNorm)));
-      if (nameMatch) {
-        if ((r.town || '').toLowerCase() === pTown) { blocked = true; break; }
-        else { matchedRetailer = r; }
+    for (const r of existingRetailers) {
+      if (r.name.toLowerCase() === p.name.toLowerCase()) {
+        if ((r.town || "").toLowerCase() === (p.town || "").toLowerCase()) {
+          blocked = true;
+          break;
+        }
+        matchedRetailer = r;
       }
     }
-    if (blocked) return;
-
-    // Check prospect entries (name only — block same name+town)
-    for (const ep of (existingProspects || [])) {
-      const epNorm = ep.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, "").replace(/[^a-z0-9]/g, "").trim();
-      const nameMatch = pLower === ep.name.toLowerCase() || (pNorm.length > 3 && epNorm.length > 3 && (pNorm.includes(epNorm) || epNorm.includes(pNorm)));
-      if (nameMatch && (ep.town || '').toLowerCase() === pTown) { blocked = true; break; }
-    }
-    if (blocked) return;
-
+    if (blocked) continue;
     if (matchedRetailer) {
-      branchFlags.set(unique.length, { related_account_id: matchedRetailer.id, related_name: matchedRetailer.name, related_town: matchedRetailer.town });
+      branchFlags.set(unique.length, {
+        related_account_id: matchedRetailer.id,
+        related_name: matchedRetailer.name,
+        related_town: matchedRetailer.town,
+      });
     }
+    seenInBatch.add(key);
     unique.push(p);
-  });
+  }
 
+  // Step 4: Build insert payload — every row is web_verified because Firecrawl returned a URL
   const toInsert = unique.map((p: any, idx: number) => {
     const factors = {
       estimated_store_quality: p.estimated_store_quality || 50,
-      category_alignment: p.category_alignment || 'moderate',
-      town_appeal: p.town_appeal || 'average',
+      category_alignment: p.category_alignment || "moderate",
+      town_appeal: p.town_appeal || "average",
       has_social_media: p.has_social_media || false,
       is_independent: p.is_independent !== false,
       estimated_rating: p.rating || 0,
-      has_website: p.has_website || false,
-      price_positioning: p.estimated_price_positioning || 'mid_market',
+      has_website: true,
+      price_positioning: p.estimated_price_positioning || "mid_market",
     };
     const breakdown = calculateFitScore(factors);
     const branch = branchFlags.get(idx);
@@ -214,7 +334,7 @@ SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
     return {
       user_id: userId,
       name: p.name,
-      town: p.town,
+      town: p.town || county,
       county,
       category: p.category,
       rating: p.rating,
@@ -225,16 +345,22 @@ SCORING FACTORS — Return RAW FACTOR VALUES, NOT a combined score:
         ? `⚡ Potential branch of existing account "${branch.related_name}" in ${branch.related_town}. ${p.ai_reason}`
         : p.ai_reason,
       estimated_price_positioning: p.estimated_price_positioning,
-      website: p.website || null,
-      address: p.address || null,
-      phone: p.phone || null,
-      email: p.email || null,
-      discovery_source: "AI Scanner",
-      verification_status: "unverified",
+      website: p.website,
+      address: null,
+      phone: null,
+      email: null,
+      discovery_source: "Firecrawl + AI",
+      verification_status: "web_verified",
+      verification_data: {
+        verified_at: new Date().toISOString(),
+        method: "firecrawl_search",
+        source_url: p.website,
+      },
       status: "new",
       raw_data: {
         fit_score_factors: factors,
         fit_score_breakdown: breakdown,
+        firecrawl_description: p._description,
         ...(branch ? { related_account_id: branch.related_account_id, related_account_name: branch.related_name, related_account_town: branch.related_town, is_potential_branch: true } : {}),
       },
     };
@@ -282,7 +408,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const { county, category, count, fullScan } = await req.json().catch(() => ({}));
+    const { county, category, fullScan } = await req.json().catch(() => ({}));
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -291,11 +417,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+    if (!FIRECRAWL_API_KEY) {
+      return new Response(JSON.stringify({ error: "FIRECRAWL_API_KEY not configured — connect Firecrawl in Connectors" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town");
     const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town");
     const retailerEntries = (existingRetailers || []).map((r: any) => ({ id: r.id, name: r.name, town: r.town }));
-    const prospectNames = (existingProspects || []).map((p: any) => p.name);
-    const existingNames = [...retailerEntries.map((r: any) => r.name), ...prospectNames];
 
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
     let notFitContext = "";
@@ -309,20 +440,16 @@ Deno.serve(async (req) => {
         }
       });
       const topReasons = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => `${r} (${c}x)`).join(", ");
-      notFitContext = `\n\nLEARNED "NOT FIT" PATTERNS from previous disqualifications:\nTop reasons: ${topReasons}\nExamples:\n${examples.join("\n")}\n\nAvoid suggesting stores matching these patterns.`;
+      notFitContext = `\n\nLEARNED "NOT FIT" PATTERNS — Set keep=false for similar:\nTop reasons: ${topReasons}\nExamples:\n${examples.join("\n")}`;
     }
 
     let allInserted: any[] = [];
 
     if (fullScan) {
-      const batchSize = 8;
       for (const c of SOUTH_WEST_COUNTIES) {
         for (const cat of CATEGORIES) {
           try {
-            const inserted = await discoverBatch(supabase, userId, c, cat, batchSize, [
-              ...existingNames,
-              ...allInserted.map((p: any) => p.name),
-            ], LOVABLE_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+            const inserted = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
             allInserted = allInserted.concat(inserted);
           } catch (err: any) {
             console.error(`Batch error for ${c}/${cat}:`, err.message);
@@ -342,13 +469,17 @@ Deno.serve(async (req) => {
     } else {
       const targetCounty = county || SOUTH_WEST_COUNTIES[Math.floor(Math.random() * SOUTH_WEST_COUNTIES.length)];
       const targetCategory = category || CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
-      const targetCount = Math.min(count || 15, 20);
-
-      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, targetCount, existingNames, LOVABLE_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+      const inserted = await discoverBatch(supabase, userId, targetCounty, targetCategory, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
       allInserted = inserted;
     }
 
-    return new Response(JSON.stringify({ success: true, prospects: allInserted }), {
+    return new Response(JSON.stringify({
+      success: true,
+      prospects: allInserted,
+      message: allInserted.length === 0
+        ? "No verified businesses found for this county/category combination. Try a different scan."
+        : `Discovered ${allInserted.length} verified real businesses.`,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
