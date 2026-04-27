@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const SOUTH_WEST_COUNTIES = [
-  "Somerset", "Devon", "Cornwall", "Dorset", "Wiltshire", "Gloucestershire", "Bristol", "Avon",
+  "Somerset", "Devon", "Cornwall", "Wiltshire", "Gloucestershire", "Bristol", "Avon",
   "Herefordshire", "Worcestershire",
   "Cardiff", "Swansea", "Newport", "Vale of Glamorgan", "Bridgend", "Neath Port Talbot",
   "Carmarthenshire", "Pembrokeshire", "Monmouthshire", "Rhondda Cynon Taf", "Merthyr Tydfil",
