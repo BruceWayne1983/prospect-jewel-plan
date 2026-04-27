@@ -890,6 +890,16 @@ export default function ProspectDiscovery() {
             </>
           )}
         </Button>
+        <Button
+          onClick={clearAllProspects}
+          disabled={clearing || prospects.length === 0}
+          variant="outline"
+          size="sm"
+          className="text-[10px] h-8 px-3 border-destructive/30 text-destructive hover:bg-destructive/10"
+        >
+          {clearing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5 mr-1.5" />}
+          Clear All
+        </Button>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
             className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
