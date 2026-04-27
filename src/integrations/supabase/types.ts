@@ -158,6 +158,7 @@ export type Database = {
           address: string | null
           ai_reason: string | null
           category: Database["public"]["Enums"]["retailer_category"]
+          contact_provenance: Json
           county: string
           created_at: string
           discovered_date: string
@@ -201,6 +202,7 @@ export type Database = {
           address?: string | null
           ai_reason?: string | null
           category?: Database["public"]["Enums"]["retailer_category"]
+          contact_provenance?: Json
           county: string
           created_at?: string
           discovered_date?: string
@@ -244,6 +246,7 @@ export type Database = {
           address?: string | null
           ai_reason?: string | null
           category?: Database["public"]["Enums"]["retailer_category"]
+          contact_provenance?: Json
           county?: string
           created_at?: string
           discovered_date?: string
@@ -603,6 +606,7 @@ export type Database = {
           category: Database["public"]["Enums"]["retailer_category"]
           commercial_health_score: number | null
           competitor_brands: Json | null
+          contact_provenance: Json
           county: string
           created_at: string
           email: string | null
@@ -660,6 +664,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["retailer_category"]
           commercial_health_score?: number | null
           competitor_brands?: Json | null
+          contact_provenance?: Json
           county: string
           created_at?: string
           email?: string | null
@@ -717,6 +722,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["retailer_category"]
           commercial_health_score?: number | null
           competitor_brands?: Json | null
+          contact_provenance?: Json
           county?: string
           created_at?: string
           email?: string | null
