@@ -419,8 +419,21 @@ export default function ProspectDiscovery() {
       const { data, error } = await supabase.functions.invoke("discover-prospects", { body });
       if (error) throw error;
       if (data?.success) {
-        toast.success(`Discovered ${data.prospects?.length || 0} new prospects!`);
+        const matched = data.matched_current_accounts || [];
+        const count = data.prospects?.length || 0;
+        if (matched.length > 0) {
+          toast.success(`Discovered ${count} verified prospects. ${matched.length} already a current account — skipped.`, { duration: 7000 });
+          matched.slice(0, 5).forEach((m: any) => {
+            toast.info(`"${m.matched_name}" is already a stockist (${m.retailer_name}, ${m.retailer_town})`, {
+              duration: 8000,
+              action: { label: "Open account", onClick: () => navigate(`/retailer/${m.retailer_id}`) },
+            });
+          });
+        } else {
+          toast.success(`Discovered ${count} new prospects!`);
+        }
         await fetchProspects();
+        await fetchExistingRetailers();
       } else {
         toast.error(data?.error || "Discovery failed");
       }
