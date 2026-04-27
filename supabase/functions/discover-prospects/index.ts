@@ -362,68 +362,81 @@ async function discoverBatch(
   LOVABLE_API_KEY: string,
   FIRECRAWL_API_KEY: string,
   notFitContext: string = "",
-  existingRetailers: Array<{ id: string; name: string; town: string }> = [],
+  existingRetailers: RetailerLite[] = [],
   existingProspects: Array<{ name: string; town: string }> = [],
-) {
+): Promise<{ inserted: any[]; matchedAccounts: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> }> {
+  const matchedAccounts: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> = [];
+
   // Step 1: Real-business discovery via Firecrawl
   const rawBusinesses = await firecrawlSearchBusinesses(county, category, FIRECRAWL_API_KEY);
 
-  // Filter out directory/listing URLs before sending to AI
-  const realBusinesses = rawBusinesses.filter(b => b.url && !isDirectoryUrl(b.url));
+  // RULE 1: Drop anything without a valid, non-directory URL
+  const realBusinesses = rawBusinesses.filter(b =>
+    b.url && isValidShopUrl(b.url) && !isDirectoryUrl(b.url) && !isGenericName(b.name)
+  );
 
   if (realBusinesses.length === 0) {
     console.log(`No real businesses found via Firecrawl for ${county}/${category}`);
-    return [];
+    return { inserted: [], matchedAccounts };
   }
 
   // Step 2: AI classification & scoring (no name invention)
   const classified = await classifyAndScoreWithAI(realBusinesses, county, category, LOVABLE_API_KEY, notFitContext);
 
-  if (classified.length === 0) return [];
+  if (classified.length === 0) return { inserted: [], matchedAccounts };
 
-  // Step 3: Dedup against existing retailers/prospects
-  const lowerExistingRetailers = new Map(
-    existingRetailers.map(r => [`${r.name.toLowerCase()}|${(r.town || "").toLowerCase()}`, r])
-  );
+  // Step 3: Dedup and current-account filtering
   const lowerExistingProspects = new Set(
     existingProspects.map(p => `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`)
   );
-
   const seenInBatch = new Set<string>();
   const branchFlags: Map<number, { related_account_id: string; related_name: string; related_town: string }> = new Map();
-  const unique: any[] = [];
+  const candidates: any[] = [];
 
   for (const p of classified) {
+    // Drop generic names that survived AI cleaning
+    if (isGenericName(p.name)) continue;
+
     const key = `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`;
     if (seenInBatch.has(key)) continue;
     if (lowerExistingProspects.has(key)) continue;
 
-    // Same name+town as existing retailer → skip; same name different town → flag as branch
-    let blocked = false;
-    let matchedRetailer: any = null;
-    for (const r of existingRetailers) {
-      if (r.name.toLowerCase() === p.name.toLowerCase()) {
-        if ((r.town || "").toLowerCase() === (p.town || "").toLowerCase()) {
-          blocked = true;
-          break;
-        }
-        matchedRetailer = r;
+    // RULE 2: Fuzzy match against current accounts (name + town OR root domain)
+    const matched = matchExistingRetailer(p.name, p.town || "", p.website || null, existingRetailers);
+    if (matched) {
+      const sameTown = normTown(matched.town || "") === normTown(p.town || "");
+      const sameDomain = !!rootDomain(p.website) && rootDomain(p.website) === rootDomain(matched.website);
+      if (sameTown || sameDomain) {
+        // Already a current account → never insert as prospect
+        matchedAccounts.push({
+          retailer_id: matched.id,
+          retailer_name: matched.name,
+          retailer_town: matched.town || "",
+          matched_name: p.name,
+        });
+        continue;
       }
-    }
-    if (blocked) continue;
-    if (matchedRetailer) {
-      branchFlags.set(unique.length, {
-        related_account_id: matchedRetailer.id,
-        related_name: matchedRetailer.name,
-        related_town: matchedRetailer.town,
+      // Same brand, different town → flag as branch
+      branchFlags.set(candidates.length, {
+        related_account_id: matched.id,
+        related_name: matched.name,
+        related_town: matched.town || "",
       });
     }
+
     seenInBatch.add(key);
-    unique.push(p);
+    candidates.push(p);
   }
 
-  // Step 4: Build insert payload — every row is web_verified because Firecrawl returned a URL
+  // RULE 3: Probe every candidate URL — anything that doesn't respond is dropped
+  const probeResults = await Promise.all(candidates.map(c => probeUrl(c.website)));
+  const unique = candidates.filter((_, i) => probeResults[i]);
+
+  if (unique.length === 0) return { inserted: [], matchedAccounts };
+
+  // Step 4: Build insert payload — every row passed URL probe → web_verified
   const toInsert = unique.map((p: any, idx: number) => {
+    const originalIdx = candidates.indexOf(p);
     const factors = {
       estimated_store_quality: p.estimated_store_quality || 50,
       category_alignment: p.category_alignment || "moderate",
@@ -435,7 +448,7 @@ async function discoverBatch(
       price_positioning: p.estimated_price_positioning || "mid_market",
     };
     const breakdown = calculateFitScore(factors);
-    const branch = branchFlags.get(idx);
+    const branch = branchFlags.get(originalIdx);
 
     return {
       user_id: userId,
@@ -459,7 +472,7 @@ async function discoverBatch(
       verification_status: "web_verified",
       verification_data: {
         verified_at: new Date().toISOString(),
-        method: "firecrawl_search",
+        method: "firecrawl_search_url_probed",
         source_url: p.website,
       },
       status: "new",
@@ -472,7 +485,7 @@ async function discoverBatch(
     };
   });
 
-  if (toInsert.length === 0) return [];
+  if (toInsert.length === 0) return { inserted: [], matchedAccounts };
 
   const { data: inserted, error: insertError } = await supabase
     .from("discovered_prospects")
@@ -484,7 +497,7 @@ async function discoverBatch(
     throw new Error("Failed to save prospects");
   }
 
-  return inserted || [];
+  return { inserted: inserted || [], matchedAccounts };
 }
 
 Deno.serve(async (req) => {
