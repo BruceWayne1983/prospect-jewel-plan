@@ -917,6 +917,17 @@ export default function ProspectDiscovery() {
           )}
         </Button>
         <Button
+          onClick={purgeUnverified}
+          disabled={clearing || prospects.length === 0}
+          variant="outline"
+          size="sm"
+          className="text-[10px] h-8 px-3 border-warning/40 text-warning hover:bg-warning-light"
+          title="Delete all unverified / AI-generated prospects (legacy data)"
+        >
+          {clearing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5 mr-1.5" />}
+          Purge Unverified
+        </Button>
+        <Button
           onClick={clearAllProspects}
           disabled={clearing || prospects.length === 0}
           variant="outline"
