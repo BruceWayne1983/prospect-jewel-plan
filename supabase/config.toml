@@ -19,6 +19,8 @@ project_id = "eaofahkmbxlfpyoqgypa"
     verify_jwt = false
   [functions.process-email-queue]
     verify_jwt = true
+  [functions.route-distances]
+    verify_jwt = false
   [functions.verify-social]
     verify_jwt = false
   [functions.voice-to-crm]
