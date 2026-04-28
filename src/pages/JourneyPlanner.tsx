@@ -688,6 +688,14 @@ export default function JourneyPlanner() {
               </div>
             )}
 
+            {/* Auto-plan from best prospects */}
+            <AutoPlanPanel
+              retailers={enrichedRetailers}
+              prospects={nearbyProspects}
+              home={home}
+              onApply={applyAutoPlan}
+            />
+
             {/* Add Accounts Panel */}
             <div className="card-premium p-4">
               <div className="flex items-center justify-between mb-3">
