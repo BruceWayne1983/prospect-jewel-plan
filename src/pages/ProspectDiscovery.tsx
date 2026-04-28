@@ -1311,7 +1311,7 @@ export default function ProspectDiscovery() {
                   {p.review_count ? `${p.review_count} reviews` : 'No reviews yet'}
                 </div>
                 {/* Verify buttons */}
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 flex-wrap">
                   {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
                     <Button variant="outline" size="sm" onClick={() => verifyProspect(p)} disabled={verifyingIds.has(p.id)} className="text-[10px] h-7 px-2 border-warning/40 text-warning hover:bg-warning-light">
                       {verifyingIds.has(p.id) ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
