@@ -1305,7 +1305,7 @@ export default function ProspectDiscovery() {
                   </div>
                 )}
               </div>
-              <div className="flex flex-col items-end gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
+              <div className="flex flex-row md:flex-col items-start md:items-end gap-3 flex-wrap md:flex-nowrap md:flex-shrink-0 w-full md:w-auto" onClick={e => e.stopPropagation()}>
                 <ScoreBreakdownTooltip prospect={p} />
                 <div className="text-[10px] text-muted-foreground capitalize">
                   {p.review_count ? `${p.review_count} reviews` : 'No reviews yet'}
