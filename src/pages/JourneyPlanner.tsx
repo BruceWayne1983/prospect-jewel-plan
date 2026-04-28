@@ -8,6 +8,7 @@ import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/compon
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
 import { NearbyAccounts } from "@/components/journey/NearbyAccounts";
 import { MeetingBooker } from "@/components/journey/MeetingBooker";
+import { AutoPlanPanel } from "@/components/journey/AutoPlanPanel";
 import { nearestNeighbourOrder, twoOptImprove } from "@/utils/routeOptimisation";
 
 const ensureSession = async () => {
@@ -554,7 +555,15 @@ export default function JourneyPlanner() {
     });
   };
 
-  // Accounts available to add (not already in custom route)
+  // Replace the custom route with an auto-picked set (used by AutoPlanPanel).
+  const applyAutoPlan = (ids: string[]) => {
+    const next = new Set(ids);
+    setCustomRouteAccounts(next);
+    syncRouteToStorage(next);
+    setSelectedRoute('📌 My Custom Route');
+  };
+
+
   const addableAccounts = useMemo(() => {
     const search = addSearch.toLowerCase();
     return enrichedRetailers
@@ -678,6 +687,14 @@ export default function JourneyPlanner() {
                 </p>
               </div>
             )}
+
+            {/* Auto-plan from best prospects */}
+            <AutoPlanPanel
+              retailers={enrichedRetailers}
+              prospects={nearbyProspects}
+              home={home}
+              onApply={applyAutoPlan}
+            />
 
             {/* Add Accounts Panel */}
             <div className="card-premium p-4">
