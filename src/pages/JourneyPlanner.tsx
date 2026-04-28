@@ -868,9 +868,22 @@ export default function JourneyPlanner() {
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5" />{orderedStops.length} accounts{removedForRoute.length > 0 && <span className="text-warning"> ({removedForRoute.length} removed)</span>}
                     </span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Car className="w-3.5 h-3.5" />~{activeRoute.estimatedDriveMinutes}m between stops
-                    </span>
+                    {(() => {
+                      const totalDrive = activeRoute.estimatedDriveMinutes + activeRoute.driveFromHomeMinutes + activeRoute.driveHomeMinutes;
+                      const totalTraffic = activeRoute.trafficDriveMinutes != null
+                        ? activeRoute.trafficDriveMinutes + (activeRoute.trafficFromHomeMinutes ?? 0) + (activeRoute.trafficHomeMinutes ?? 0)
+                        : null;
+                      const fmt = (m: number) => `${Math.floor(m / 60)}h ${m % 60}m`;
+                      return (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Car className="w-3.5 h-3.5" />
+                          Drive time: {fmt(totalDrive)}
+                          {totalTraffic != null && totalTraffic !== totalDrive && (
+                            <span className="text-warning/80"> ({fmt(totalTraffic)} with current traffic)</span>
+                          )}
+                        </span>
+                      );
+                    })()}
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />~{Math.round(activeRoute.totalStops * 30 + activeRoute.estimatedDriveMinutes + activeRoute.driveFromHomeMinutes + activeRoute.driveHomeMinutes)}m total day
                     </span>
