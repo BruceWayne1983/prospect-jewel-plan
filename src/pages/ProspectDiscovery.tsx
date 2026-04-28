@@ -1255,7 +1255,7 @@ export default function ProspectDiscovery() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                   <h3 className="text-base font-display font-semibold text-foreground hover:text-gold transition-colors">{p.name}</h3>
-                  <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
+                  <span className="badge-category text-[9px]">{p.category.replace(/_/g, ' ')}</span>
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
                   <VerificationBadge status={(p as any).verification_status} />
