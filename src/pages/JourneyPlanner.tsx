@@ -8,6 +8,7 @@ import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/compon
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
 import { NearbyAccounts } from "@/components/journey/NearbyAccounts";
 import { MeetingBooker } from "@/components/journey/MeetingBooker";
+import { AutoPlanPanel } from "@/components/journey/AutoPlanPanel";
 import { nearestNeighbourOrder, twoOptImprove } from "@/utils/routeOptimisation";
 
 const ensureSession = async () => {
