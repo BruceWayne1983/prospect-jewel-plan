@@ -1250,12 +1250,12 @@ export default function ProspectDiscovery() {
       {/* Prospect Cards */}
       <div className="space-y-4">
         {filtered.map(p => (
-          <div key={p.id} onClick={() => navigate(`/prospect/${p.id}`)} className={`card-premium p-6 cursor-pointer hover:shadow-md transition-shadow ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
-            <div className="flex items-start justify-between gap-6">
-              <div className="flex-1">
+          <div key={p.id} onClick={() => navigate(`/prospect/${p.id}`)} className={`card-premium p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow ${p.status === 'new' ? 'border-gold/20' : p.status === 'dismissed' ? 'opacity-60' : ''}`}>
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                   <h3 className="text-base font-display font-semibold text-foreground hover:text-gold transition-colors">{p.name}</h3>
-                  <span className="badge-category text-[9px]">{p.category.replace('_', ' ')}</span>
+                  <span className="badge-category text-[9px]">{p.category.replace(/_/g, ' ')}</span>
                   <ConfidenceBadge score={p.predicted_fit_score ?? 0} />
                   <SourceBadge source={p.discovery_source} />
                   <VerificationBadge status={(p as any).verification_status} />
@@ -1265,7 +1265,7 @@ export default function ProspectDiscovery() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 mb-2">
+                <div className="flex items-center gap-x-4 gap-y-1.5 mb-2 flex-wrap">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" />{p.rating} ({p.review_count})</span>
                   {p.website && (
@@ -1305,13 +1305,13 @@ export default function ProspectDiscovery() {
                   </div>
                 )}
               </div>
-              <div className="flex flex-col items-end gap-3 flex-shrink-0" onClick={e => e.stopPropagation()}>
+              <div className="flex flex-row md:flex-col items-start md:items-end gap-3 flex-wrap md:flex-nowrap md:flex-shrink-0 w-full md:w-auto" onClick={e => e.stopPropagation()}>
                 <ScoreBreakdownTooltip prospect={p} />
                 <div className="text-[10px] text-muted-foreground capitalize">
                   {p.review_count ? `${p.review_count} reviews` : 'No reviews yet'}
                 </div>
                 {/* Verify buttons */}
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 flex-wrap">
                   {((p as any).verification_status === 'unverified' || !(p as any).verification_status) && (
                     <Button variant="outline" size="sm" onClick={() => verifyProspect(p)} disabled={verifyingIds.has(p.id)} className="text-[10px] h-7 px-2 border-warning/40 text-warning hover:bg-warning-light">
                       {verifyingIds.has(p.id) ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
@@ -1331,7 +1331,7 @@ export default function ProspectDiscovery() {
                   </div>
                 )}
                 {p.status === 'new' || p.status === 'reviewing' ? (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => updateStatus(p.id, 'reviewing')} className="text-[10px] h-7 px-2 border-border/40">
                       <Eye className="w-3 h-3 mr-1" /> Review
                     </Button>
