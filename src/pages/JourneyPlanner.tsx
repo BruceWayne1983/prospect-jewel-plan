@@ -568,8 +568,8 @@ export default function JourneyPlanner() {
   }
 
   const totalVisitable = retailers.filter(r => r.lat && r.lng).length;
-  const highPriorityRoutes = routes.filter(r => r.priority === 'high').length;
-  const totalDriveTime = routes.reduce((s, r) => s + r.estimatedDriveMinutes, 0);
+  const highPriorityRoutes = enrichedAllRoutes.filter(r => r.priority === 'high').length;
+  const totalDriveTime = enrichedAllRoutes.reduce((s, r) => s + r.estimatedDriveMinutes, 0);
 
   return (
     <div className="page-container">
@@ -584,6 +584,23 @@ export default function JourneyPlanner() {
         </button>
       </div>
       <div className="divider-gold" />
+
+      {/* Real-time drive estimate fallback banner */}
+      {enrichment.status === 'fallback' && allRoutes.length > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/5 border border-warning/20">
+          <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
+          <div className="text-[11px] text-foreground/80">
+            <p className="font-medium text-warning">Real-time drive estimates unavailable.</p>
+            <p className="text-muted-foreground mt-0.5">Showing approximate distances. {enrichment.reason}</p>
+          </div>
+        </div>
+      )}
+      {enrichment.status === 'loading' && allRoutes.length > 0 && (
+        <div className="flex items-center gap-2 p-2 px-3 rounded-lg bg-champagne/15 border border-primary/10 text-[11px] text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin text-primary" />
+          Refining routes with live road distances…
+        </div>
+      )}
 
       {/* Home Base Card */}
       <div className="card-premium p-4">
