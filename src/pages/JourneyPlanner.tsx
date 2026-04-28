@@ -54,6 +54,12 @@ interface TownCluster {
   lng: number;
 }
 
+// Stable id for use in the route-distances matrix.
+function clusterId(c: { town: string }): string {
+  return `cluster:${c.town.toLowerCase().trim()}`;
+}
+const HOME_ID = "home";
+
 interface RetailerWithMeta {
   id: string;
   name: string;
@@ -79,6 +85,11 @@ interface PlannedRoute {
   driveFromHomeMinutes: number;
   driveHomeMinutes: number;
   priority: 'high' | 'medium' | 'low';
+  // Optional traffic-aware totals (only set when route-distances returned them).
+  trafficDriveMinutes?: number;
+  trafficFromHomeMinutes?: number;
+  trafficHomeMinutes?: number;
+  source?: 'haversine' | 'google';
 }
 
 export function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
