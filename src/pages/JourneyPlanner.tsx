@@ -307,10 +307,194 @@ export default function JourneyPlanner() {
     return list;
   }, [customRoute, routes]);
 
+  // ── Real road-distance enrichment via Google Maps Distance Matrix ──
+  // Falls back silently to the haversine baseline if the edge function fails
+  // or no API key is configured.
+  type EnrichmentState =
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'ok'; routes: PlannedRoute[]; hasTraffic: boolean }
+    | { status: 'fallback'; reason: string };
+  const [enrichment, setEnrichment] = useState<EnrichmentState>({ status: 'idle' });
+
+  // Routes shown to the rest of the UI: prefer the enriched, real-distance
+  // version when it matches the current haversine baseline.
+  const enrichedAllRoutes: PlannedRoute[] = useMemo(() => {
+    if (enrichment.status !== 'ok') return allRoutes;
+    // Map by name for safety
+    const byName = new Map(enrichment.routes.map(r => [r.name, r]));
+    return allRoutes.map(r => byName.get(r.name) ?? r);
+  }, [allRoutes, enrichment]);
+
+  // Decide departureTime: use 'now' for traffic if any planned date is today
+  // and the day starts within the next hour. (Safe default: undefined.)
+  const departureTime: 'now' | undefined = useMemo(() => {
+    if (!selectedDate) return undefined;
+    const today = new Date().toISOString().slice(0, 10);
+    if (selectedDate !== today) return undefined;
+    const startMins = selectedDayPref ? timeToMinutes(selectedDayPref.startTime) : 510;
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    return startMins - nowMins <= 60 ? 'now' : undefined;
+  }, [selectedDate, selectedDayPref]);
+
+  // Build a stable key for the set of input routes so the effect doesn't
+  // re-fire on unrelated state changes.
+  const routesKey = useMemo(
+    () => allRoutes
+      .map(r => r.name + '|' + r.clusters.map(c => `${c.town}@${c.lat.toFixed(3)},${c.lng.toFixed(3)}`).join('>'))
+      .join('||') + '##' + `${home.lat.toFixed(3)},${home.lng.toFixed(3)}` + '##' + (departureTime ?? ''),
+    [allRoutes, home, departureTime],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (allRoutes.length === 0) {
+      setEnrichment({ status: 'idle' });
+      return;
+    }
+
+    const run = async () => {
+      setEnrichment({ status: 'loading' });
+
+      // Collect unique cluster points
+      const seen = new Set<string>();
+      const points: Array<{ id: string; lat: number; lng: number }> = [];
+      const pushPoint = (id: string, lat: number, lng: number) => {
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+        if (seen.has(id)) return;
+        seen.add(id);
+        points.push({ id, lat, lng });
+      };
+      pushPoint(HOME_ID, home.lat, home.lng);
+      for (const r of allRoutes) {
+        for (const c of r.clusters) pushPoint(clusterId(c), c.lat, c.lng);
+      }
+
+      if (points.length < 2) {
+        setEnrichment({ status: 'fallback', reason: 'Not enough geocoded stops' });
+        return;
+      }
+
+      try {
+        await ensureSession();
+        const { data, error } = await supabase.functions.invoke('route-distances', {
+          body: { origins: points, destinations: points, departureTime },
+        });
+        if (cancelled) return;
+        if (error || !data || (data as any).error) {
+          const reason = (data as any)?.error || (error as any)?.message || 'Real-time drive estimates unavailable.';
+          setEnrichment({ status: 'fallback', reason });
+          return;
+        }
+
+        // Build distance lookup: id->id->{minutes, trafficMinutes|null, km}
+        const lookup = new Map<string, Map<string, { minutes: number; trafficMinutes: number | null; km: number }>>();
+        let hasTraffic = false;
+        for (const row of (data as any).matrix as Array<{ originId: string; results: Array<{ destinationId: string; distance_km: number; duration_minutes: number; duration_in_traffic_minutes: number | null }> }>) {
+          const inner = new Map<string, { minutes: number; trafficMinutes: number | null; km: number }>();
+          for (const cell of row.results) {
+            inner.set(cell.destinationId, {
+              minutes: cell.duration_minutes,
+              trafficMinutes: cell.duration_in_traffic_minutes,
+              km: cell.distance_km,
+            });
+            if (cell.duration_in_traffic_minutes != null) hasTraffic = true;
+          }
+          lookup.set(row.originId, inner);
+        }
+
+        // Distance fn used by optimisation: id->id minutes, falling back to haversine.
+        const idToCoords = new Map<string, { lat: number; lng: number }>();
+        for (const p of points) idToCoords.set(p.id, { lat: p.lat, lng: p.lng });
+
+        const distanceMinutes = (a: string, b: string): number => {
+          const cell = lookup.get(a)?.get(b);
+          if (cell) return cell.minutes;
+          const ca = idToCoords.get(a);
+          const cb = idToCoords.get(b);
+          if (!ca || !cb) return Infinity;
+          return estimateDriveMinutes(haversine(ca.lat, ca.lng, cb.lat, cb.lng));
+        };
+        const trafficMinutesOrPlain = (a: string, b: string): number => {
+          const cell = lookup.get(a)?.get(b);
+          if (cell?.trafficMinutes != null) return cell.trafficMinutes;
+          return distanceMinutes(a, b);
+        };
+
+        const recomputeRoute = (route: PlannedRoute, reorder: boolean): PlannedRoute => {
+          const validClusters = route.clusters.filter(c => (c.lat !== 0 || c.lng !== 0));
+          if (validClusters.length === 0) return route;
+
+          let orderedIds: string[];
+          if (reorder && validClusters.length >= 2) {
+            const ids = validClusters.map(clusterId);
+            const seeded = nearestNeighbourOrder(ids, HOME_ID, distanceMinutes);
+            orderedIds = twoOptImprove(seeded, HOME_ID, distanceMinutes, 50);
+          } else {
+            orderedIds = validClusters.map(clusterId);
+          }
+
+          // Map ordered ids back to clusters
+          const byId = new Map(validClusters.map(c => [clusterId(c), c]));
+          const orderedClusters = orderedIds.map(id => byId.get(id)!).filter(Boolean);
+
+          // Sum durations
+          const first = clusterId(orderedClusters[0]);
+          const last = clusterId(orderedClusters[orderedClusters.length - 1]);
+          const driveFromHomeMinutes = Math.round(distanceMinutes(HOME_ID, first));
+          const driveHomeMinutes = Math.round(distanceMinutes(last, HOME_ID));
+          let between = 0;
+          for (let i = 1; i < orderedClusters.length; i++) {
+            between += distanceMinutes(clusterId(orderedClusters[i - 1]), clusterId(orderedClusters[i]));
+          }
+          const estimatedDriveMinutes = Math.round(between);
+
+          let trafficFromHome: number | undefined;
+          let trafficHome: number | undefined;
+          let trafficBetween: number | undefined;
+          if (hasTraffic) {
+            trafficFromHome = Math.round(trafficMinutesOrPlain(HOME_ID, first));
+            trafficHome = Math.round(trafficMinutesOrPlain(last, HOME_ID));
+            let tb = 0;
+            for (let i = 1; i < orderedClusters.length; i++) {
+              tb += trafficMinutesOrPlain(clusterId(orderedClusters[i - 1]), clusterId(orderedClusters[i]));
+            }
+            trafficBetween = Math.round(tb);
+          }
+
+          return {
+            ...route,
+            clusters: orderedClusters,
+            estimatedDriveMinutes,
+            driveFromHomeMinutes,
+            driveHomeMinutes,
+            trafficDriveMinutes: trafficBetween,
+            trafficFromHomeMinutes: trafficFromHome,
+            trafficHomeMinutes: trafficHome,
+            source: 'google',
+          };
+        };
+
+        const enriched = allRoutes.map(r => recomputeRoute(r, r.name !== '📌 My Custom Route'));
+        if (cancelled) return;
+        setEnrichment({ status: 'ok', routes: enriched, hasTraffic });
+      } catch (e) {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : 'Real-time drive estimates unavailable.';
+        setEnrichment({ status: 'fallback', reason: msg });
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routesKey]);
+
   const filteredRoutes = useMemo(() => {
-    if (!selectedDayPref || selectedDayPref.availability === 'full_day') return allRoutes;
+    if (!selectedDayPref || selectedDayPref.availability === 'full_day') return enrichedAllRoutes;
     if (selectedDayPref.availability === 'local_only' && selectedDayPref.maxDriveMinutes > 0) {
-      return [...allRoutes].sort((a, b) => {
+      return [...enrichedAllRoutes].sort((a, b) => {
         const aLocal = (a.estimatedDriveMinutes + a.driveFromHomeMinutes) <= selectedDayPref.maxDriveMinutes * 2;
         const bLocal = (b.estimatedDriveMinutes + b.driveFromHomeMinutes) <= selectedDayPref.maxDriveMinutes * 2;
         if (aLocal && !bLocal) return -1;
@@ -318,8 +502,8 @@ export default function JourneyPlanner() {
         return 0;
       });
     }
-    return allRoutes;
-  }, [allRoutes, selectedDayPref]);
+    return enrichedAllRoutes;
+  }, [enrichedAllRoutes, selectedDayPref]);
 
   const activeRoute = filteredRoutes.find(r => r.name === selectedRoute) ?? filteredRoutes[0];
 
