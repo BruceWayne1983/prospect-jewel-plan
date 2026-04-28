@@ -1331,7 +1331,7 @@ export default function ProspectDiscovery() {
                   </div>
                 )}
                 {p.status === 'new' || p.status === 'reviewing' ? (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => updateStatus(p.id, 'reviewing')} className="text-[10px] h-7 px-2 border-border/40">
                       <Eye className="w-3 h-3 mr-1" /> Review
                     </Button>
