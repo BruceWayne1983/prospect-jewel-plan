@@ -1265,7 +1265,7 @@ export default function ProspectDiscovery() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 mb-2">
+                <div className="flex items-center gap-x-4 gap-y-1.5 mb-2 flex-wrap">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3 h-3" strokeWidth={1.5} />{p.town}, {p.county}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground"><Star className="w-3 h-3 text-warning" />{p.rating} ({p.review_count})</span>
                   {p.website && (
