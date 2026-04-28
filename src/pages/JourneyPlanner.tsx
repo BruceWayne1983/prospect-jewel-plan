@@ -2,12 +2,23 @@ import { useState, useMemo, useEffect } from "react";
 import { useRetailers, getOutreach, getActivity } from "@/hooks/useRetailers";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight, Home, Plus, X, Search, Radar, ExternalLink, Trash2, Map as MapIcon } from "lucide-react";
+import { Navigation, MapPin, Clock, Car, Target, CheckCircle2, Circle, Loader2, Route, ArrowUpRight, Home, Plus, X, Search, Radar, ExternalLink, Trash2, Map as MapIcon, AlertTriangle } from "lucide-react";
 import { ScoreBar } from "@/components/ScoreIndicators";
 import { DiaryWeekView, type DayPreference, type ScheduledVisit } from "@/components/journey/DiaryWeekView";
 import { RouteScheduler } from "@/components/journey/RouteScheduler";
 import { NearbyAccounts } from "@/components/journey/NearbyAccounts";
 import { MeetingBooker } from "@/components/journey/MeetingBooker";
+import { nearestNeighbourOrder, twoOptImprove } from "@/utils/routeOptimisation";
+
+const ensureSession = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) return;
+  await new Promise<void>((resolve) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+      if (sess) { subscription.unsubscribe(); resolve(); }
+    });
+  });
+};
 
 export interface HomeBase {
   address: string;
