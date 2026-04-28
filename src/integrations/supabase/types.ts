@@ -783,6 +783,54 @@ export type Database = {
           },
         ]
       }
+      route_distance_cache: {
+        Row: {
+          cached_at: string
+          destination_id: string
+          destination_lat: number
+          destination_lng: number
+          distance_km: number
+          duration_in_traffic_minutes: number | null
+          duration_minutes: number
+          expires_at: string
+          hour_of_day: number
+          id: string
+          origin_id: string
+          origin_lat: number
+          origin_lng: number
+        }
+        Insert: {
+          cached_at?: string
+          destination_id: string
+          destination_lat: number
+          destination_lng: number
+          distance_km: number
+          duration_in_traffic_minutes?: number | null
+          duration_minutes: number
+          expires_at?: string
+          hour_of_day: number
+          id?: string
+          origin_id: string
+          origin_lat: number
+          origin_lng: number
+        }
+        Update: {
+          cached_at?: string
+          destination_id?: string
+          destination_lat?: number
+          destination_lng?: number
+          distance_km?: number
+          duration_in_traffic_minutes?: number | null
+          duration_minutes?: number
+          expires_at?: string
+          hour_of_day?: number
+          id?: string
+          origin_id?: string
+          origin_lat?: number
+          origin_lng?: number
+        }
+        Relationships: []
+      }
       sales_reports: {
         Row: {
           ai_summary: string | null
