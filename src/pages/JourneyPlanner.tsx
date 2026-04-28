@@ -555,7 +555,15 @@ export default function JourneyPlanner() {
     });
   };
 
-  // Accounts available to add (not already in custom route)
+  // Replace the custom route with an auto-picked set (used by AutoPlanPanel).
+  const applyAutoPlan = (ids: string[]) => {
+    const next = new Set(ids);
+    setCustomRouteAccounts(next);
+    syncRouteToStorage(next);
+    setSelectedRoute('📌 My Custom Route');
+  };
+
+
   const addableAccounts = useMemo(() => {
     const search = addSearch.toLowerCase();
     return enrichedRetailers
