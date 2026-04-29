@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield, Trash2, Building2, Download } from "lucide-react";
 import { downloadCSV } from "@/utils/csv";
 import { MyContactsUpload } from "@/components/prospects/MyContactsUpload";
+import { PlacesAutocomplete } from "@/components/prospects/PlacesAutocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -984,14 +985,17 @@ export default function ProspectDiscovery() {
           <span className="text-[10px] text-muted-foreground">— Type a specific store name to get web-verified results</span>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
-            <Input
-              placeholder="Store name (e.g. The Silver Shop of Bath)..."
+          <div className="relative flex-1 min-w-[220px]">
+            <PlacesAutocomplete
               value={manualSearchName}
-              onChange={e => { setManualSearchName(e.target.value); setManualResult(null); }}
-              onKeyDown={e => e.key === 'Enter' && !manualSearching && runManualSearch()}
-              className="pl-9 h-8 text-xs bg-cream/30 border-border/30"
+              onChange={(v) => { setManualSearchName(v); setManualResult(null); }}
+              onSelect={(place) => {
+                if (place.name) setManualSearchName(place.name);
+                if (place.town) setManualSearchTown(place.town);
+              }}
+              onEnter={() => { if (!manualSearching) runManualSearch(); }}
+              placeholder="Store name (e.g. The Silver Shop of Bath)..."
+              disabled={manualSearching}
             />
           </div>
           <div className="relative min-w-[140px]">

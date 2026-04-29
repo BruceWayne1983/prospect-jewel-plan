@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { TerritoryLeafletMap } from "@/components/map/TerritoryLeafletMap";
+import { TerritoryGoogleMap } from "@/components/map/TerritoryGoogleMap";
 
 const clusters = [
   { name: "Bristol & Bath", towns: ["Bristol", "Bath"], region: "Avon / Somerset" },
@@ -27,6 +28,7 @@ export default function TerritoryMap() {
   const { retailers, loading } = useRetailers();
   const [filter, setFilter] = useState("all");
   const [showGaps, setShowGaps] = useState(false);
+  const [provider, setProvider] = useState<"google" | "leaflet">("google");
 
   const filtered = useMemo(() => {
     const getActivity = (r: any) => ((r.activity ?? {}) as Record<string, any>);
@@ -61,6 +63,10 @@ export default function TerritoryMap() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 mr-3">
+            <Switch id="provider" checked={provider === "google"} onCheckedChange={(v) => setProvider(v ? "google" : "leaflet")} />
+            <Label htmlFor="provider" className="text-xs text-muted-foreground cursor-pointer">Google Maps</Label>
+          </div>
+          <div className="flex items-center gap-2 mr-3">
             <Switch id="gaps" checked={showGaps} onCheckedChange={setShowGaps} />
             <Label htmlFor="gaps" className="text-xs text-muted-foreground cursor-pointer">Coverage Gaps</Label>
           </div>
@@ -84,7 +90,9 @@ export default function TerritoryMap() {
 
       {/* Interactive Map */}
       <div className="card-premium p-1 overflow-hidden">
-        <TerritoryLeafletMap retailers={filtered} showGaps={showGaps} />
+        {provider === "google"
+          ? <TerritoryGoogleMap retailers={filtered} showGaps={showGaps} />
+          : <TerritoryLeafletMap retailers={filtered} showGaps={showGaps} />}
       </div>
 
       {/* Clusters */}
