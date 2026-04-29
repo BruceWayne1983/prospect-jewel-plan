@@ -79,6 +79,15 @@ export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
       toast.error("No valid rows with a name found.");
       return;
     }
+    if (parsedRows.length > MAX_ROWS) {
+      toast.error(`File has ${parsedRows.length} rows — please split into files of ${MAX_ROWS} or fewer and re-upload.`);
+      return;
+    }
+    if (parsedRows.length > WARN_ROWS) {
+      const mins = Math.ceil((parsedRows.length * 0.6) / 60);
+      const ok = window.confirm(`This file has ${parsedRows.length} contacts. Verification will take roughly ${mins} minute${mins === 1 ? "" : "s"} and will use AI credits. Continue?`);
+      if (!ok) return;
+    }
     setRows(parsedRows);
     setResults(parsedRows.map(row => ({ row, status: "pending" })));
     toast.success(`Loaded ${parsedRows.length} contacts. Click "Run AI Verification" to start.`);
@@ -87,11 +96,13 @@ export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
   const runAll = async () => {
     if (rows.length === 0) return;
     setRunning(true);
-    setStop(false);
+    setStopping(false);
+    stopRef.current = false;
     setProgress({ done: 0, total: rows.length });
 
+    let stoppedAt = -1;
     for (let i = 0; i < rows.length; i++) {
-      if (stop) break;
+      if (stopRef.current) { stoppedAt = i; break; }
       const row = rows[i];
       setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "running" } : r));
 
