@@ -1,5 +1,6 @@
+/// <reference types="google.maps" />
 import { useEffect, useRef, useState } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Retailer } from "@/hooks/useRetailers";
@@ -46,10 +47,10 @@ export function TerritoryGoogleMap({ retailers, showGaps = false }: Props) {
     (async () => {
       try {
         const key = await getKey();
-        const loader = new Loader({ apiKey: key, version: "weekly" });
-        await loader.load();
+        setOptions({ key, v: "weekly" });
+        const mapsLib = await importLibrary("maps");
         if (cancelled || !containerRef.current) return;
-        mapRef.current = new google.maps.Map(containerRef.current, {
+        mapRef.current = new mapsLib.Map(containerRef.current, {
           center: { lat: 51.2, lng: -3.0 },
           zoom: 8,
           mapTypeControl: true,
@@ -57,7 +58,7 @@ export function TerritoryGoogleMap({ retailers, showGaps = false }: Props) {
           fullscreenControl: true,
           mapTypeId: "roadmap",
         });
-        infoRef.current = new google.maps.InfoWindow();
+        infoRef.current = new mapsLib.InfoWindow();
         setReady(true);
       } catch (err) {
         console.error("Google Maps load failed:", err);
