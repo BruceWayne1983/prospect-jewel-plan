@@ -668,7 +668,6 @@ export default function ProspectDiscovery() {
     toast.success(`Exported ${geo.length} geo-tagged prospects${skipped > 0 ? ` (${skipped} skipped — no coordinates)` : ""}.`);
   };
 
-
   const clearAllProspects = async () => {
     if (!confirm(`Delete all ${prospects.length} prospects and learned patterns? This cannot be undone.`)) return;
     setClearing(true);
