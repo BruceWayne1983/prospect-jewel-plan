@@ -229,8 +229,14 @@ export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
               <Loader2 className="w-3 h-3 animate-spin" />
               Verifying {progress.done}/{progress.total}...
             </span>
-            <Button onClick={() => setStop(true)} variant="outline" size="sm" className="text-[10px] h-7 px-2">
-              Stop
+            <Button
+              onClick={() => { stopRef.current = true; setStopping(true); }}
+              disabled={stopping}
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-7 px-2"
+            >
+              {stopping ? "Stopping..." : "Stop"}
             </Button>
           </>
         )}
