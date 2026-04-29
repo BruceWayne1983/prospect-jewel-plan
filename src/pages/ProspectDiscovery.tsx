@@ -594,6 +594,42 @@ export default function ProspectDiscovery() {
     setEnrichProgress({ done: 0, total: 0 });
   };
 
+  const exportProspects = () => {
+    if (filtered.length === 0) {
+      toast.error("No prospects to export with current filters.");
+      return;
+    }
+    const header = [
+      "name", "category", "town", "county", "address", "postcode",
+      "website", "phone", "email", "instagram", "facebook",
+      "rating", "review_count", "fit_score", "status", "verification_status",
+      "discovery_source", "ai_reason", "discovered_date",
+    ];
+    const rows = filtered.map(p => [
+      p.name,
+      String(p.category).replace(/_/g, " "),
+      p.town,
+      p.county,
+      p.address ?? "",
+      (p as any).postcode ?? "",
+      p.website ?? "",
+      p.phone ?? "",
+      p.email ?? "",
+      p.instagram ?? "",
+      p.facebook ?? "",
+      p.rating ?? "",
+      p.review_count ?? "",
+      p.predicted_fit_score ?? "",
+      p.status,
+      p.verification_status ?? "",
+      p.discovery_source ?? "",
+      p.ai_reason ?? "",
+      p.discovered_date ? new Date(p.discovered_date).toISOString().slice(0, 10) : "",
+    ]);
+    downloadCSV(`prospects-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
+    toast.success(`Exported ${filtered.length} prospects to CSV.`);
+  };
+
   const clearAllProspects = async () => {
     if (!confirm(`Delete all ${prospects.length} prospects and learned patterns? This cannot be undone.`)) return;
     setClearing(true);
