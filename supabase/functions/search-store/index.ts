@@ -282,7 +282,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
       tiktok: result.tiktok || null,
       twitter: result.twitter || null,
       social_verified: !!(result.instagram || result.facebook || result.tiktok || result.twitter),
-      discovery_source: "Manual Search",
+      discovery_source: discoverySource,
       verification_status: "web_verified",
       status: "new",
       raw_data: {
