@@ -630,6 +630,45 @@ export default function ProspectDiscovery() {
     toast.success(`Exported ${filtered.length} prospects to CSV.`);
   };
 
+  const exportGeoCSV = () => {
+    const geo = filtered.filter(p => p.lat != null && p.lng != null);
+    if (geo.length === 0) {
+      toast.error("No geo-tagged prospects in the current filter. Try running the geocoder first.");
+      return;
+    }
+    const header = [
+      "name", "lat", "lng", "category", "town", "county", "postcode", "address",
+      "fit_score", "estimated_store_quality", "rating", "review_count",
+      "website", "phone", "email", "instagram",
+      "verification_status", "status", "discovery_source",
+    ];
+    const rows = geo.map(p => [
+      p.name,
+      p.lat,
+      p.lng,
+      String(p.category).replace(/_/g, " "),
+      p.town,
+      p.county,
+      (p as any).postcode ?? "",
+      p.address ?? "",
+      p.predicted_fit_score ?? "",
+      p.estimated_store_quality ?? "",
+      p.rating ?? "",
+      p.review_count ?? "",
+      p.website ?? "",
+      p.phone ?? "",
+      p.email ?? "",
+      p.instagram ?? "",
+      p.verification_status ?? "",
+      p.status,
+      p.discovery_source ?? "",
+    ]);
+    downloadCSV(`prospects-geo-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
+    const skipped = filtered.length - geo.length;
+    toast.success(`Exported ${geo.length} geo-tagged prospects${skipped > 0 ? ` (${skipped} skipped — no coordinates)` : ""}.`);
+  };
+
+
   const clearAllProspects = async () => {
     if (!confirm(`Delete all ${prospects.length} prospects and learned patterns? This cannot be undone.`)) return;
     setClearing(true);
