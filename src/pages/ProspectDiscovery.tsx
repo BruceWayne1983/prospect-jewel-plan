@@ -1085,6 +1085,17 @@ export default function ProspectDiscovery() {
           Clear All
         </Button>
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportProspects}
+            disabled={filtered.length === 0}
+            className="text-[10px] h-8 px-3 border-gold/30 text-gold-dark hover:bg-champagne/30"
+            title="Download the currently filtered prospect list as a CSV"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" />
+            Export ({filtered.length})
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
             className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
             <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
