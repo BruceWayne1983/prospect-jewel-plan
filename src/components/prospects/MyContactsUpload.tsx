@@ -112,16 +112,20 @@ export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
             storeName: row.name,
             town: row.town || undefined,
             category: row.category && row.category !== "all" ? row.category : undefined,
+            source: "uploaded",
           },
         });
         if (error) throw error;
 
         if (data?.found && data?.store) {
           const status: ResultStatus = data.alreadyExists ? "duplicate" : "verified";
+          const dupMsg = data.existsAs === "retailer"
+            ? "Already in current accounts"
+            : (data.marked ? "Already discovered — marked as Uploaded" : "Already in prospects");
           setResults(prev => prev.map((r, idx) => idx === i ? {
             ...r,
             status,
-            message: data.alreadyExists ? `Already in ${data.existsAs === "retailer" ? "current accounts" : "prospects"}` : "Saved to prospects",
+            message: data.alreadyExists ? dupMsg : "Saved to prospects (Uploaded)",
             store: data.store,
           } : r));
         } else {
