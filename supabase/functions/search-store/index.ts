@@ -60,12 +60,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { storeName, town, category } = await req.json();
+    const { storeName, town, category, source } = await req.json();
     if (!storeName || storeName.trim().length < 2) {
       return new Response(JSON.stringify({ error: "Store name is required (at least 2 characters)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const isUpload = source === "uploaded";
+    const discoverySource = isUpload ? "Uploaded" : "Manual Search";
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
@@ -214,7 +216,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
 
     // Check existing — allow different town (branch detection)
     const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town").ilike("name", `%${result.name}%`);
-    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town").ilike("name", `%${result.name}%`);
+    const { data: existingProspects } = await supabase.from("discovered_prospects").select("id, name, town").ilike("name", `%${result.name}%`);
 
     const resultTown = (result.town || '').toLowerCase();
     const sameTownRetailer = (existingRetailers || []).find((r: any) => (r.town || '').toLowerCase() === resultTown);
@@ -229,9 +231,22 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
 
     const sameTownProspect = (existingProspects || []).find((p: any) => (p.town || '').toLowerCase() === resultTown);
     if (sameTownProspect) {
+      let marked = false;
+      if (isUpload) {
+        const { error: updErr } = await supabase
+          .from("discovered_prospects")
+          .update({ discovery_source: "Uploaded", updated_at: new Date().toISOString() })
+          .eq("id", sameTownProspect.id)
+          .eq("user_id", user.id);
+        if (!updErr) marked = true;
+        else console.error("Mark-as-uploaded failed:", updErr);
+      }
       return new Response(JSON.stringify({
-        success: true, found: true, alreadyExists: true, existsAs: "prospect",
-        message: `"${result.name}" already exists as a discovered prospect`, store: result,
+        success: true, found: true, alreadyExists: true, existsAs: "prospect", marked,
+        message: marked
+          ? `"${result.name}" already discovered — marked as Uploaded`
+          : `"${result.name}" already exists as a discovered prospect`,
+        store: result,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -267,7 +282,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
       tiktok: result.tiktok || null,
       twitter: result.twitter || null,
       social_verified: !!(result.instagram || result.facebook || result.tiktok || result.twitter),
-      discovery_source: "Manual Search",
+      discovery_source: discoverySource,
       verification_status: "web_verified",
       status: "new",
       raw_data: {

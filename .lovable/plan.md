@@ -1,25 +1,29 @@
-## Fix MyContactsUpload issues from review
+## Mark uploaded prospects + dedupe upload imports
 
-Three small fixes to `src/components/prospects/MyContactsUpload.tsx`:
+### Goal
+When Emma uses **Upload Your Own Contacts**, every resulting prospect (whether newly created or already on file) should be tagged `discovery_source = "Uploaded"`. Duplicates must NEVER create a second row — instead, the existing record gets re-tagged.
 
-### 1. Fix broken Stop button (closure bug)
-The current `stop` state value is captured in the loop closure when `runAll` starts, so clicking Stop never breaks the loop.
+### Changes
 
-**Fix:** Replace `useState(false)` for `stop` with a `useRef<boolean>(false)`.
-- Reset `stopRef.current = false` at start of `runAll`.
-- Check `if (stopRef.current) break;` inside the loop.
-- Stop button sets `stopRef.current = true` and forces a re-render via a small `stopping` state flag for button label feedback.
-- If stopped, toast: "Verification stopped at X/Y."
+**1. `supabase/functions/search-store/index.ts`**
+- Accept new optional body field `source` (`"uploaded" | undefined`).
+- Compute `discoverySource = source === "uploaded" ? "Uploaded" : "Manual Search"`.
+- Same-town **retailer** duplicate: unchanged — return `alreadyExists: true, existsAs: "retailer"`. We do NOT mutate current accounts.
+- Same-town **prospect** duplicate:
+  - If `isUpload`: `UPDATE discovered_prospects SET discovery_source = 'Uploaded', updated_at = now() WHERE id = sameTownProspect.id AND user_id = user.id`. Return `alreadyExists: true, existsAs: "prospect", marked: true, message: "Already discovered — marked as Uploaded"`.
+  - Otherwise: keep current behaviour.
+- New prospect insert: use `discoverySource` instead of the hard-coded `"Manual Search"`.
+- Need to also `select("id, town")` from existingProspects so we can update by id.
 
-### 2. Add row-count guard
-Prevent accidentally running thousands of rows.
+**2. `src/components/prospects/MyContactsUpload.tsx`**
+- Pass `source: "uploaded"` in the `supabase.functions.invoke("search-store", { body: {...} })` call.
+- When result is `duplicate` and `existsAs === "prospect"`, change message to `"Already discovered — marked as Uploaded"`. Retailer dup message stays `"Already in current accounts"`.
 
-**Fix:** After parsing, if `parsedRows.length > 500`, show a `confirm()` dialog warning about the size and estimated time (~10 minutes per 1000 rows). Hard cap at 2000 rows — refuse with a toast asking user to split the file.
-
-### 3. Cosmetic cleanup in `src/pages/ProspectDiscovery.tsx`
-Remove the stray double blank lines around the recently added export handlers/buttons. No logic changes.
+**3. `src/pages/ProspectDiscovery.tsx` (light touch)**
+- The Source filter / display already uses `discovery_source`. No code change required — `"Uploaded"` will appear naturally as a new source value.
+- Verify the source filter dropdown is dynamic (built from data). If it's a hard-coded list, add `"Uploaded"` to it. (Will check during implementation.)
 
 ### Out of scope
-- Per-row delay (600ms) stays — safe default for upstream Firecrawl/Google rate limits.
-- No new edge function or DB changes.
-- No UI redesign.
+- No DB schema changes (uses existing `discovery_source` text column).
+- No changes to retailer/current-account records.
+- No bulk re-tagging of historical rows.
