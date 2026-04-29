@@ -145,8 +145,13 @@ export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
     }
 
     setRunning(false);
+    setStopping(false);
     onComplete?.();
-    toast.success("Verification finished.");
+    if (stoppedAt >= 0) {
+      toast.message(`Verification stopped at ${stoppedAt}/${rows.length}.`);
+    } else {
+      toast.success("Verification finished.");
+    }
   };
 
   const downloadResults = () => {
