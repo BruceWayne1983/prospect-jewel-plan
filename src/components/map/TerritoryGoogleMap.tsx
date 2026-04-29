@@ -47,9 +47,9 @@ export function TerritoryGoogleMap({ retailers, showGaps = false }: Props) {
       try {
         const key = await getKey();
         const loader = new Loader({ apiKey: key, version: "weekly" });
-        const { Map, InfoWindow } = await loader.importLibrary("maps") as google.maps.MapsLibrary;
+        await loader.load();
         if (cancelled || !containerRef.current) return;
-        mapRef.current = new Map(containerRef.current, {
+        mapRef.current = new google.maps.Map(containerRef.current, {
           center: { lat: 51.2, lng: -3.0 },
           zoom: 8,
           mapTypeControl: true,
@@ -57,7 +57,7 @@ export function TerritoryGoogleMap({ retailers, showGaps = false }: Props) {
           fullscreenControl: true,
           mapTypeId: "roadmap",
         });
-        infoRef.current = new InfoWindow();
+        infoRef.current = new google.maps.InfoWindow();
         setReady(true);
       } catch (err) {
         console.error("Google Maps load failed:", err);
