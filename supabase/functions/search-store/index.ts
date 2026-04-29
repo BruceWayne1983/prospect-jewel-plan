@@ -216,7 +216,7 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
 
     // Check existing — allow different town (branch detection)
     const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town").ilike("name", `%${result.name}%`);
-    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town").ilike("name", `%${result.name}%`);
+    const { data: existingProspects } = await supabase.from("discovered_prospects").select("id, name, town").ilike("name", `%${result.name}%`);
 
     const resultTown = (result.town || '').toLowerCase();
     const sameTownRetailer = (existingRetailers || []).find((r: any) => (r.town || '').toLowerCase() === resultTown);
@@ -231,9 +231,22 @@ STORE TYPE FILTERING: ONLY accept jewellers, gift shops, fashion boutiques, life
 
     const sameTownProspect = (existingProspects || []).find((p: any) => (p.town || '').toLowerCase() === resultTown);
     if (sameTownProspect) {
+      let marked = false;
+      if (isUpload) {
+        const { error: updErr } = await supabase
+          .from("discovered_prospects")
+          .update({ discovery_source: "Uploaded", updated_at: new Date().toISOString() })
+          .eq("id", sameTownProspect.id)
+          .eq("user_id", user.id);
+        if (!updErr) marked = true;
+        else console.error("Mark-as-uploaded failed:", updErr);
+      }
       return new Response(JSON.stringify({
-        success: true, found: true, alreadyExists: true, existsAs: "prospect",
-        message: `"${result.name}" already exists as a discovered prospect`, store: result,
+        success: true, found: true, alreadyExists: true, existsAs: "prospect", marked,
+        message: marked
+          ? `"${result.name}" already discovered — marked as Uploaded`
+          : `"${result.name}" already exists as a discovered prospect`,
+        store: result,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
