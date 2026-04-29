@@ -60,12 +60,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { storeName, town, category } = await req.json();
+    const { storeName, town, category, source } = await req.json();
     if (!storeName || storeName.trim().length < 2) {
       return new Response(JSON.stringify({ error: "Store name is required (at least 2 characters)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const isUpload = source === "uploaded";
+    const discoverySource = isUpload ? "Uploaded" : "Manual Search";
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
