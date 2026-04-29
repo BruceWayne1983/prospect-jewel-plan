@@ -1171,6 +1171,17 @@ export default function ProspectDiscovery() {
             <Download className="w-3.5 h-3.5 mr-1.5" />
             Export ({filtered.length})
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportGeoCSV}
+            disabled={filtered.filter(p => p.lat != null && p.lng != null).length === 0}
+            className="text-[10px] h-8 px-3 border-info/40 text-info hover:bg-info-light"
+            title="Download the filtered list with lat/lng — open in Territory Map, Google My Maps, or QGIS"
+          >
+            <MapPin className="w-3.5 h-3.5 mr-1.5" />
+            Geo CSV ({filtered.filter(p => p.lat != null && p.lng != null).length})
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
             className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
             <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
