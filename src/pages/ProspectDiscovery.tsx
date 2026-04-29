@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield, Trash2, Building2 } from "lucide-react";
+import { Sparkles, CheckCircle, XCircle, Eye, Star, MapPin, Loader2, Radar, ArrowUpRight, Globe, Zap, Tag, Search, Phone, Mail, SlidersHorizontal, ArrowUpDown, Users, Info, UserSearch, ShieldCheck, ShieldAlert, ShieldQuestion, Shield, Trash2, Building2, Download } from "lucide-react";
+import { downloadCSV } from "@/utils/csv";
+import { MyContactsUpload } from "@/components/prospects/MyContactsUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -592,6 +594,42 @@ export default function ProspectDiscovery() {
     setEnrichProgress({ done: 0, total: 0 });
   };
 
+  const exportProspects = () => {
+    if (filtered.length === 0) {
+      toast.error("No prospects to export with current filters.");
+      return;
+    }
+    const header = [
+      "name", "category", "town", "county", "address", "postcode",
+      "website", "phone", "email", "instagram", "facebook",
+      "rating", "review_count", "fit_score", "status", "verification_status",
+      "discovery_source", "ai_reason", "discovered_date",
+    ];
+    const rows = filtered.map(p => [
+      p.name,
+      String(p.category).replace(/_/g, " "),
+      p.town,
+      p.county,
+      p.address ?? "",
+      (p as any).postcode ?? "",
+      p.website ?? "",
+      p.phone ?? "",
+      p.email ?? "",
+      p.instagram ?? "",
+      p.facebook ?? "",
+      p.rating ?? "",
+      p.review_count ?? "",
+      p.predicted_fit_score ?? "",
+      p.status,
+      p.verification_status ?? "",
+      p.discovery_source ?? "",
+      p.ai_reason ?? "",
+      p.discovered_date ? new Date(p.discovered_date).toISOString().slice(0, 10) : "",
+    ]);
+    downloadCSV(`prospects-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
+    toast.success(`Exported ${filtered.length} prospects to CSV.`);
+  };
+
   const clearAllProspects = async () => {
     if (!confirm(`Delete all ${prospects.length} prospects and learned patterns? This cannot be undone.`)) return;
     setClearing(true);
@@ -995,7 +1033,10 @@ export default function ProspectDiscovery() {
         )}
       </div>
 
-      {/* Stats */}
+      {/* Upload your own contacts and run AI verification */}
+      <MyContactsUpload onComplete={fetchProspects} />
+
+
       <div className="grid grid-cols-6 gap-4">
         {[
           { label: 'New', value: newCount, color: 'bg-champagne text-gold-dark' },
@@ -1080,6 +1121,17 @@ export default function ProspectDiscovery() {
           Clear All
         </Button>
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportProspects}
+            disabled={filtered.length === 0}
+            className="text-[10px] h-8 px-3 border-gold/30 text-gold-dark hover:bg-champagne/30"
+            title="Download the currently filtered prospect list as a CSV"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" />
+            Export ({filtered.length})
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}
             className={`text-[10px] h-8 px-3 border-border/40 ${showFilters ? 'bg-champagne/30 border-gold/30' : ''}`}>
             <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
