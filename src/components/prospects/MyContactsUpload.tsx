@@ -30,12 +30,16 @@ const TEMPLATE_ROWS: (string | number)[][] = [
 
 export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const stopRef = useRef<boolean>(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [results, setResults] = useState<RunResult[]>([]);
   const [running, setRunning] = useState(false);
-  const [stop, setStop] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [filename, setFilename] = useState<string>("");
+
+  const MAX_ROWS = 2000;
+  const WARN_ROWS = 500;
 
   const reset = () => {
     setRows([]);
