@@ -997,7 +997,10 @@ export default function ProspectDiscovery() {
         )}
       </div>
 
-      {/* Stats */}
+      {/* Upload your own contacts and run AI verification */}
+      <MyContactsUpload onComplete={fetchProspects} />
+
+
       <div className="grid grid-cols-6 gap-4">
         {[
           { label: 'New', value: newCount, color: 'bg-champagne text-gold-dark' },
