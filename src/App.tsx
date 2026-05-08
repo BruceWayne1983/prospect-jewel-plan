@@ -20,6 +20,7 @@ import ProspectDiscovery from "@/pages/ProspectDiscovery";
 import TerritorySimulator from "@/pages/TerritorySimulator";
 import SalesCalendar from "@/pages/SalesCalendar";
 import SalesForecast from "@/pages/SalesForecast";
+import StockBuildPlanner from "@/pages/StockBuildPlanner";
 import JourneyPlanner from "@/pages/JourneyPlanner";
 import DataHub from "@/pages/DataHub";
 import CurrentAccounts from "@/pages/CurrentAccounts";
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="/calendar" element={<SalesCalendar />} />
         <Route path="/journeys" element={<JourneyPlanner />} />
         <Route path="/forecast" element={<SalesForecast />} />
+        <Route path="/stock-planner" element={<StockBuildPlanner />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/data-hub" element={<DataHub />} />
         <Route path="/accounts" element={<CurrentAccounts />} />
