@@ -67,17 +67,22 @@ export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
     const countyIdx = findColumn(headers, ["county", "region", "area"]);
     const categoryIdx = findColumn(headers, ["category", "type", "store type"]);
 
-    const parsedRows: Row[] = parsed.slice(1).map((r, i) => ({
+    const allRows: Row[] = parsed.slice(1).map((r, i) => ({
       name: (r[nameIdx] ?? "").trim(),
       town: townIdx >= 0 ? (r[townIdx] ?? "").trim() : undefined,
       county: countyIdx >= 0 ? (r[countyIdx] ?? "").trim() : undefined,
       category: categoryIdx >= 0 ? (r[categoryIdx] ?? "").trim() : undefined,
       rawIndex: i + 2,
-    })).filter(r => r.name.length >= 2);
+    }));
+    const parsedRows: Row[] = allRows.filter(r => r.name.length >= 2);
+    const skippedCount = allRows.length - parsedRows.length;
 
     if (parsedRows.length === 0) {
       toast.error("No valid rows with a name found.");
       return;
+    }
+    if (skippedCount > 0) {
+      toast.warning(`Skipped ${skippedCount} row${skippedCount === 1 ? "" : "s"} with missing or too-short names.`);
     }
     if (parsedRows.length > MAX_ROWS) {
       toast.error(`File has ${parsedRows.length} rows — please split into files of ${MAX_ROWS} or fewer and re-upload.`);

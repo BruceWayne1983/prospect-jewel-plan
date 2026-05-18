@@ -39,8 +39,12 @@ export function useDataInsights(): AggregatedInsights {
       .select("id, file_name, category, parsed_data, ai_summary, created_at")
       .not("parsed_data", "eq", "{}")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error("useDataInsights: failed to load uploaded_files", error);
         setFiles((data as FileWithData[] | null) ?? []);
+        setLoading(false);
+      }, (err) => {
+        console.error("useDataInsights: network error loading uploaded_files", err);
         setLoading(false);
       });
   }, []);

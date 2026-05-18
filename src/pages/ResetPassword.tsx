@@ -42,11 +42,11 @@ export default function ResetPassword() {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       toast.error(error.message);
+      setLoading(false);
     } else {
       toast.success("Password updated! Redirecting...");
       setTimeout(() => navigate("/"), 1500);
     }
-    setLoading(false);
   };
 
   return (
@@ -58,21 +58,27 @@ export default function ResetPassword() {
           <p className="text-sm text-muted-foreground mt-1">Enter your new password below</p>
         </div>
 
-        <form onSubmit={handleReset} className="card-premium p-6 space-y-4">
-          <div>
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">New Password</Label>
-            <Input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" className="mt-1.5 bg-background border-border/40 h-10" required minLength={6} />
+        {ready ? (
+          <form onSubmit={handleReset} className="card-premium p-6 space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">New Password</Label>
+              <Input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••" className="mt-1.5 bg-background border-border/40 h-10" required minLength={6} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Confirm Password</Label>
+              <Input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+                placeholder="••••••••" className="mt-1.5 bg-background border-border/40 h-10" required minLength={6} />
+            </div>
+            <Button type="submit" disabled={loading} className="w-full h-10 gold-gradient text-sidebar-background font-medium">
+              {loading ? "Updating..." : "Update Password"}
+            </Button>
+          </form>
+        ) : (
+          <div className="card-premium p-6 text-center text-sm text-muted-foreground">
+            Waiting for password recovery link… If you didn't arrive here from a reset email, please request a new link from the sign-in page.
           </div>
-          <div>
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Confirm Password</Label>
-            <Input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-              placeholder="••••••••" className="mt-1.5 bg-background border-border/40 h-10" required minLength={6} />
-          </div>
-          <Button type="submit" disabled={loading} className="w-full h-10 gold-gradient text-sidebar-background font-medium">
-            {loading ? "Updating..." : "Update Password"}
-          </Button>
-        </form>
+        )}
       </div>
     </div>
   );
