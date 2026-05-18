@@ -34,9 +34,10 @@ export function EmmaAssistant({ displayName, context }: EmmaAssistantProps) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const send = async () => {
-    if (!input.trim() || isLoading) return;
-    const userMsg: Msg = { role: "user", content: input.trim() };
+  const send = async (text?: string) => {
+    const content = (text ?? input).trim();
+    if (!content || isLoading) return;
+    const userMsg: Msg = { role: "user", content };
     const allMessages = [...messages, userMsg];
     setMessages(allMessages);
     setInput("");
@@ -180,7 +181,7 @@ export function EmmaAssistant({ displayName, context }: EmmaAssistantProps) {
                 {quickActions.map(q => (
                   <button
                     key={q}
-                    onClick={() => { setInput(q); setTimeout(() => { setInput(q); }, 0); }}
+                    onClick={() => send(q)}
                     className="text-[11px] text-left px-3 py-2 rounded-xl border border-border/30 hover:border-gold/30 hover:bg-champagne/10 text-muted-foreground hover:text-foreground transition-all"
                   >
                     {q}

@@ -40,6 +40,6 @@ export function calculateAnnualisedRate(
   // Fallback — current calendar YTD, flagged as estimate
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1);
-  const periodDays = Math.max(1, Math.floor((now.getTime() - yearStart.getTime()) / 86400000));
+  const periodDays = Math.max(1, Math.round((now.getTime() - yearStart.getTime()) / 86400000) + 1);
   return { rate: (totalCY / periodDays) * 365, isEstimate: true, periodDays };
 }

@@ -303,8 +303,8 @@ export default function Dashboard() {
             <div className="mb-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Sales Periods</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {dataInsights.allSalesPatterns.slice(0, 6).map((sp, i) => (
-                  <div key={i} className="flex items-center justify-between bg-background/40 rounded-lg px-3 py-2 border border-border/10">
+                {dataInsights.allSalesPatterns.slice(0, 6).map((sp) => (
+                  <div key={`${sp.source}-${sp.period}`} className="flex items-center justify-between bg-background/40 rounded-lg px-3 py-2 border border-border/10">
                     <span className="text-[11px] text-foreground font-medium">{sp.period}</span>
                     <div className="flex items-center gap-2">
                       {sp.revenue && <span className="text-[10px] text-gold-dark font-medium">£{sp.revenue.toLocaleString()}</span>}
@@ -320,8 +320,8 @@ export default function Dashboard() {
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Key Insights</p>
               <div className="space-y-1.5">
-                {dataInsights.allInsights.slice(0, 4).map((insight, i) => (
-                  <div key={i} className="flex items-start gap-2">
+                {dataInsights.allInsights.slice(0, 4).map((insight) => (
+                  <div key={insight} className="flex items-start gap-2">
                     <Sparkles className="w-3 h-3 text-gold mt-0.5 flex-shrink-0" />
                     <p className="text-[11px] text-foreground">{insight}</p>
                   </div>
@@ -611,8 +611,8 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="space-y-2">
-              {dataInsights.allStockists.sort((a, b) => (b.sales_value ?? 0) - (a.sales_value ?? 0)).slice(0, 10).map((s, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-muted/20">
+              {dataInsights.allStockists.sort((a, b) => (b.sales_value ?? 0) - (a.sales_value ?? 0)).slice(0, 10).map((s) => (
+                <div key={`${s.source}-${s.name}`} className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-muted/20">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-foreground truncate">{s.name}</p>
                     <p className="text-[9px] text-muted-foreground">{s.town}{s.county ? `, ${s.county}` : ""}</p>

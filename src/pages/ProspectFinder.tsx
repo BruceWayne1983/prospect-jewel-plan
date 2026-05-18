@@ -127,7 +127,7 @@ export default function ProspectFinder() {
                 </div>
               </div>
               {r.risk_flags && r.risk_flags.length > 0 && (
-                <div className="flex gap-2 mt-3">{r.risk_flags.map((f, i) => <span key={i} className="badge-risk">{f}</span>)}</div>
+                <div className="flex gap-2 mt-3">{r.risk_flags.map((f) => <span key={f} className="badge-risk">{f}</span>)}</div>
               )}
             </div>
           );
