@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAiCallLogger } from "../_shared/ai-call-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +89,14 @@ Deno.serve(async (req) => {
       ? "A compelling next-step proposal (e.g. display upgrade, new range trial, seasonal pre-order)"
       : "A compelling closing statement or question to seal interest";
 
+    // Cost ledger
+    const aiLogger = createAiCallLogger(supabase, {
+      userId: user.id,
+      functionName: "generate-pitch",
+      retailerId,
+    });
+    const aiStart = Date.now();
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
@@ -158,6 +167,13 @@ Personalise the pitch to reference their specific store type, location, customer
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;
+      await aiLogger.log({
+        provider: "lovable",
+        model: "google/gemini-3-flash-preview",
+        status: status === 429 ? "rate_limited" : "error",
+        durationMs: Date.now() - aiStart,
+        errorMessage: `HTTP ${status}`,
+      });
       if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       await aiResponse.text();
@@ -165,6 +181,15 @@ Personalise the pitch to reference their specific store type, location, customer
     }
 
     const aiData = await aiResponse.json();
+    await aiLogger.log({
+      provider: "lovable",
+      model: "google/gemini-3-flash-preview",
+      status: "success",
+      durationMs: Date.now() - aiStart,
+      promptTokens: aiData.usage?.prompt_tokens,
+      completionTokens: aiData.usage?.completion_tokens,
+      totalTokens: aiData.usage?.total_tokens,
+    });
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) return new Response(JSON.stringify({ error: "AI did not return structured data" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 

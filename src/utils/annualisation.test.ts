@@ -73,4 +73,13 @@ describe("calculateAnnualisedRate", () => {
     const r = calculateAnnualisedRate(100, "2024-12-31", "2024-01-01");
     expect(r.periodDays).toBeGreaterThanOrEqual(1);
   });
+
+  // Regression: previously `new Date("2024-06-30")` parsed as UTC midnight
+  // and was mixed with `new Date(year, 0, 1)` (local midnight), so the
+  // period-end-only branch returned 183 days in TZ=Pacific/Auckland instead
+  // of 182. Parsing both sides as local midnight makes the result stable.
+  it("computes the same periodDays under any timezone (TZ regression)", () => {
+    const r = calculateAnnualisedRate(10000, null, "2024-06-30");
+    expect(r.periodDays).toBe(182);
+  });
 });
