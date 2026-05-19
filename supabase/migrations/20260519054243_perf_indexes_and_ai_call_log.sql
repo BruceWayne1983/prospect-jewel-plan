@@ -57,8 +57,9 @@ CREATE INDEX IF NOT EXISTS idx_ai_call_log_user_created
 CREATE INDEX IF NOT EXISTS idx_ai_call_log_function_created
   ON public.ai_call_log (function_name, created_at DESC);
 
--- RLS: each user reads their own rows; inserts come from edge functions
--- (service role bypasses RLS, so no INSERT policy needed).
+-- RLS: each user reads and inserts their own rows. Edge functions running in
+-- the user's auth context can write directly (no service-role client needed).
+-- No UPDATE/DELETE policy — the ledger is append-only.
 ALTER TABLE public.ai_call_log ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users read their own ai_call_log rows"
@@ -66,5 +67,11 @@ CREATE POLICY "Users read their own ai_call_log rows"
   FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
+
+CREATE POLICY "Users insert their own ai_call_log rows"
+  ON public.ai_call_log
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
 
 COMMENT ON TABLE public.ai_call_log IS 'Per-call audit of outbound AI / scraping / mapping API spend. Edge functions insert one row per call so cost can be tracked, anomalies detected, and rate limits / errors investigated.';
