@@ -11,6 +11,8 @@ import type { Tables } from "@/integrations/supabase/types";
 import { EarningsTracker } from "@/components/earnings/EarningsTracker";
 import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlerts";
 import { EmmaAssistant } from "@/components/dashboard/EmmaAssistant";
+import { rankByRevenuePriority, overdueFollowUps, daysOverdue } from "@/utils/leadPriority";
+import { tradingStatusAt } from "@/utils/tradingHours";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -54,7 +56,13 @@ export default function Dashboard() {
   const atRisk = currentAccounts.filter(r => (r.risk_flags ?? []).length > 0);
   const withMeetings = retailers.filter(r => getActivity(r).meetingScheduled);
   const needsFollowUp = retailers.filter(r => r.pipeline_stage === "follow_up_needed");
-  const recommended = retailers.filter(r => getAIIntelligence(r).confidenceLevel === "high" || getPerformancePrediction(r).predictionConfidence === "high").sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0)).slice(0, 5);
+  // Recommended accounts: confident AI/prediction picks, ranked by
+  // revenuePriority (fit × predicted £ × recency-of-contact) rather than the
+  // upstream priority_score alone — so accounts Emma has been ignoring bubble
+  // up alongside the high-fit ones.
+  const recommendedCandidates = retailers.filter(r => getAIIntelligence(r).confidenceLevel === "high" || getPerformancePrediction(r).predictionConfidence === "high");
+  const recommended = rankByRevenuePriority(recommendedCandidates).slice(0, 5);
+  const overdue = overdueFollowUps(retailers).slice(0, 8);
 
   const displayName = profile?.display_name?.split(" ")[0] ?? "there";
 
@@ -346,6 +354,40 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Overdue follow-ups — promoted above the standard alerts row when
+          any exist, so a missed nextActionDate doesn't sink to the bottom. */}
+      {overdue.length > 0 && (
+        <div className="card-premium p-5 border-destructive/30 bg-destructive/5">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4 text-destructive" />
+            <h3 className="text-sm font-display font-semibold text-foreground">Overdue follow-ups</h3>
+            <span className="text-[10px] ml-auto text-destructive font-medium">{overdue.length}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {overdue.slice(0, 6).map(r => {
+              const next = getActivity(r).nextActionDate;
+              const days = daysOverdue(next);
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => navigate(`/retailer/${r.id}`)}
+                  className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-destructive/10 cursor-pointer transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{r.name}</p>
+                    <p className="text-[9px] text-destructive truncate">
+                      {days === 0 ? "Due today" : `${days} day${days === 1 ? '' : 's'} overdue`}
+                      {next && ` · was ${next}`}
+                    </p>
+                  </div>
+                  <ArrowUpRight className="w-3 h-3 text-muted-foreground/30 flex-shrink-0" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Alerts Row - At Risk + Follow-ups + Discovery */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* At-Risk Accounts */}
@@ -383,19 +425,29 @@ export default function Dashboard() {
           </div>
           {upcomingEvents.length > 0 ? (
             <div className="space-y-2">
-              {upcomingEvents.slice(0, 4).map(e => (
-                <div key={e.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-muted/30">
-                  <div className="text-center w-10 flex-shrink-0">
-                    <p className="text-xs font-display font-bold text-foreground">{new Date(e.date).getDate()}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase">{new Date(e.date).toLocaleDateString("en-GB", { month: "short" })}</p>
+              {upcomingEvents.slice(0, 4).map(e => {
+                const trading = tradingStatusAt(e.time ? `${e.date}T${e.time}` : e.date);
+                const showWarning = trading.hint === "probably_closed" || trading.hint === "holiday";
+                return (
+                  <div key={e.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-muted/30">
+                    <div className="text-center w-10 flex-shrink-0">
+                      <p className="text-xs font-display font-bold text-foreground">{new Date(e.date).getDate()}</p>
+                      <p className="text-[8px] text-muted-foreground uppercase">{new Date(e.date).toLocaleDateString("en-GB", { month: "short" })}</p>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-foreground truncate">{e.title}</p>
+                      <p className="text-[9px] text-muted-foreground truncate">{e.retailer_name}{e.town ? ` · ${e.town}` : ""}</p>
+                      {showWarning && (
+                        <p className="text-[9px] text-warning truncate flex items-center gap-1 mt-0.5" title={trading.reason}>
+                          <AlertTriangle className="w-2.5 h-2.5 flex-shrink-0" />
+                          {trading.reason}
+                        </p>
+                      )}
+                    </div>
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium ${e.type === "visit" ? "bg-gold/15 text-gold-dark" : e.type === "call" ? "bg-info-light text-info" : "bg-muted text-muted-foreground"}`}>{e.type}</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-foreground truncate">{e.title}</p>
-                    <p className="text-[9px] text-muted-foreground truncate">{e.retailer_name}{e.town ? ` · ${e.town}` : ""}</p>
-                  </div>
-                  <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium ${e.type === "visit" ? "bg-gold/15 text-gold-dark" : e.type === "call" ? "bg-info-light text-info" : "bg-muted text-muted-foreground"}`}>{e.type}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-[11px] text-muted-foreground/50 italic">No upcoming events scheduled</p>
