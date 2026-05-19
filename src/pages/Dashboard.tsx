@@ -31,7 +31,12 @@ export default function Dashboard() {
         const today = new Date().toISOString().split("T")[0];
         supabase.from("calendar_events").select("*").eq("user_id", data.user.id).gte("date", today).eq("completed", false).order("date", { ascending: true }).limit(6).then(({ data: events }) => setUpcomingEvents(events ?? []));
         // Fetch all events for alerts
-        supabase.from("calendar_events").select("*").eq("user_id", data.user.id).then(({ data: events }) => setAllEvents(events ?? []));
+        // Alerts only need the upcoming events and the recent past — fetch a
+        // rolling 90-day window instead of every event ever recorded.
+        {
+          const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
+          supabase.from("calendar_events").select("*").eq("user_id", data.user.id).gte("date", ninetyDaysAgo).limit(500).then(({ data: events }) => setAllEvents(events ?? []));
+        }
         // Fetch recent activity
         supabase.from("activity_log").select("*").eq("user_id", data.user.id).order("created_at", { ascending: false }).limit(8).then(({ data: acts }) => setRecentActivity(acts ?? []));
       }

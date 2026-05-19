@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAiCallLogger } from "../_shared/ai-call-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,6 +48,14 @@ Deno.serve(async (req) => {
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Cost ledger: log every Lovable AI call so spend is visible in ai_call_log.
+    const aiLogger = createAiCallLogger(supabase, {
+      userId: user.id,
+      functionName: "voice-to-crm",
+      retailerId,
+    });
+    const aiStart = Date.now();
 
     const aiAbort = new AbortController();
     const aiTimeout = setTimeout(() => aiAbort.abort(), 30000);
@@ -104,6 +113,13 @@ Extract all relevant data and recommend the appropriate pipeline stage.`,
     } catch (err: unknown) {
       clearTimeout(aiTimeout);
       const isAbort = err instanceof DOMException && err.name === "AbortError";
+      await aiLogger.log({
+        provider: "lovable",
+        model: "google/gemini-3-flash-preview",
+        status: isAbort ? "timeout" : "error",
+        durationMs: Date.now() - aiStart,
+        errorMessage: isAbort ? "AbortError after 30s" : String(err),
+      });
       return new Response(
         JSON.stringify({ error: isAbort ? "AI timed out — please try again" : "AI request failed" }),
         { status: isAbort ? 504 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -113,6 +129,13 @@ Extract all relevant data and recommend the appropriate pipeline stage.`,
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;
+      await aiLogger.log({
+        provider: "lovable",
+        model: "google/gemini-3-flash-preview",
+        status: status === 429 ? "rate_limited" : "error",
+        durationMs: Date.now() - aiStart,
+        errorMessage: `HTTP ${status}`,
+      });
       if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       await aiResponse.text();
@@ -120,6 +143,15 @@ Extract all relevant data and recommend the appropriate pipeline stage.`,
     }
 
     const aiData = await aiResponse.json();
+    await aiLogger.log({
+      provider: "lovable",
+      model: "google/gemini-3-flash-preview",
+      status: "success",
+      durationMs: Date.now() - aiStart,
+      promptTokens: aiData.usage?.prompt_tokens,
+      completionTokens: aiData.usage?.completion_tokens,
+      totalTokens: aiData.usage?.total_tokens,
+    });
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) return new Response(JSON.stringify({ error: "AI did not return structured data" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 

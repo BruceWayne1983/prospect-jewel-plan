@@ -46,7 +46,23 @@ export default function SalesCalendar() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const fetchEvents = async () => {
-    const { data } = await supabase.from("calendar_events").select("*").order("date", { ascending: true }).order("time", { ascending: true });
+    // Fetch a rolling 6-month window (3 months back, 3 forward) — covers
+    // the calendar's visible range while bounding the query. Older events
+    // remain in the DB and can be paged in if needed.
+    const now = new Date();
+    const from = new Date(now);
+    from.setMonth(from.getMonth() - 3);
+    const to = new Date(now);
+    to.setMonth(to.getMonth() + 3);
+    const fromStr = from.toISOString().split("T")[0];
+    const toStr = to.toISOString().split("T")[0];
+    const { data } = await supabase.from("calendar_events")
+      .select("*")
+      .gte("date", fromStr)
+      .lte("date", toStr)
+      .order("date", { ascending: true })
+      .order("time", { ascending: true })
+      .limit(1000);
     setEvents(data ?? []);
     setLoading(false);
   };
