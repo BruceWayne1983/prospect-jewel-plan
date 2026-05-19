@@ -162,7 +162,70 @@ Extract all relevant data and recommend the appropriate pipeline stage.`,
       return new Response(JSON.stringify({ error: "Failed to update CRM" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ success: true, extracted }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Smart routing: turn the extracted intent into the right side-effects so
+    // Emma doesn't have to manually log a visit + schedule a follow-up + open
+    // the activity log. Each side-effect is best-effort — if one fails the
+    // others still happen, and the response still returns success.
+    const sideEffects: { activityLogged: boolean; followUpScheduled: boolean } = {
+      activityLogged: false,
+      followUpScheduled: false,
+    };
+    const today = new Date().toISOString().split("T")[0];
+
+    // 1. Activity log entry — audit trail of the visit. Reuses `user` from
+    //    the top-of-handler auth check (line 22) rather than calling
+    //    auth.getUser() again.
+    try {
+      {
+        const { error: logErr } = await supabase.from("activity_log").insert({
+          user_id: user.id,
+          retailer_id: retailerId,
+          action: "voice_visit_logged",
+          details: {
+            outcome: extracted.outcome,
+            summary: extracted.summaryNote,
+            brandsDiscussed: extracted.brandsDiscussed,
+            objectionsRaised: extracted.objectionsRaised,
+            productsOfInterest: extracted.productsOfInterest,
+            contactName: extracted.contactName,
+            contactRole: extracted.contactRole,
+            nextAction: extracted.nextAction,
+          },
+        });
+        sideEffects.activityLogged = !logErr;
+        if (logErr) console.error("activity_log insert failed:", logErr.message);
+
+        // 2. Calendar event — book the next visit / call / meeting so Emma
+        //    doesn't forget. Only fires when we have a usable follow-up date
+        //    in ISO form (YYYY-MM-DD).
+        const followUp = typeof extracted.followUpDate === "string" ? extracted.followUpDate.trim() : "";
+        const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(followUp);
+        if (isIsoDate && followUp >= today) {
+          const eventType = extracted.meetingScheduled
+            ? "meeting"
+            : extracted.outcome === "order_placed"
+              ? "follow_up"
+              : "call";
+          const { error: eventErr } = await supabase.from("calendar_events").insert({
+            user_id: user.id,
+            retailer_id: retailerId,
+            retailer_name: retailer.name,
+            town: retailer.town,
+            date: followUp,
+            type: eventType,
+            title: `${eventType === "meeting" ? "Meeting" : eventType === "follow_up" ? "Follow up" : "Call"} — ${retailer.name}`,
+            notes: extracted.nextAction || "",
+            completed: false,
+          });
+          sideEffects.followUpScheduled = !eventErr;
+          if (eventErr) console.error("calendar_events insert failed:", eventErr.message);
+        }
+      }
+    } catch (err) {
+      console.error("voice-to-crm side-effects failed:", err);
+    }
+
+    return new Response(JSON.stringify({ success: true, extracted, sideEffects }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
