@@ -158,9 +158,9 @@ Extract all relevant data and recommend the appropriate pipeline stage.`,
     const extracted = JSON.parse(toolCall.function.arguments);
 
     // Update retailer activity and pipeline
-    const existingActivity = (retailer.activity || {}) as Record<string, any>;
+    const existingActivity = (retailer.activity || {}) as Record<string, unknown>;
     const existingNotes = Array.isArray(existingActivity.conversationNotes) ? existingActivity.conversationNotes : [];
-    const existingOutreach = (retailer.outreach || {}) as Record<string, any>;
+    const existingOutreach = (retailer.outreach || {}) as Record<string, unknown>;
 
     const updatedActivity = {
       ...existingActivity,

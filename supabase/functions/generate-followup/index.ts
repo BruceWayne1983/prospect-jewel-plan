@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAiCallLogger } from "../_shared/ai-call-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +36,13 @@ Deno.serve(async (req) => {
 
     const outreach = retailer.outreach || {};
     const ai = retailer.ai_intelligence || {};
+
+    const aiLogger = createAiCallLogger(supabase, {
+      userId: user.id,
+      functionName: "generate-followup",
+      retailerId,
+    });
+    const aiStart = Date.now();
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -89,6 +97,13 @@ Write both a professional email version and a shorter WhatsApp version. Referenc
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;
+      await aiLogger.log({
+        provider: "lovable",
+        model: "google/gemini-3-flash-preview",
+        status: status === 429 ? "rate_limited" : "error",
+        durationMs: Date.now() - aiStart,
+        errorMessage: `HTTP ${status}`,
+      });
       if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       await aiResponse.text();
@@ -96,6 +111,15 @@ Write both a professional email version and a shorter WhatsApp version. Referenc
     }
 
     const aiData = await aiResponse.json();
+    await aiLogger.log({
+      provider: "lovable",
+      model: "google/gemini-3-flash-preview",
+      status: "success",
+      durationMs: Date.now() - aiStart,
+      promptTokens: aiData.usage?.prompt_tokens,
+      completionTokens: aiData.usage?.completion_tokens,
+      totalTokens: aiData.usage?.total_tokens,
+    });
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) return new Response(JSON.stringify({ error: "AI did not return structured data" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 

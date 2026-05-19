@@ -5,7 +5,23 @@
  * - If only period_end is present, assume period_start is 1 January of that year.
  * - If neither is present, fall back to "days since 1 Jan of the current year"
  *   and flag the result as an estimate.
+ *
+ * All date parsing uses *local* midnight. The previous implementation used
+ * `new Date("YYYY-MM-DD")` which parses as UTC, then mixed it with
+ * `new Date(year, 0, 1)` (local midnight) — that drifted by one day under
+ * timezones east of UTC.
  */
+
+// Parses a YYYY-MM-DD string as local midnight. Returns null for anything
+// non-ISO so the caller can fall through to the next branch.
+function parseLocalIsoDate(s: string | null): Date | null {
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export function calculateAnnualisedRate(
   totalCY: number,
   periodStart: string | null,
@@ -15,14 +31,8 @@ export function calculateAnnualisedRate(
     return { rate: 0, isEstimate: false, periodDays: 0 };
   }
 
-  const parse = (s: string | null): Date | null => {
-    if (!s) return null;
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
-  };
-
-  const start = parse(periodStart);
-  const end = parse(periodEnd);
+  const start = parseLocalIsoDate(periodStart);
+  const end = parseLocalIsoDate(periodEnd);
 
   // Both dates present — use the exact period
   if (start && end) {
