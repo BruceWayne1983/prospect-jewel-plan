@@ -610,7 +610,14 @@ Deno.serve(async (req) => {
     const runBatch = async (c: string, cat: string) => {
       targetsScanned.push({ county: c, category: cat });
       try {
-        const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+        // Feed prospects from earlier batches in this run into the dedup pool
+        // so a shop discovered in batch 1 isn't re-inserted by batch 2 during
+        // a full territory sweep.
+        const dedupPool = [
+          ...(existingProspects || []),
+          ...allInserted.map(p => ({ name: p.name, town: p.town, website: p.website ?? null })),
+        ];
+        const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, dedupPool);
         allInserted = allInserted.concat(result.inserted);
         allMatched = allMatched.concat(result.matchedAccounts);
         consecutiveFailures = 0;
