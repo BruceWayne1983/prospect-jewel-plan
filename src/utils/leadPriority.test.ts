@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import { revenuePriority, rankByRevenuePriority, isFollowUpOverdue, overdueFollowUps, daysOverdue } from "./leadPriority";
 import type { Retailer } from "@/hooks/useRetailers";
 
-const NOW = new Date("2024-06-15T12:00:00Z");
+// Local-time fixture (no 'Z') — keeps the test stable across TZ=UTC and
+// TZ=Pacific/Auckland alike. The "12:00:00Z" form would shift into the
+// next day for runners east of UTC.
+const NOW = new Date(2024, 5, 15, 12, 0, 0);
 
 function makeRetailer(overrides: Partial<Retailer> = {}): Retailer {
   return {
