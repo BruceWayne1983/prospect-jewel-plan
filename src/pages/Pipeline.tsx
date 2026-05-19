@@ -123,6 +123,28 @@ export default function Pipeline() {
         return;
       }
       toast.success(`Moved to ${PIPELINE_STAGES.find(s => s.key === targetStage)?.label}`);
+
+      // When a prospect graduates to "qualified", kick off background verification
+      // so Emma sees contact + Companies House signals before she advances any
+      // further (e.g. into priority_outreach). Fire-and-forget — the toasts and
+      // a future refetch surface the result; the stage move itself isn't gated.
+      if (targetStage === 'qualified' && sourceStage !== 'qualified') {
+        const t = toast.loading(`Verifying ${dragged.name}…`);
+        Promise.allSettled([
+          supabase.functions.invoke("cross-validate-contact", { body: { retailerId: dragId } }),
+          supabase.functions.invoke("companies-house", { body: { retailerId: dragId } }),
+        ]).then(results => {
+          toast.dismiss(t);
+          const failed = results.filter(r => r.status === "rejected").length;
+          if (failed === 0) {
+            toast.success(`${dragged.name}: contact + Companies House checked`);
+          } else if (failed < results.length) {
+            toast.warning(`${dragged.name}: partial verification (${failed} check failed)`);
+          } else {
+            toast.error(`${dragged.name}: verification checks failed`);
+          }
+        });
+      }
     }
 
     // Reorder in target column

@@ -214,6 +214,7 @@ function rootDomain(url: string | null | undefined): string {
 }
 
 interface RetailerLite { id: string; name: string; town: string; website?: string | null }
+interface ProspectLite { name: string; town: string | null; website?: string | null }
 
 function matchExistingRetailer(
   name: string,
@@ -234,6 +235,28 @@ function matchExistingRetailer(
   const loose = retailers.find(r => normaliseName(r.name) === nName && (!r.town || !nTown));
   if (loose) return loose;
   return null;
+}
+
+// Fuzzy dedup against the existing discovered_prospects table. Mirrors the
+// retailer match: domain wins, then normalised name + town, then normalised
+// name + empty-town. Stops the same shop being discovered twice with
+// different name formats ("Bumble Tree Ltd" vs "Bumble Tree, Bath").
+function isDuplicateProspect(
+  name: string,
+  town: string,
+  website: string | null,
+  prospects: ProspectLite[],
+): boolean {
+  const nName = normaliseName(name);
+  const nTown = normTown(town);
+  const nDomain = rootDomain(website);
+  if (nDomain) {
+    if (prospects.some(p => rootDomain(p.website) === nDomain)) return true;
+  }
+  if (!nName) return false;
+  if (prospects.some(p => normaliseName(p.name) === nName && normTown(p.town || "") === nTown && nTown !== "")) return true;
+  if (prospects.some(p => normaliseName(p.name) === nName && (!p.town || !nTown))) return true;
+  return false;
 }
 
 async function probeUrl(url: string): Promise<boolean> {
@@ -369,7 +392,7 @@ async function discoverBatch(
   FIRECRAWL_API_KEY: string,
   notFitContext: string = "",
   existingRetailers: RetailerLite[] = [],
-  existingProspects: Array<{ name: string; town: string }> = [],
+  existingProspects: Array<{ name: string; town: string | null; website?: string | null }> = [],
 ): Promise<{ inserted: any[]; matchedAccounts: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> }> {
   const matchedAccounts: Array<{ retailer_id: string; retailer_name: string; retailer_town: string; matched_name: string }> = [];
 
@@ -392,10 +415,10 @@ async function discoverBatch(
   if (classified.length === 0) return { inserted: [], matchedAccounts };
 
   // Step 3: Dedup and current-account filtering
-  const lowerExistingProspects = new Set(
-    existingProspects.map(p => `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`)
-  );
+  // Fuzzy match against existing prospects (normalised name + town OR domain)
+  // catches "Bumble Tree Ltd" vs "Bumble Tree, Bath" as the same store.
   const seenInBatch = new Set<string>();
+  const seenInBatchLite: ProspectLite[] = [];
   const branchFlags: Map<number, { related_account_id: string; related_name: string; related_town: string }> = new Map();
   const candidates: any[] = [];
 
@@ -405,7 +428,8 @@ async function discoverBatch(
 
     const key = `${p.name.toLowerCase()}|${(p.town || "").toLowerCase()}`;
     if (seenInBatch.has(key)) continue;
-    if (lowerExistingProspects.has(key)) continue;
+    if (isDuplicateProspect(p.name, p.town || "", p.website || null, existingProspects)) continue;
+    if (isDuplicateProspect(p.name, p.town || "", p.website || null, seenInBatchLite)) continue;
 
     // RULE 2: Fuzzy match against current accounts (name + town OR root domain)
     const matched = matchExistingRetailer(p.name, p.town || "", p.website || null, existingRetailers);
@@ -431,6 +455,7 @@ async function discoverBatch(
     }
 
     seenInBatch.add(key);
+    seenInBatchLite.push({ name: p.name, town: p.town || null, website: p.website || null });
     candidates.push(p);
   }
 
@@ -551,7 +576,7 @@ Deno.serve(async (req) => {
     }
 
     const { data: existingRetailers } = await supabase.from("retailers").select("id, name, town, website");
-    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town");
+    const { data: existingProspects } = await supabase.from("discovered_prospects").select("name, town, website");
     const retailerEntries: RetailerLite[] = (existingRetailers || []).map((r: any) => ({ id: r.id, name: r.name, town: r.town, website: r.website }));
 
     const { data: disqualPatterns } = await supabase.from("disqualification_patterns").select("*").order("created_at", { ascending: false }).limit(50);
@@ -585,7 +610,14 @@ Deno.serve(async (req) => {
     const runBatch = async (c: string, cat: string) => {
       targetsScanned.push({ county: c, category: cat });
       try {
-        const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+        // Feed prospects from earlier batches in this run into the dedup pool
+        // so a shop discovered in batch 1 isn't re-inserted by batch 2 during
+        // a full territory sweep.
+        const dedupPool = [
+          ...(existingProspects || []),
+          ...allInserted.map(p => ({ name: p.name, town: p.town, website: p.website ?? null })),
+        ];
+        const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, dedupPool);
         allInserted = allInserted.concat(result.inserted);
         allMatched = allMatched.concat(result.matchedAccounts);
         consecutiveFailures = 0;
