@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { useRefetchOnFocus } from "@/hooks/useOnlineStatus";
 
 export type Retailer = Tables<"retailers">;
 
@@ -8,18 +9,20 @@ export function useRetailers() {
   const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRetailers = async () => {
+  const fetchRetailers = useCallback(async () => {
     const { data } = await supabase
       .from("retailers")
       .select("*")
       .order("priority_score", { ascending: false });
     setRetailers(data ?? []);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchRetailers();
-  }, []);
+  }, [fetchRetailers]);
+
+  useRefetchOnFocus(fetchRetailers);
 
   return { retailers, loading, refetch: fetchRetailers };
 }

@@ -80,6 +80,15 @@ export default function Dashboard() {
 
   return (
     <div className="page-container">
+      {dataInsights.error && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive flex items-center justify-between gap-2"
+        >
+          <span>Couldn't load data insights — some dashboard metrics may be incomplete.</span>
+          <span className="text-[10px] text-destructive/70 truncate max-w-[40%]">{dataInsights.error}</span>
+        </div>
+      )}
       <div className="flex items-end justify-between">
         <div>
           <p className="section-header mb-2">{greeting}, {displayName}</p>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRefetchOnFocus } from "@/hooks/useOnlineStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarDays, Clock, MapPin, Home, Baby, AlertCircle, Plus, X, Car } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
@@ -83,14 +84,17 @@ export function DiaryWeekView({ onDaySelect, selectedDay, scheduledVisits }: Dia
   const monday = startOfWeek(today, { weekStartsOn: 1 });
   const weekDates = Array.from({ length: 5 }, (_, i) => addDays(monday, i));
 
-  useEffect(() => {
-    const startDate = format(weekDates[0], 'yyyy-MM-dd');
-    const endDate = format(weekDates[4], 'yyyy-MM-dd');
-    supabase.from("calendar_events").select("id, title, date, time, type, retailer_name, town")
+  const startDate = format(weekDates[0], 'yyyy-MM-dd');
+  const endDate = format(weekDates[4], 'yyyy-MM-dd');
+  const fetchEvents = useCallback(async () => {
+    const { data } = await supabase.from("calendar_events")
+      .select("id, title, date, time, type, retailer_name, town")
       .gte("date", startDate).lte("date", endDate)
-      .order("time", { ascending: true })
-      .then(({ data }) => setEvents(data ?? []));
-  }, []);
+      .order("time", { ascending: true });
+    setEvents(data ?? []);
+  }, [startDate, endDate]);
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useRefetchOnFocus(fetchEvents);
 
   const updatePref = (dayIndex: number, updates: Partial<DayPreference>) => {
     const next = preferences.map(p => p.dayOfWeek === dayIndex ? { ...p, ...updates } : p);
