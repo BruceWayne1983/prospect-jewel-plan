@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRefetchOnFocus } from "@/hooks/useOnlineStatus";
 import { useRetailers, getOutreach, getActivity } from "@/hooks/useRetailers";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -228,15 +229,18 @@ export default function JourneyPlanner() {
     });
   };
 
-  // Fetch nearby prospects for route stops
+  // Fetch nearby prospects for route stops. Refetch when the tab regains
+  // focus so a rep who's been driving sees fresh data when they come back.
   const [nearbyProspects, setNearbyProspects] = useState<any[]>([]);
-  useEffect(() => {
-    supabase.from("discovered_prospects")
+  const fetchNearbyProspects = useCallback(async () => {
+    const { data } = await supabase.from("discovered_prospects")
       .select("id, name, town, county, category, lat, lng, predicted_fit_score, status")
       .neq("status", "dismissed")
-      .neq("status", "accepted")
-      .then(({ data }) => setNearbyProspects(data || []));
+      .neq("status", "accepted");
+    setNearbyProspects(data || []);
   }, []);
+  useEffect(() => { fetchNearbyProspects(); }, [fetchNearbyProspects]);
+  useRefetchOnFocus(fetchNearbyProspects);
 
   const enrichedRetailers: RetailerWithMeta[] = useMemo(() =>
     retailers.map(r => {

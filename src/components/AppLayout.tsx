@@ -1,13 +1,25 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell } from "lucide-react";
+import { Bell, WifiOff } from "lucide-react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const online = useOnlineStatus();
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
+          {!online && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="bg-warning/10 border-b border-warning/30 text-warning text-xs px-4 py-2 flex items-center gap-2"
+            >
+              <WifiOff className="w-3.5 h-3.5" />
+              You're offline — changes you make may not save until you're back online.
+            </div>
+          )}
           <header className="h-14 flex items-center justify-between border-b border-border/30 px-6 bg-card/60 backdrop-blur-md sticky top-0 z-10">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
             <div className="flex items-center gap-3">

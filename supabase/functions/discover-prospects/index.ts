@@ -688,10 +688,12 @@ Deno.serve(async (req) => {
 
       rationale = `Aligned with ${upcomingCounties.length} upcoming route ${upcomingCounties.length === 1 ? 'county' : 'counties'} in the next 14 days: ${upcomingCounties.join(', ')}.`;
       for (const c of upcomingCounties) {
+        if (Date.now() - startedAt > MAX_WALL_CLOCK_MS) break;
         try {
           await runBatch(c, pickCategory());
         } catch (err: any) {
           console.error(`route_aligned batch error for ${c}:`, err.message);
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) break;
         }
         await new Promise(r => setTimeout(r, 1500));
       }
@@ -724,12 +726,14 @@ Deno.serve(async (req) => {
 
       rationale = `Top 3 priority towns with lowest coverage: ${ranked.map(r => `${r.town} (priority ${r.priority_score}, existing ${r.existing})`).join('; ')}.`;
       for (const t of ranked) {
+        if (Date.now() - startedAt > MAX_WALL_CLOCK_MS) break;
         try {
           // Alternate between jeweller and gift_shop for breadth
           const cat = ranked.indexOf(t) % 2 === 0 ? 'jeweller' : 'gift_shop';
           await runBatch(t.county, cat);
         } catch (err: any) {
           console.error(`gap_led batch error for ${t.town}:`, err.message);
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) break;
         }
         await new Promise(r => setTimeout(r, 1500));
       }
@@ -760,10 +764,12 @@ Deno.serve(async (req) => {
 
       rationale = `Lookalike seeds from top ${topAccounts.length} accounts by 2025 billing: ${combos.map(c => `${c.seedName} (${c.seedTown}) → ${c.category.replace(/_/g, ' ')} in ${c.county}`).join('; ')}.`;
       for (const combo of combos) {
+        if (Date.now() - startedAt > MAX_WALL_CLOCK_MS) break;
         try {
           await runBatch(combo.county, combo.category);
         } catch (err: any) {
           console.error(`lookalike batch error for ${combo.county}/${combo.category}:`, err.message);
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) break;
         }
         await new Promise(r => setTimeout(r, 1500));
       }

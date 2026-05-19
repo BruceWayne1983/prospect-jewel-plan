@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { MapPin, Phone, Mail, Globe, ArrowUpRight, AlertTriangle, Sparkles, Clock, RefreshCw, Activity, Calendar, Trash2 } from "lucide-react";
+import { MapPin, ArrowUpRight, AlertTriangle, Sparkles, Clock, RefreshCw, Activity, Calendar, Trash2 } from "lucide-react";
 import { QuickBookButton } from "@/components/calendar/EventBooker";
+import { ContactActions } from "@/components/contact/ContactActions";
 import { Retailer, getOutreach, getActivity, getPerformancePrediction, getAIIntelligence } from "@/hooks/useRetailers";
 import {
   getAccountHealth, getHealthColor, getHealthBg, getHealthLabel,
@@ -155,13 +156,23 @@ export function AccountCard({ retailer: r, onRemove }: AccountCardProps) {
 
       {/* Contact & Quick Actions */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground min-w-0">
           {outreach.contactName && (
             <span className="truncate">{outreach.contactName}</span>
           )}
-          {r.phone && <Phone className="w-3 h-3 flex-shrink-0" />}
-          {r.email && <Mail className="w-3 h-3 flex-shrink-0" />}
-          {r.website && <Globe className="w-3 h-3 flex-shrink-0" />}
+          <ContactActions
+            phone={r.phone}
+            email={r.email}
+            website={r.website}
+            directionTarget={{
+              address: r.address,
+              postcode: r.postcode,
+              town: r.town,
+              county: r.county,
+              lat: r.lat,
+              lng: r.lng,
+            }}
+          />
         </div>
         <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
           <QuickBookButton retailerId={r.id} retailerName={r.name} town={r.town} defaultType="visit" variant="icon" />

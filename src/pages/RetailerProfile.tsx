@@ -13,6 +13,7 @@ import { BillingPanel } from "@/components/retailer/BillingPanel";
 import { GroupAccounts } from "@/components/retailer/GroupAccounts";
 import { NearbyProspects } from "@/components/retailer/NearbyProspects";
 import { ContactProvenancePanel } from "@/components/retailer/ContactProvenancePanel";
+import { ContactActions } from "@/components/contact/ContactActions";
 import { ContactField } from "@/components/contact/ContactField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -333,6 +334,23 @@ export default function RetailerProfile() {
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="w-3.5 h-3.5" strokeWidth={1.5} />{r.address && `${r.address}, `}{r.town}, {r.county}{r.postcode ? ` ${r.postcode}` : ''}</span>
               <span className="flex items-center gap-1 text-sm text-muted-foreground"><Star className="w-3.5 h-3.5 text-warning" />{r.rating ?? 0} ({r.review_count ?? 0})</span>
               {r.is_independent && <span className="text-xs text-muted-foreground">Independent</span>}
+            </div>
+            <div className="mt-3">
+              <ContactActions
+                phone={r.phone}
+                email={r.email}
+                website={r.website}
+                directionTarget={{
+                  address: r.address,
+                  postcode: r.postcode,
+                  town: r.town,
+                  county: r.county,
+                  lat: r.lat,
+                  lng: r.lng,
+                }}
+                size="md"
+                stopPropagation={false}
+              />
             </div>
           </div>
           <div className="text-right flex-shrink-0 space-y-2">
