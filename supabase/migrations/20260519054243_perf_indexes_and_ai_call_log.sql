@@ -62,12 +62,14 @@ CREATE INDEX IF NOT EXISTS idx_ai_call_log_function_created
 -- No UPDATE/DELETE policy — the ledger is append-only.
 ALTER TABLE public.ai_call_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users read their own ai_call_log rows" ON public.ai_call_log;
 CREATE POLICY "Users read their own ai_call_log rows"
   ON public.ai_call_log
   FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users insert their own ai_call_log rows" ON public.ai_call_log;
 CREATE POLICY "Users insert their own ai_call_log rows"
   ON public.ai_call_log
   FOR INSERT

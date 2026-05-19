@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import PromotionsTracker from "@/components/calendar/PromotionsTracker";
 import { EventBooker, type EventType } from "@/components/calendar/EventBooker";
 import { toast } from "sonner";
-import { format, addDays, startOfWeek, isSameDay } from "date-fns";
+import { format, addDays, startOfWeek, isSameDay, subMonths, addMonths } from "date-fns";
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -47,15 +47,13 @@ export default function SalesCalendar() {
 
   const fetchEvents = async () => {
     // Fetch a rolling 6-month window (3 months back, 3 forward) — covers
-    // the calendar's visible range while bounding the query. Older events
-    // remain in the DB and can be paged in if needed.
+    // the calendar's visible range while bounding the query. Use date-fns
+    // subMonths/addMonths rather than Date.setMonth() to avoid the
+    // end-of-month overflow trap (e.g. May 31 - 3 months would land on
+    // March 3, not March 1, with naive setMonth).
     const now = new Date();
-    const from = new Date(now);
-    from.setMonth(from.getMonth() - 3);
-    const to = new Date(now);
-    to.setMonth(to.getMonth() + 3);
-    const fromStr = from.toISOString().split("T")[0];
-    const toStr = to.toISOString().split("T")[0];
+    const fromStr = format(subMonths(now, 3), "yyyy-MM-dd");
+    const toStr = format(addMonths(now, 3), "yyyy-MM-dd");
     const { data } = await supabase.from("calendar_events")
       .select("*")
       .gte("date", fromStr)
