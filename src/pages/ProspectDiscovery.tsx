@@ -1384,7 +1384,22 @@ export default function ProspectDiscovery() {
                     <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" strokeWidth={1.5} />{p.phone}</span>
                   )}
                   {p.email && (
-                    <a href={`mailto:${p.email}`} className="flex items-center gap-1 text-xs text-info hover:underline"><Mail className="w-3 h-3" strokeWidth={1.5} />{p.email}</a>
+                    <a
+                      href={`mailto:${p.email}`}
+                      className="flex items-center gap-1 text-xs text-info hover:underline"
+                      title="Discovered email — verify before sending"
+                      onClick={(e) => {
+                        // Discovered prospects are AI-inferred until cross-validated.
+                        // Confirm before opening the mail client to stop sending to a
+                        // hallucinated address.
+                        const verified = (p as { verification_status?: string }).verification_status === "verified";
+                        if (verified) return;
+                        const ok = window.confirm(`This email hasn't been verified — it may be an AI suggestion. Continue?`);
+                        if (!ok) e.preventDefault();
+                      }}
+                    >
+                      <Mail className="w-3 h-3" strokeWidth={1.5} />{p.email}
+                    </a>
                   )}
                   {p.address && (
                     <span className="text-xs text-muted-foreground truncate max-w-[300px]">{p.address}</span>
