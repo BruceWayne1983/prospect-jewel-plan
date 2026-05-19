@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { revenuePriority, rankByRevenuePriority, isFollowUpOverdue, overdueFollowUps } from "./leadPriority";
+import { revenuePriority, rankByRevenuePriority, isFollowUpOverdue, overdueFollowUps, daysOverdue } from "./leadPriority";
 import type { Retailer } from "@/hooks/useRetailers";
 
 const NOW = new Date("2024-06-15T12:00:00Z");
@@ -114,5 +114,48 @@ describe("overdueFollowUps", () => {
     const c = makeRetailer({ id: "c", activity: { nextActionDate: "2024-07-01" } });
     const d = makeRetailer({ id: "d", activity: {} });
     expect(overdueFollowUps([a, b, c, d], NOW).map(r => r.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("daysOverdue", () => {
+  // NOW is "2024-06-15T12:00:00Z". The function uses local-midnight parsing
+  // for both `today` and `nextActionDate`, so the result should be
+  // independent of the local timezone of the test runner.
+  it("returns 0 for null/undefined/empty input", () => {
+    expect(daysOverdue(null, NOW)).toBe(0);
+    expect(daysOverdue(undefined, NOW)).toBe(0);
+    expect(daysOverdue("", NOW)).toBe(0);
+  });
+
+  it("returns 0 for non-ISO strings like 'next week'", () => {
+    expect(daysOverdue("next week", NOW)).toBe(0);
+  });
+
+  it("returns 0 when nextActionDate is today", () => {
+    expect(daysOverdue("2024-06-15", NOW)).toBe(0);
+  });
+
+  it("returns 0 (clamped) for future dates rather than going negative", () => {
+    expect(daysOverdue("2024-07-01", NOW)).toBe(0);
+  });
+
+  it("returns the integer day count for past dates", () => {
+    expect(daysOverdue("2024-06-14", NOW)).toBe(1);
+    expect(daysOverdue("2024-06-10", NOW)).toBe(5);
+    expect(daysOverdue("2024-05-15", NOW)).toBe(31);
+  });
+});
+
+describe("isFollowUpOverdue — timezone correctness", () => {
+  // Regression test for the UTC/local-midnight mixing bug. Previously
+  // `new Date("2024-06-15")` parsed as UTC midnight and was compared against
+  // a local-midnight `today`, which flagged today's follow-up as overdue
+  // for users west of UTC during evening hours. Both sides are now parsed
+  // as local midnight, so the comparison is timezone-stable.
+  it("does NOT flag today as overdue regardless of test-runner timezone", () => {
+    const r = makeRetailer({ activity: { nextActionDate: "2024-06-15" } });
+    // Across a range of times within the same local day, today is never overdue.
+    expect(isFollowUpOverdue(r, new Date("2024-06-15T00:30:00"))).toBe(false);
+    expect(isFollowUpOverdue(r, new Date("2024-06-15T23:30:00"))).toBe(false);
   });
 });

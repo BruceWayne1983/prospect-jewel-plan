@@ -11,7 +11,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { EarningsTracker } from "@/components/earnings/EarningsTracker";
 import { AlertsSection, computeAlerts } from "@/components/accounts/BillingAlerts";
 import { EmmaAssistant } from "@/components/dashboard/EmmaAssistant";
-import { rankByRevenuePriority, overdueFollowUps } from "@/utils/leadPriority";
+import { rankByRevenuePriority, overdueFollowUps, daysOverdue } from "@/utils/leadPriority";
 import { tradingStatusAt } from "@/utils/tradingHours";
 
 export default function Dashboard() {
@@ -366,7 +366,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {overdue.slice(0, 6).map(r => {
               const next = getActivity(r).nextActionDate;
-              const daysOverdue = next ? Math.max(0, Math.floor((Date.now() - new Date(next).getTime()) / 86400000)) : 0;
+              const days = daysOverdue(next);
               return (
                 <div
                   key={r.id}
@@ -376,7 +376,7 @@ export default function Dashboard() {
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{r.name}</p>
                     <p className="text-[9px] text-destructive truncate">
-                      {daysOverdue === 0 ? "Due today" : `${daysOverdue} day${daysOverdue === 1 ? '' : 's'} overdue`}
+                      {days === 0 ? "Due today" : `${days} day${days === 1 ? '' : 's'} overdue`}
                       {next && ` · was ${next}`}
                     </p>
                   </div>

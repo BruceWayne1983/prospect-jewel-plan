@@ -45,19 +45,37 @@ export function rankByRevenuePriority(retailers: Retailer[], now: Date = new Dat
     .map(({ r }) => r);
 }
 
+// Parses a YYYY-MM-DD string as a *local* midnight Date. Avoids the trap
+// where `new Date("2024-06-14")` is treated as UTC midnight and then compared
+// against a local-midnight `today`, which flags today's follow-up as overdue
+// for users in any timezone west of UTC during evening hours.
+function parseLocalIsoDate(s: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
 // True when the retailer has a `nextActionDate` set and it's strictly before
-// today (UTC date comparison). Used to surface "you owe these people a
-// follow-up" on the dashboard.
+// today (local-date comparison — both sides parsed as local midnight). Used
+// to surface "you owe these people a follow-up" on the dashboard.
 export function isFollowUpOverdue(r: Retailer, now: Date = new Date()): boolean {
   const activity = getActivity(r);
   if (!activity.nextActionDate) return false;
-  // Parse as a YYYY-MM-DD date — if the next-action date is anything else
-  // (e.g. "next week") we can't compute overdue-ness, treat as not overdue.
-  if (!/^\d{4}-\d{2}-\d{2}/.test(activity.nextActionDate)) return false;
-  const next = new Date(activity.nextActionDate);
-  if (isNaN(next.getTime())) return false;
+  const next = parseLocalIsoDate(activity.nextActionDate);
+  if (!next) return false; // non-ISO like "next week" → not overdue
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return next < today;
+}
+
+// Days-overdue calculation using the same local-midnight parsing so the
+// number matches the boolean returned by isFollowUpOverdue.
+export function daysOverdue(nextActionDate: string | null | undefined, now: Date = new Date()): number {
+  if (!nextActionDate) return 0;
+  const next = parseLocalIsoDate(nextActionDate);
+  if (!next) return 0;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.floor((today.getTime() - next.getTime()) / 86400000));
 }
 
 export function overdueFollowUps(retailers: Retailer[], now: Date = new Date()): Retailer[] {
