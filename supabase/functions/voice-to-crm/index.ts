@@ -172,10 +172,11 @@ Extract all relevant data and recommend the appropriate pipeline stage.`,
     };
     const today = new Date().toISOString().split("T")[0];
 
-    // 1. Activity log entry — audit trail of the visit
+    // 1. Activity log entry — audit trail of the visit. Reuses `user` from
+    //    the top-of-handler auth check (line 22) rather than calling
+    //    auth.getUser() again.
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      {
         const { error: logErr } = await supabase.from("activity_log").insert({
           user_id: user.id,
           retailer_id: retailerId,
