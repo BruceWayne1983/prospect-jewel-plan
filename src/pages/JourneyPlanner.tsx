@@ -233,10 +233,15 @@ export default function JourneyPlanner() {
   // focus so a rep who's been driving sees fresh data when they come back.
   const [nearbyProspects, setNearbyProspects] = useState<any[]>([]);
   const fetchNearbyProspects = useCallback(async () => {
+    // Cap at 500 so a runaway discovery run can't blow up the route view.
+    // 500 is comfortably above the realistic territory size (~150-200 active
+    // prospects) but bounds memory and render time.
     const { data } = await supabase.from("discovered_prospects")
       .select("id, name, town, county, category, lat, lng, predicted_fit_score, status")
       .neq("status", "dismissed")
-      .neq("status", "accepted");
+      .neq("status", "accepted")
+      .order("predicted_fit_score", { ascending: false, nullsFirst: false })
+      .limit(500);
     setNearbyProspects(data || []);
   }, []);
   useEffect(() => { fetchNearbyProspects(); }, [fetchNearbyProspects]);
