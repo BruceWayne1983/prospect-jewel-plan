@@ -80,7 +80,13 @@ export function VoiceToCRM({ retailer, onUpdate }: { retailer: Retailer; onUpdat
       if (error) throw error;
       if (data?.success) {
         setExtracted(data.extracted);
-        toast.success("CRM updated from voice notes!");
+        const sx: { activityLogged?: boolean; followUpScheduled?: boolean } = data.sideEffects || {};
+        const extras: string[] = [];
+        if (sx.activityLogged) extras.push("activity logged");
+        if (sx.followUpScheduled) extras.push("follow-up scheduled");
+        toast.success(
+          extras.length ? `CRM updated — ${extras.join(", ")}` : "CRM updated from voice notes!",
+        );
         onUpdate();
       } else {
         toast.error(data?.error || "Failed to process voice notes");

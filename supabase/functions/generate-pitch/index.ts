@@ -35,6 +35,8 @@ Deno.serve(async (req) => {
 
     const ai = retailer.ai_intelligence || {};
     const competitors = retailer.competitor_brands || [];
+    const activity = retailer.activity || {};
+    const outreach = retailer.outreach || {};
     const isCurrentAccount = accountType === "current_account";
 
     // Build billing context for current accounts
@@ -46,6 +48,21 @@ Deno.serve(async (req) => {
       if (retailer.billing_2026_ytd) parts.push(`2026 YTD: £${Number(retailer.billing_2026_ytd).toLocaleString()}`);
       if (parts.length) billingContext = `\nBilling History: ${parts.join(" | ")}`;
     }
+
+    // Build activity context — last visit outcome, contact, recent notes —
+    // so the pitch can pick up the thread from where the rep left off.
+    let activityContext = "";
+    const a = activity as Record<string, unknown>;
+    const o = outreach as Record<string, unknown>;
+    const activityParts: string[] = [];
+    if (a.lastContactDate) activityParts.push(`Last contact: ${a.lastContactDate}`);
+    if (a.outcomeStatus) activityParts.push(`Last outcome: ${a.outcomeStatus}`);
+    if (a.suggestedNextStep) activityParts.push(`Next step: ${a.suggestedNextStep}`);
+    if (o.contactName) activityParts.push(`Known contact: ${o.contactName}${o.contactRole ? ` (${o.contactRole})` : ""}`);
+    const notes = Array.isArray(a.conversationNotes) ? (a.conversationNotes as string[]) : [];
+    const recentNotes = notes.slice(-3);
+    if (recentNotes.length) activityParts.push(`Recent visit notes: ${recentNotes.join(" | ")}`);
+    if (activityParts.length) activityContext = `\nActivity History: ${activityParts.join(" | ")}`;
 
     const systemPrompt = isCurrentAccount
       ? "You are an expert account growth strategist for Nomination Italy (premium Italian charm jewellery). This is an EXISTING STOCKIST who already carries Nomination. Create a pitch focused on GROWING their business with you — expanding their range, increasing order values, upgrading displays, and introducing new collections. Do NOT pitch as if they're new to the brand. Reference their history and focus on deepening the partnership. Nomination's key ranges include: Composable Classic (charm bracelets), Composable Gold, Extension (stackable bracelets), Bella (fashion jewellery), Gioie (gift-ready pendants), and seasonal collections."
@@ -126,14 +143,14 @@ Positioning: ${retailer.store_positioning || "unknown"}
 Rating: ${retailer.rating}/5 (${retailer.review_count} reviews)
 Fit Score: ${retailer.fit_score}/100
 Pipeline Stage: ${retailer.pipeline_stage}
-${billingContext}
+${billingContext}${activityContext}
 ${(ai as any).summary ? `AI Summary: ${(ai as any).summary}` : ""}
 ${(ai as any).customerDemographic ? `Customer: ${(ai as any).customerDemographic}` : ""}
 ${(ai as any).likelyBuyingMotivation ? `Buying Motivation: ${(ai as any).likelyBuyingMotivation}` : ""}
 ${Array.isArray(competitors) && competitors.length ? `Current Brands: ${competitors.map((c: any) => `${c.name} (${c.priceTier})`).join(", ")}` : "No competitor brand data"}
 ${retailer.risk_flags?.length ? `Risk Flags: ${retailer.risk_flags.join(", ")}` : ""}
 
-Personalise the pitch to reference their specific store type, location, customer base, and ${isCurrentAccount ? 'existing relationship with Nomination' : 'existing brand mix'}.`,
+Personalise the pitch to reference their specific store type, location, customer base, and ${isCurrentAccount ? 'existing relationship with Nomination' : 'existing brand mix'}.${activityParts.length ? ' If recent visit notes are available, pick up the thread — reference what was discussed last time rather than starting cold.' : ''}`,
           },
         ],
       }),
