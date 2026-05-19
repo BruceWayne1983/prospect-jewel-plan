@@ -164,6 +164,7 @@ export function AccountCard({ retailer: r, onRemove }: AccountCardProps) {
             phone={r.phone}
             email={r.email}
             website={r.website}
+            provenance={r.contact_provenance}
             directionTarget={{
               address: r.address,
               postcode: r.postcode,
