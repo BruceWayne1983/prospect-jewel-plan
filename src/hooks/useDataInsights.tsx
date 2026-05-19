@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type ParsedData = {
   stockists?: { name: string; town?: string; county?: string; sales_value?: number; notes?: string }[];
@@ -27,11 +28,13 @@ export type AggregatedInsights = {
   seasonalTrends: { season: string; impact?: string; revenue_share?: string; notes?: string }[];
   allInsights: string[];
   loading: boolean;
+  error: string | null;
 };
 
 export function useDataInsights(): AggregatedInsights {
   const [files, setFiles] = useState<FileWithData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -39,12 +42,19 @@ export function useDataInsights(): AggregatedInsights {
       .select("id, file_name, category, parsed_data, ai_summary, created_at")
       .not("parsed_data", "eq", "{}")
       .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) console.error("useDataInsights: failed to load uploaded_files", error);
+      .then(({ data, error: queryError }) => {
+        if (queryError) {
+          console.error("useDataInsights: failed to load uploaded_files", queryError);
+          setError(queryError.message ?? "Failed to load insights");
+          toast.error("Couldn't load data insights", { description: queryError.message });
+        }
         setFiles((data as FileWithData[] | null) ?? []);
         setLoading(false);
       }, (err) => {
         console.error("useDataInsights: network error loading uploaded_files", err);
+        const msg = err instanceof Error ? err.message : "Network error loading insights";
+        setError(msg);
+        toast.error("Couldn't load data insights", { description: msg });
         setLoading(false);
       });
   }, []);
@@ -104,5 +114,6 @@ export function useDataInsights(): AggregatedInsights {
     seasonalTrends,
     allInsights,
     loading,
+    error,
   };
 }

@@ -89,12 +89,11 @@ describe("getAccountHealth - reorder status", () => {
     expect(h.reorderStatus).toBe(expected);
   });
 
-  // The JSONB accessor in useRetailers defaults reorderPotential to "low" when missing,
-  // which means a brand-new account with no prediction looks "overdue" rather than "unknown".
-  // This is current behaviour; flagged here so a future product fix doesn't silently regress.
-  it("treats a missing prediction as 'overdue' (defaulted to low)", () => {
+  it("treats a missing prediction as 'unknown', not 'overdue'", () => {
+    // Defaults to "unknown" so a brand-new prospect isn't labelled overdue
+    // before any reorder data exists.
     const h = getAccountHealth(makeRetailer({ performance_prediction: {} }));
-    expect(h.reorderStatus).toBe("overdue");
+    expect(h.reorderStatus).toBe("unknown");
   });
 });
 

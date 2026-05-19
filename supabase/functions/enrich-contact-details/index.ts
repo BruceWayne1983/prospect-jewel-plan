@@ -74,11 +74,23 @@ async function firecrawlSearch(query: string, limit = 8): Promise<any[]> {
 async function firecrawlScrape(url: string): Promise<{ markdown: string; html: string; title: string; statusCode: number } | null> {
   const key = Deno.env.get("FIRECRAWL_API_KEY");
   if (!key) throw new Error("FIRECRAWL_API_KEY missing");
-  const res = await fetch(`${FIRECRAWL}/scrape`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent: false, waitFor: 1500 }),
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  let res: Response;
+  try {
+    res = await fetch(`${FIRECRAWL}/scrape`, {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: ["markdown", "html"], onlyMainContent: false, waitFor: 1500 }),
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    const isAbort = err instanceof DOMException && err.name === "AbortError";
+    console.error(`Firecrawl scrape ${isAbort ? "timed out" : "failed"}`, url, err);
+    return null;
+  }
+  clearTimeout(timer);
   if (!res.ok) {
     console.error("Firecrawl scrape failed", url, res.status);
     return null;
