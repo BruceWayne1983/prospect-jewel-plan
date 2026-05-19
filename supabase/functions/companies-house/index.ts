@@ -157,9 +157,23 @@ Deno.serve(async (req) => {
     const searchName = companyName || retailer.name;
     const authString = btoa(`${CH_API_KEY}:`);
 
-    const searchRes = await fetch(`${CH_BASE}/search/companies?q=${encodeURIComponent(searchName)}&items_per_page=3`, {
-      headers: { Authorization: `Basic ${authString}` },
-    });
+    const chAbort = new AbortController();
+    const chTimer = setTimeout(() => chAbort.abort(), 15000);
+    let searchRes: Response;
+    try {
+      searchRes = await fetch(`${CH_BASE}/search/companies?q=${encodeURIComponent(searchName)}&items_per_page=3`, {
+        signal: chAbort.signal,
+        headers: { Authorization: `Basic ${authString}` },
+      });
+    } catch (err) {
+      clearTimeout(chTimer);
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      return new Response(
+        JSON.stringify({ error: isAbort ? "Companies House timed out" : "Companies House unreachable" }),
+        { status: isAbort ? 504 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    clearTimeout(chTimer);
 
     if (!searchRes.ok) {
       console.error("CH search error:", searchRes.status, await searchRes.text());

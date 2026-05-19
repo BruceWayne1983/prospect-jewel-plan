@@ -141,11 +141,22 @@ export function MyContactsUpload({ onComplete }: { onComplete?: () => void }) {
           } : r));
         }
       } catch (err: any) {
+        const msg: string = err?.message || "Verification failed";
         setResults(prev => prev.map((r, idx) => idx === i ? {
           ...r,
           status: "error",
-          message: err?.message || "Verification failed",
+          message: msg,
         } : r));
+
+        // Stop the whole batch if we're rate-limited or out of credits;
+        // continuing would just keep burning quota and producing the same error.
+        const status = (err && typeof err === "object" && "status" in err) ? Number((err as { status: unknown }).status) : NaN;
+        const isQuotaError = status === 429 || status === 402 || /rate limit|credits|quota/i.test(msg);
+        if (isQuotaError) {
+          toast.error("Verification paused — rate limit or quota reached", { description: msg });
+          stoppedAt = i + 1;
+          break;
+        }
       }
 
       setProgress({ done: i + 1, total: rows.length });

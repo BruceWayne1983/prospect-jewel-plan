@@ -575,11 +575,24 @@ Deno.serve(async (req) => {
     let rationale = "";
     let resolvedMode: DiscoveryMode | 'full_scan' | 'legacy' = discoveryMode || (fullScan ? 'full_scan' : 'legacy');
 
+    // Safety caps so a full territory sweep can't run unbounded if external APIs
+    // start misbehaving silently.
+    const MAX_WALL_CLOCK_MS = 10 * 60 * 1000; // 10 minutes
+    const MAX_CONSECUTIVE_FAILURES = 5;
+    const startedAt = Date.now();
+    let consecutiveFailures = 0;
+
     const runBatch = async (c: string, cat: string) => {
       targetsScanned.push({ county: c, category: cat });
-      const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
-      allInserted = allInserted.concat(result.inserted);
-      allMatched = allMatched.concat(result.matchedAccounts);
+      try {
+        const result = await discoverBatch(supabase, userId, c, cat, LOVABLE_API_KEY, FIRECRAWL_API_KEY, notFitContext, retailerEntries, existingProspects || []);
+        allInserted = allInserted.concat(result.inserted);
+        allMatched = allMatched.concat(result.matchedAccounts);
+        consecutiveFailures = 0;
+      } catch (err) {
+        consecutiveFailures++;
+        throw err;
+      }
     };
 
     const pickCategory = () => CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
@@ -588,6 +601,17 @@ Deno.serve(async (req) => {
       rationale = `Full territory sweep across ${SOUTH_WEST_COUNTIES.length} counties × ${CATEGORIES.length} categories.`;
       for (const c of SOUTH_WEST_COUNTIES) {
         for (const cat of CATEGORIES) {
+          if (Date.now() - startedAt > MAX_WALL_CLOCK_MS) {
+            return new Response(JSON.stringify({
+              success: true,
+              prospects: allInserted,
+              matched_current_accounts: allMatched,
+              partial: true,
+              stoppedAt: `${c}/${cat}`,
+              error: `Wall-clock cap of ${MAX_WALL_CLOCK_MS / 1000}s reached`,
+              scan_summary: { mode: resolvedMode, targets_scanned: targetsScanned, rationale },
+            }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
           try {
             await runBatch(c, cat);
           } catch (err: any) {
@@ -600,6 +624,17 @@ Deno.serve(async (req) => {
                 partial: true,
                 stoppedAt: `${c}/${cat}`,
                 error: err.message,
+                scan_summary: { mode: resolvedMode, targets_scanned: targetsScanned, rationale },
+              }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            }
+            if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+              return new Response(JSON.stringify({
+                success: true,
+                prospects: allInserted,
+                matched_current_accounts: allMatched,
+                partial: true,
+                stoppedAt: `${c}/${cat}`,
+                error: `Aborted after ${MAX_CONSECUTIVE_FAILURES} consecutive batch failures`,
                 scan_summary: { mode: resolvedMode, targets_scanned: targetsScanned, rationale },
               }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
             }

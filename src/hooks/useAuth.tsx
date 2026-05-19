@@ -16,12 +16,14 @@ const AuthContext = createContext<AuthContext>({
   signOut: async () => {},
 });
 
-// Demo mode: silently sign in as Emma so every feature (edge functions, RLS
-// queries, AI calls) works without a visible login step. Remove this block to
-// restore normal authentication.
-const DEMO_MODE = true;
-const DEMO_EMAIL = "emmalouisegregory@yahoo.com";
-const DEMO_PASSWORD = "JuneMum43";
+// Demo mode auto-login: enabled only when VITE_DEMO_EMAIL and VITE_DEMO_PASSWORD
+// are both set at build time. Leave them unset in production to require a real
+// sign-in. Previously these credentials were hard-coded in source — they remain
+// in the project's git history, so the demo account password should be rotated
+// before relying on this gate.
+const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL as string | undefined;
+const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD as string | undefined;
+const DEMO_MODE = Boolean(DEMO_EMAIL && DEMO_PASSWORD);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -45,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (DEMO_MODE) {
+      if (DEMO_MODE && DEMO_EMAIL && DEMO_PASSWORD) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: DEMO_EMAIL,
           password: DEMO_PASSWORD,

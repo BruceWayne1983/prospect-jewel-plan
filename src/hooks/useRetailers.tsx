@@ -82,7 +82,7 @@ export function getPerformancePrediction(r: Retailer) {
   return {
     predictedOpeningOrder: p.predictedOpeningOrder ?? '–',
     predictedAnnualValue: p.predictedAnnualValue ?? '–',
-    reorderPotential: p.reorderPotential ?? 'low',
+    reorderPotential: p.reorderPotential ?? 'unknown',
     productMixSuitability: p.productMixSuitability ?? 0,
     similarAccountsUsed: (p.similarAccountsUsed ?? []) as string[],
     predictionConfidence: (p.predictionConfidence ?? 'low') as string,
